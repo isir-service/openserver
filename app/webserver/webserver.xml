@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<webserver>
+	<ip>0.0.0.0</ip>
+	<http_port>55556</http_port>
+	<https_port>55557</http_port>
+</webserver>
