@@ -26,18 +26,6 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/types.h>
-#include <event2/event.h>
-
-
-struct memery_info {
-	void * ptr;
-	char *file;
-	char *function;
-	unsigned int line;
-	unsigned int  alloc;
-};
-
-
 
 
 /*
@@ -49,9 +37,6 @@ struct memery_info {
  * the last argument needs to be a NULL pointer
  */
 
-#define calloc_a(len, ...) __calloc_a(len, ##__VA_ARGS__, NULL)
-
-void *__calloc_a(size_t len, ...);
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -279,41 +264,5 @@ unsigned int ipv4touint(const char *str_ip);
 char * uinttoipv4(unsigned int ip);
 
 
-
-/*memery manager*/
-void *op_memery_init(void);
-
-void op_memery_exit(void *handle);
-
-
-#define op_malloc(handle,size) op_memery_calloc(handle,__FILE__,__FUNCTION__,__LINE__,1,size)
-
-#define op_calloc(handle,nmemb,size) op_memery_calloc(handle,__FILE__,__FUNCTION__,__LINE__,nmemb,size)
-
-
-#define op_strdup(handle,str) op_memery_strdup(handle,__FILE__,__FUNCTION__,__LINE__, str)
-
-
-#define op_strndup(handle,str,size) op_memery_strndup(handle,__FILE__,__FUNCTION__,__LINE__, str, size)
-
-
-#define op_realloc(handle,ptr,size) op_memery_strndup(handle,__FILE__,__FUNCTION__,__LINE__, ptr, size)
-
-
-#define op_free(handle,ptr) op_memery_free(handle,ptr)
-
-void * op_memery_calloc(void *handle,const char *file,const char *function, size_t line, size_t nmemb, size_t size);
-
-void *op_memery_strdup(void *handle,const char *file,const char *function, size_t line, const char *s);
-void *op_memery_strndup(void *handle,const char *file,const char *function, size_t line, const char *s, size_t n);
-void *op_memery_realloc(void *handle,const char *file,const char *function, size_t line, void *ptr, size_t size);
-
-void op_memery_free(void *handle, void *ptr);
-
-
-void op_memery_info(void *handle,void (*show) (void *));
-
-
-struct event_base *op_event_base_new(void);
 
 #endif
