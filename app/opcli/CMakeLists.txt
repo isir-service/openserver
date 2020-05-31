@@ -1,0 +1,5 @@
+project(opcli VERSION 1.0)
+aux_source_directory(. src_file)
+ADD_EXECUTABLE(opcli ${src_file})
+message(${PROJECT_NAME})
+target_link_libraries(${PROJECT_NAME} cli)
