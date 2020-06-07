@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root name="conf">
+	<path>/tmp/log</path>
+	<debug>
+		<module>
+			<name id="1">opcli</name>
+			<name id="2">opbus</name>
+		</module>
+	</debug>
+	<port>5000</port>
+</root>
+
+

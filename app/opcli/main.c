@@ -6,26 +6,26 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-static char *line_vty_read = NULL;
-
-
+struct thread_master * master = NULL;
 int main(int argc, char *argv[])
-
 {
 
 	(void)argc;
 	(void)argv;
 
-	vtysh_init();
+	master = thread_master_create();
+	if (!master)
+		return -1;
+
+	vty_init(master);
+
+	cmd_init();
 
 	/*install element*/
-	
+
 	sort_node ();
-	vtysh_readline_init();
-
-	while (vtysh_rl_gets (&line_vty_read))
-	  vtysh_execute (line_vty_read);
-
-	return 0;
+	vty_serv_sock(NULL,55555,NULL);
+	
+	thread_loop(master);
 
 }
