@@ -1,8 +1,9 @@
-#ifndef OP_LOG__H
-#define OP_LOG__H
+#ifndef __OPLOG__H
+#define __OPLOG__H
 #include "event.h"
 #include <stdlib.h>
-#include "libubox/log.h"
+#include "interface/module.h"
+#include "interface/log.h"
 
 struct debug_module {
 	int fd;
@@ -14,7 +15,7 @@ struct log_conf{
 	char root_path[240];
 	char date_path[412];
 	int port;
-	struct debug_module debug[LOG_MODULE_MAX];
+	struct debug_module debug[MODULE_MAX];
 };
 
 struct oplog{

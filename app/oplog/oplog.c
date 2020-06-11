@@ -50,7 +50,7 @@ int oplog_parse_conf(const char *file_name)
 	int ret = -1;
 	xmlDocPtr doc = NULL;
 	xmlNodePtr root = NULL;
-	xmlNodePtr node,node_module, node_name;
+	xmlNodePtr node;
 	struct oplog *h_op = NULL;
 	xmlChar *value;
 	int index = 0;
@@ -90,32 +90,10 @@ int oplog_parse_conf(const char *file_name)
 
 			xmlFree(value);
 		}
-
-		if (!xmlStrcasecmp(node->name,BAD_CAST"debug")) {
-			for (node_module = node->children; node_module; node_module = node_module->next) {
-				if (node_module->type != XML_ELEMENT_NODE || xmlStrcasecmp(node_module->name,BAD_CAST"module"))
-					continue;
-
-				for(node_name = node_module->children; node_name; node_name = node_name->next) {
-					if (node_name->type != XML_ELEMENT_NODE || xmlStrcasecmp(node_name->name,BAD_CAST"name"))
-						continue;
-				
-					value = xmlNodeGetContent(node_name);
-					if (index >= LOG_MODULE_MAX)
-						break;
-
-					strlcpy(h_op->conf.debug[index].module_name, (char*)value, sizeof(h_op->conf.debug[index].module_name));
-					h_op->conf.debug[index].valid = 1;
-					index++;
-					
-					xmlFree(value);
-				}
-				
-			}
-
-		}
 	}
 
+	for(index = 0; index < MODULE_MAX; index++)
+		strlcpy(h_op->conf.debug[index].module_name, module_id_to_name(index), sizeof(h_op->conf.debug[index].module_name));
 
 	ret = 0;
 
@@ -150,7 +128,7 @@ void oplog_read(int s, short what, void *arg)
 	module = *((unsigned int*)h_op->buf);
 	module = ntohl(module);
 
-	if (module >= LOG_MODULE_MAX)
+	if (module >= MODULE_MAX)
 		return;
 
 	if (h_op->conf.debug[module].valid && h_op->conf.debug[module].fd > 0)
@@ -202,7 +180,7 @@ void op_log_apply_conf(void)
 		update_date = 1;
 	}
 	
-	for (i = 0; i < LOG_MODULE_MAX;i++) {
+	for (i = 0; i < MODULE_MAX;i++) {
 		if (!h_op->conf.debug[i].valid)
 			continue;
 

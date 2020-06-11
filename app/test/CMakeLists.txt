@@ -1,5 +1,5 @@
 project(test VERSION 1.0)
 aux_source_directory(. src_file)
-ADD_EXECUTABLE(test ${src_file})
+ADD_EXECUTABLE(${PROJECT_NAME} ${src_file})
 message(${PROJECT_NAME})
-target_link_libraries(${PROJECT_NAME} ubox xml2)
+target_link_libraries(${PROJECT_NAME} interface ubox xml2)
