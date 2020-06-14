@@ -10,6 +10,7 @@ void test_bus_cb(void *h, unsigned int from_module, unsigned int to_sub_id, void
 	(void)h;
 	(void)arg;
 	printf("from module:%u, to_sub_id:%u,data:%s, size = %u\n", from_module, to_sub_id, (char*)data, size);
+	//bus_res(h, from_module, from_module, "good monring", 12);
 	return;
 }
 
@@ -30,9 +31,8 @@ int main(int argc, char**argv)
 	void *log_h = log_init(MODULE_OPCLI);
 	(void)log_h;
 
-	void *bus_h = bus_connect(base ,MODULE_OPCLI, test_bus_cb, test_bus_disconnect, NULL);
+	void *bus_h = bus_connect(base ,MODULE_OPBUS, test_bus_cb, test_bus_disconnect, NULL);
 	(void)bus_h;
-	bus_send(bus_h, MODULE_OPCLI, 12, "helloworld", 10);
 	event_base_dispatch(base);
 	return 0;
 }

@@ -10,3 +10,5 @@ add_subdirectory(app/opcli)
 add_subdirectory(app/oplog)
 add_subdirectory(app/opbus)
 add_subdirectory(app/test)
+add_subdirectory(app/test2)
+
