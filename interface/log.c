@@ -6,6 +6,7 @@
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 
 enum LOG_LEVEL {
 	LEVEL_ERROR,
@@ -40,6 +41,7 @@ struct log_module {
 	int pid;
 	char buf[LOG_BUF_MAX];
 	int enable;
+	pthread_mutex_t lock;
 };
 
 static int get_conf_port(char*file_name)
@@ -120,7 +122,8 @@ void *log_init(unsigned int module)
 		m= NULL;
 		goto out;
 	}
-
+	
+	pthread_mutex_init(&m->lock, NULL);
 	m->send_addr.sin_port = htons(send_port);
 	m->enable = 1;
 out:
@@ -169,7 +172,8 @@ static int log_format(struct log_module *m, int level)
 		return size+sizeof(unsigned int);
 }
 
-void log_err(void *h, const char *fmt, ...)
+#if 0
+static void log_print(int level, void *h, const char *fmt, ...)
 {
 	int size = 0;
 	int size2  = 0;
@@ -182,9 +186,12 @@ void log_err(void *h, const char *fmt, ...)
 	if (!m->enable)
 		return;
 
-	size = log_format(m, LEVEL_ERROR);
-	if (size < 0)
+	pthread_mutex_lock(&m->lock);
+	size = log_format(m, level);
+	if (size < 0) {
+		pthread_mutex_unlock(&m->lock);
 		return;
+	}
 
 	va_list args;
 	va_start(args, fmt);
@@ -192,11 +199,49 @@ void log_err(void *h, const char *fmt, ...)
 	va_end(args);
 
 	log_write(m, m->buf, size+size2);
+	pthread_mutex_unlock(&m->lock);
+
+	return;
+
+
+}
+
+#endif
+
+void log_err(void *h, const char *fmt, ...)
+{
+	
+	int size = 0;
+	int size2  = 0;
+	struct log_module *m = NULL;
+	m = (struct log_module *)h;
+
+	if (!h)
+		return;
+
+	if (!m->enable)
+		return;
+
+	pthread_mutex_lock(&m->lock);
+	size = log_format(m, LEVEL_ERROR);
+	if (size < 0) {
+		pthread_mutex_unlock(&m->lock);
+		return;
+	}
+
+	va_list args;
+	va_start(args, fmt);
+	size2 = vsnprintf(m->buf + size, sizeof(m->buf) - size, fmt, args);
+	va_end(args);
+
+	log_write(m, m->buf, size+size2);
+	pthread_mutex_unlock(&m->lock);
 
 	return;
 }
 void log_warn(void *h, const char *fmt, ...)
 {
+	
 	int size = 0;
 	int size2  = 0;
 	struct log_module *m = NULL;
@@ -208,9 +253,12 @@ void log_warn(void *h, const char *fmt, ...)
 	if (!m->enable)
 		return;
 
+	pthread_mutex_lock(&m->lock);
 	size = log_format(m, LEVEL_WARN);
-	if (size < 0)
+	if (size < 0) {
+		pthread_mutex_unlock(&m->lock);
 		return;
+	}
 
 	va_list args;
 	va_start(args, fmt);
@@ -218,8 +266,10 @@ void log_warn(void *h, const char *fmt, ...)
 	va_end(args);
 
 	log_write(m, m->buf, size+size2);
+	pthread_mutex_unlock(&m->lock);
 
 	return;
+
 }
 void log_info(void *h, const char *fmt, ...)
 {
@@ -234,9 +284,12 @@ void log_info(void *h, const char *fmt, ...)
 	if (!m->enable)
 		return;
 
+	pthread_mutex_lock(&m->lock);
 	size = log_format(m, LEVEL_INFO);
-	if (size < 0)
+	if (size < 0) {
+		pthread_mutex_unlock(&m->lock);
 		return;
+	}
 
 	va_list args;
 	va_start(args, fmt);
@@ -244,8 +297,10 @@ void log_info(void *h, const char *fmt, ...)
 	va_end(args);
 
 	log_write(m, m->buf, size+size2);
+	pthread_mutex_unlock(&m->lock);
 
 	return;
+
 
 
 }
@@ -255,7 +310,6 @@ void log_debug(void *h, const char *fmt, ...)
 	int size2  = 0;
 	struct log_module *m = NULL;
 	m = (struct log_module *)h;
-	unsigned int *module = 0;
 
 	if (!h)
 		return;
@@ -263,20 +317,23 @@ void log_debug(void *h, const char *fmt, ...)
 	if (!m->enable)
 		return;
 
+	pthread_mutex_lock(&m->lock);
 	size = log_format(m, LEVEL_DEBUG);
-	if (size < 0)
+	if (size < 0) {
+		pthread_mutex_unlock(&m->lock);
 		return;
+	}
 
 	va_list args;
 	va_start(args, fmt);
-	size2 = vsnprintf(m->buf + size + sizeof(unsigned int), sizeof(m->buf) - size, fmt, args);
+	size2 = vsnprintf(m->buf + size, sizeof(m->buf) - size, fmt, args);
 	va_end(args);
 
-	module = (unsigned int*)m->buf;
-	*module = htonl(m->module);
 	log_write(m, m->buf, size+size2);
+	pthread_mutex_unlock(&m->lock);
 
 	return;
+
 
 }
 

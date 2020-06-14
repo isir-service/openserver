@@ -171,7 +171,7 @@ recv_data:
 			memcpy(&client->recv_buf[15], &from_sub_id, sizeof(unsigned int));
 		}
 
-		opbus_log_info("recv[%s],level:%lu,from module:%u, to module:%u,%s\n", client->recv_buf+23,client->water_level, client->header.from_module, client->header.to_module, bus->client[client->header.to_module].module_name);
+		//opbus_log_info("recv[%s],level:%lu,from module:%u, to module:%u,%s\n", client->recv_buf+23,client->water_level, client->header.from_module, client->header.to_module, bus->client[client->header.to_module].module_name);
 		bufferevent_write(bus->client[client->header.to_module].buffer, client->recv_buf, client->water_level+CLIENT_HEADER_WATER_LEVEL);
 
 		client->water_level = CLIENT_HEADER_WATER_LEVEL;

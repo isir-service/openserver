@@ -92,8 +92,10 @@ int oplog_parse_conf(const char *file_name)
 		}
 	}
 
-	for(index = 0; index < MODULE_MAX; index++)
+	for(index = 0; index < MODULE_MAX; index++) {
 		strlcpy(h_op->conf.debug[index].module_name, module_id_to_name(index), sizeof(h_op->conf.debug[index].module_name));
+		h_op->conf.debug[index].valid = 1;
+	}
 
 	ret = 0;
 

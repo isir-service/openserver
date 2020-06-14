@@ -6,11 +6,42 @@
 #include "libubox/usock.h"
 #include <unistd.h>
 
+#include <execinfo.h>
+#include <signal.h>
+#include <stdlib.h>
+
+#define BACKTRACE_SIZE   16
+ 
+void dump_trace(int signo)
+{
+	(void)signo;
+	int j, nptrs;
+	void *buffer[BACKTRACE_SIZE];
+	char **strings;
+	
+	nptrs = backtrace(buffer, BACKTRACE_SIZE);
+	
+	printf("backtrace() returned %d addresses\n", nptrs);
+ 
+	strings = backtrace_symbols(buffer, nptrs);
+	if (strings == NULL) {
+		perror("backtrace_symbols");
+		return;
+	}
+
+	for (j = 0; j < nptrs; j++)
+		printf("  [%02d] %s\n", j, strings[j]);
+
+	free(strings);
+
+}
+
+
 int main(int argc, char**argv)
 {
 	(void)argc;
 	(void)argv;
-
+	signal(SIGSEGV, dump_trace);
 	int i = 0;
 	struct _op_bus *bus = opbus_init();
 	if (!bus) {
