@@ -9,4 +9,5 @@ void *bus_connect(void *base ,unsigned int module, bus_read_cb cb, bus_disconnec
 
 void bus_exit(void *h);
 int bus_send(void *h, unsigned int to_module, unsigned int to_sub_id, void *data, unsigned int size);
+
 #endif

@@ -10,7 +10,7 @@ void test_bus_cb(void *h, unsigned int from_module, unsigned int to_sub_id, void
 	(void)h;
 	(void)arg;
 	printf("from module:%u, to_sub_id:%u,data:%s, size = %u\n", from_module, to_sub_id, (char*)data, size);
-	//bus_res(h, from_module, from_module, "good monring", 12);
+	bus_send(h, from_module, 13, "good monring", 12);
 	return;
 }
 

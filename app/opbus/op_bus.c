@@ -171,13 +171,18 @@ recv_data:
 			memcpy(&client->recv_buf[15], &from_sub_id, sizeof(unsigned int));
 		}
 
+		opbus_log_info("recv[%s],level:%lu,from module:%u, to module:%u,%s\n", client->recv_buf+23,client->water_level, client->header.from_module, client->header.to_module, bus->client[client->header.to_module].module_name);
 		bufferevent_write(bus->client[client->header.to_module].buffer, client->recv_buf, client->water_level+CLIENT_HEADER_WATER_LEVEL);
+
 		client->water_level = CLIENT_HEADER_WATER_LEVEL;
 		client->read_index = 0;
+		client->recv_type = OPBUS_CLIENT_RECV_TYPE_HEADER;
+		bufferevent_setwatermark(bev, EV_READ, client->water_level, 0);
 		goto out;
 	} else {
 		client->water_level = CLIENT_HEADER_WATER_LEVEL;
 		client->read_index = 0;
+		client->recv_type = OPBUS_CLIENT_RECV_TYPE_HEADER;
 		goto out;
 	}
 
@@ -195,7 +200,7 @@ void opbus_client_event(struct bufferevent *bev, short what, void *ctx)
 
 	if (what & (BEV_EVENT_ERROR|BEV_EVENT_EOF)) {
 		
-		printf("buff try free:\n");
+		opbus_log_debug("buff try free:\n");
 		close(client->client_fd);
 		bufferevent_free(bev);
 		bev = NULL;

@@ -43,6 +43,19 @@ struct bus_h {
 
 };
 
+static void bus_event_flush(struct bufferevent *bev, struct evbuffer *ev, struct bus_h *h)
+{
+	size_t size  = 0;
+	size = evbuffer_get_length(ev);
+
+	while(size > 0) {
+		bufferevent_read(bev, h->recv_buf, sizeof(h->recv_buf));
+		size = evbuffer_get_length(ev);
+	}
+
+	return;
+}
+
 static void bus_read(struct bufferevent *bev, void *ctx)
 {
 	size_t size_len = 0;
@@ -72,9 +85,6 @@ recv_data:
 
 	
 	if (h->recv_type == BUS_RECV_HEADER) {
-		
-		payload_size = *((unsigned int*)(&h->recv_buf[19]));
-		payload_size = ntohl(payload_size);
 	
 		bus_type = h->recv_buf[2];
 
@@ -87,6 +97,9 @@ recv_data:
 		to_module = ntohl(to_module);
 		to_sub_id = *((unsigned int*)(&h->recv_buf[15]));
 		to_sub_id = ntohl(to_sub_id);
+
+		payload_size = *((unsigned int*)(&h->recv_buf[19]));
+		payload_size = ntohl(payload_size);
 
 		if (to_module != h->module)
 			goto out;
@@ -110,16 +123,25 @@ recv_data:
 		return;
 		
 	} else if (h->recv_type == BUS_RECV_DATA) {
-		if (h->cb)
+		if (h->cb) {
+			printf("recv:[%s]\n",(char*)(h->recv_buf+23));
 			h->cb(h, h->header.from_module, h->header.to_sub_type, (void*)(h->recv_buf+23), h->header.payload_size, h->arg);
+		}
+		h->water_level = 23;
+		bufferevent_setwatermark(bev, EV_READ, h->water_level, 0);
+		h->read_index = 0;
+		h->recv_type = BUS_RECV_HEADER;
 
+		goto out;
 	} else {
 		h->water_level = 23;
 		h->read_index = 0;
+		h->recv_type = BUS_RECV_HEADER;
 		goto out;
 	}
 
 out:
+	bus_event_flush(bev, h->evbuff, h);
 	return;
 }
 static void bus_event(struct bufferevent *bev, short what, void *ctx)
