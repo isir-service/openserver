@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include "op_bus.h"
 #include "interface/module.h"
+#include "interface/bus.h"
+
 #include "interface/log.h"
 #include "pthread.h"
 #include "libubox/usock.h"
@@ -10,38 +12,10 @@
 #include <signal.h>
 #include <stdlib.h>
 
-#define BACKTRACE_SIZE   16
- 
-void dump_trace(int signo)
-{
-	(void)signo;
-	int j, nptrs;
-	void *buffer[BACKTRACE_SIZE];
-	char **strings;
-	
-	nptrs = backtrace(buffer, BACKTRACE_SIZE);
-	
-	printf("backtrace() returned %d addresses\n", nptrs);
- 
-	strings = backtrace_symbols(buffer, nptrs);
-	if (strings == NULL) {
-		perror("backtrace_symbols");
-		return;
-	}
-
-	for (j = 0; j < nptrs; j++)
-		printf("  [%02d] %s\n", j, strings[j]);
-
-	free(strings);
-
-}
-
-
 int main(int argc, char**argv)
 {
 	(void)argc;
 	(void)argv;
-	signal(SIGSEGV, dump_trace);
 	int i = 0;
 	struct _op_bus *bus = opbus_init();
 	if (!bus) {
@@ -79,6 +53,18 @@ int main(int argc, char**argv)
 
 		if (event_add(bus->thread[i].trigger, NULL) < 0)
 			goto out;
+
+		if (!i) {
+			bus->timer.timer = evtimer_new(bus->thread[i].ebase_job, opbus_timer, &bus->timer);
+			if (!bus->timer.timer)
+				goto out;
+			
+			bus->timer.t.tv_sec = 2;
+			if (event_add(bus->timer.timer, &bus->timer.t) < 0)
+				goto out;
+
+		}
+
 		
 		if (pthread_create(&bus->thread[i].thread_id, NULL, opbus_thread_job, bus->thread[i].ebase_job))
 			goto out;

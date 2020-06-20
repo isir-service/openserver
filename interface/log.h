@@ -16,4 +16,5 @@ void log_warn(void *h, const char *fmt, ...);
 void log_info(void *h, const char *fmt, ...);
 void log_debug(void *h, const char *fmt, ...);
 
+
 #endif

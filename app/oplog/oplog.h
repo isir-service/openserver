@@ -25,6 +25,8 @@ struct oplog{
 	struct event *tm;
 	struct timeval timeout;
 	struct log_conf conf;
+	void *bus;
+	void *log;
 	char buf[LOG_BUF_MAX];
 };
 
@@ -44,6 +46,8 @@ void oplog_read(int s, short what, void *arg);
 
 void oplog_timer(int s, short what, void *arg);
 
+void oplog_bus_cb(void *h, unsigned int from_module, unsigned int from_sub_id, unsigned int to_sub_id, void *data, unsigned int size, void *arg);
+void oplog_bus_disconnect(void *h,void *arg);
 
 
 #endif

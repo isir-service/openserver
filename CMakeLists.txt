@@ -9,6 +9,7 @@ add_subdirectory(interface)
 add_subdirectory(app/opcli)
 add_subdirectory(app/oplog)
 add_subdirectory(app/opbus)
+add_subdirectory(app/opweb)
 add_subdirectory(app/test)
 add_subdirectory(app/test2)
 

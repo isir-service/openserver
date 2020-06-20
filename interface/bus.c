@@ -7,11 +7,11 @@
 #include <arpa/inet.h>
 #include <stdio.h>
 #include "event.h"
+#include <signal.h>
 #include "event2/bufferevent.h"
 
 /*[0x0a:1][0x0d"1][request:1][from module:4][from_sub_type:4][to module:4][to sub_type:4][payload_size:4] 23*/
 /*[0x0a:1][0x0d"1][response:1][from module:4][from_sub_type:4][to module:4][to sub_type:4][payload_size:4] 23*/
-
 
 enum {
 	BUS_RECV_HEADER = 1,
@@ -40,7 +40,12 @@ struct bus_h {
 	int recv_type;
 	void *arg;
 	struct bus_header header;
-
+	struct event_base *base;
+	pthread_t thread_id;
+	pthread_cond_t cond;
+	pthread_mutex_t lock;
+	int run;
+	
 };
 
 static void bus_event_flush(struct bufferevent *bev, struct evbuffer *ev, struct bus_h *h)
@@ -124,8 +129,7 @@ recv_data:
 		
 	} else if (h->recv_type == BUS_RECV_DATA) {
 		if (h->cb) {
-			printf("recv:[%s]\n",(char*)(h->recv_buf+23));
-			h->cb(h, h->header.from_module, h->header.to_sub_type, (void*)(h->recv_buf+23), h->header.payload_size, h->arg);
+			h->cb(h, h->header.from_module, h->header.from_sub_type, h->header.to_sub_type, (void*)(h->recv_buf+23), h->header.payload_size, h->arg);
 		}
 		h->water_level = 23;
 		bufferevent_setwatermark(bev, EV_READ, h->water_level, 0);
@@ -141,6 +145,7 @@ recv_data:
 	}
 
 out:
+	memset(h->recv_buf, 0, sizeof(h->recv_buf));
 	bus_event_flush(bev, h->evbuff, h);
 	return;
 }
@@ -160,7 +165,28 @@ static void bus_event(struct bufferevent *bev, short what, void *ctx)
 	return;
 }
 
-void *bus_connect(void *base ,unsigned int module, bus_read_cb cb, bus_disconnect disconnect, void *arg)
+static void *bus_thread_job(void *arg)
+{
+
+	struct bus_h *h = (struct bus_h *)arg;
+	
+	if (!arg)
+		goto out;
+
+	h->run  = 1;
+
+	while(h->run) {
+		event_base_loop(h->base,EVLOOP_NO_EXIT_ON_EMPTY);
+		pthread_mutex_lock(&h->lock);
+		pthread_mutex_unlock(&h->lock);
+	}
+
+	out:
+		pthread_join(pthread_self() , NULL);
+		return NULL;
+}
+
+void *bus_connect(unsigned int module, bus_read_cb cb, bus_disconnect disconnect, void *arg)
 {
 	struct bus_h *h = NULL;
 	int fd = 0;
@@ -168,8 +194,7 @@ void *bus_connect(void *base ,unsigned int module, bus_read_cb cb, bus_disconnec
 	unsigned int module_send = 0;
 	int poll_ret = -1;
 	int read_size = 0;
-	
-	if (module >= MODULE_MAX || !base)
+	if (module >= MODULE_MAX)
 		goto out;
 
 	h = calloc(1, sizeof(struct bus_h));
@@ -205,7 +230,11 @@ void *bus_connect(void *base ,unsigned int module, bus_read_cb cb, bus_disconnec
 	if (strncmp(buf,"ok",2))
 		goto out;
 
-	h->buffer = bufferevent_socket_new(base, fd, 0);
+	h->base = event_base_new();
+	if (!h->base)
+		goto out;
+	
+	h->buffer = bufferevent_socket_new(h->base, fd, 0);
 	if (!h->buffer)
 		goto out;
 
@@ -214,6 +243,13 @@ void *bus_connect(void *base ,unsigned int module, bus_read_cb cb, bus_disconnec
 	bufferevent_setwatermark(h->buffer, EV_READ, h->water_level, 0);
 	bufferevent_enable(h->buffer, EV_READ);
 	h->recv_type = BUS_RECV_HEADER;
+
+	if (pthread_create(&h->thread_id, NULL, bus_thread_job, h))
+		goto out;
+
+	pthread_cond_init(&h->cond,NULL);
+	pthread_mutex_init(&h->lock,NULL);
+	h->run = 1;
 	return h;
 	
 out:
@@ -229,7 +265,7 @@ void bus_exit(void *h)
 	return;
 }
 
-int bus_send(void *h, unsigned int to_module, unsigned int to_sub_id, void *data, unsigned int size)
+int bus_send(void *h,unsigned int from_sub_id,  unsigned int to_module, unsigned int to_sub_id, void *data, unsigned int size)
 {
 	struct bus_h *hb = (struct bus_h *)h;
 	unsigned int from_module_tmp;
@@ -246,11 +282,12 @@ int bus_send(void *h, unsigned int to_module, unsigned int to_sub_id, void *data
 	hb->recv_buf[2] = 0;
 	
 	from_module_tmp = htonl(hb->module);
-	from_sub_id_tmp = htonl(0);
+	from_sub_id_tmp = htonl(from_sub_id);
 	to_module_tmp = htonl(to_module);
 	to_sub_id_tmp = htonl(to_sub_id);
 	size_tmp = htonl(size);
 
+	pthread_mutex_lock(&hb->lock);
 	memcpy(&hb->recv_buf[3], &from_module_tmp, sizeof(unsigned int));
 	memcpy(&hb->recv_buf[7], &from_sub_id_tmp, sizeof(unsigned int));
 	memcpy(&hb->recv_buf[11], &to_module_tmp, sizeof(unsigned int));
@@ -258,9 +295,68 @@ int bus_send(void *h, unsigned int to_module, unsigned int to_sub_id, void *data
 	memcpy(&hb->recv_buf[19], &size_tmp, sizeof(unsigned int));
 	memcpy(&hb->recv_buf[23], data, size);
 	bufferevent_write(hb->buffer, (void*)hb->recv_buf, size+23);
+	pthread_mutex_unlock(&hb->lock);
 	return 0;
 	
 out:
+	return -1;
+}
+
+int bus_send_sync(void *h,unsigned int from_sub_id,  unsigned int to_module, unsigned int to_sub_id, void *data, unsigned int size, void*res, unsigned int res_size, unsigned int *res_actual, unsigned int ms)
+{
+	struct bus_h *hb = (struct bus_h *)h;
+	unsigned int from_module_tmp;
+	unsigned int from_sub_id_tmp;
+	unsigned int to_module_tmp;
+	unsigned int to_sub_id_tmp;
+	unsigned int size_tmp;
+	int sock_fd;
+	int poll_ret = -1;
+	unsigned int mem_size  = 0;
+	(void)sock_fd;
+	(void)poll_ret;
+	(void)res;
+	(void)res_size;
+	(void)ms;
+	if (!hb || !data || size > sizeof(hb->recv_buf) - 17)
+		return -1;
+
+	hb->recv_buf[0] = 0x0a;
+	hb->recv_buf[1] = 0x0d;
+	hb->recv_buf[2] = 0;
+	
+	from_module_tmp = htonl(hb->module);
+	from_sub_id_tmp = htonl(from_sub_id);
+	to_module_tmp = htonl(to_module);
+	to_sub_id_tmp = htonl(to_sub_id);
+	size_tmp = htonl(size);
+	
+	pthread_mutex_lock(&hb->lock);
+	memcpy(&hb->recv_buf[3], &from_module_tmp, sizeof(unsigned int));
+	memcpy(&hb->recv_buf[7], &from_sub_id_tmp, sizeof(unsigned int));
+	memcpy(&hb->recv_buf[11], &to_module_tmp, sizeof(unsigned int));
+	memcpy(&hb->recv_buf[15], &to_sub_id_tmp, sizeof(unsigned int));
+	memcpy(&hb->recv_buf[19], &size_tmp, sizeof(unsigned int));
+	memcpy(&hb->recv_buf[23], data, size);
+	
+	sock_fd = bufferevent_getfd(hb->buffer);
+	event_base_loopbreak(bufferevent_get_base(hb->buffer));
+	bufferevent_write(hb->buffer, (void*)hb->recv_buf, size+23);
+	
+	poll_ret = usock_wait_ready(sock_fd, ms);
+
+	if (poll_ret <= 0)
+		goto out;
+	
+	read(sock_fd, hb->recv_buf, sizeof(hb->recv_buf));
+	*res_actual = ntohl(*((unsigned int *)(&hb->recv_buf[19])));
+	mem_size = *res_actual > res_size?res_size:*res_actual;
+	memcpy(res, &hb->recv_buf[23], mem_size);
+	pthread_mutex_unlock(&hb->lock);
+	return 0;
+
+out:
+	pthread_mutex_unlock(&hb->lock);
 	return -1;
 }
 

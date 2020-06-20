@@ -42,6 +42,11 @@ struct op_thread {
 	struct event *trigger;
 };
 
+struct _opbus_timer {
+	struct event *timer;
+	struct timeval t;
+};
+
 struct _op_bus {
 	void *log;
 	struct event_base *ebase_sche;
@@ -51,6 +56,8 @@ struct _op_bus {
 	struct op_thread thread[MAX_JOB_THREAT_NUM];
 	struct client_info client[MODULE_MAX];
 	pthread_rwlock_t rwlock;
+	void *bus;
+	struct _opbus_timer timer;;
 };
 
 struct _op_bus * opbus_init(void);
@@ -61,6 +68,10 @@ void opbus_accept(evutil_socket_t fd, short what, void *arg);
 
 void *opbus_thread_job(void *arg);
 void opbus_trigger(int s, short what, void *arg);
+void opbus_timer(int s, short what, void *arg);
+
+void opbus_read_cb(void *h, unsigned int from_module, unsigned int from_sub_id, unsigned int to_sub_id, void *data, unsigned int size, void *arg);
+void opbus_disconnect(void *h,void *arg);
 
 
 #endif
