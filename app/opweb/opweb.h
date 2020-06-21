@@ -79,5 +79,6 @@ void opweb_client_read(struct bufferevent *bev, void *ctx);
 void opweb_client_event(struct bufferevent *bev, short what, void *ctx);
 
 void opweb_timer(int s, short what, void *arg);
+void opweb_bufferevent_flush(struct bufferevent *bev);
 
 #endif

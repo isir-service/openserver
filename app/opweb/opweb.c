@@ -165,12 +165,19 @@ void release_client(struct opweb_client *client)
 
 void opweb_client_read(struct bufferevent *bev, void *ctx)
 {
-	(void)bev;
-	(void)ctx;
-	char data[1024] = {};
-	struct opweb_client *client = (struct opweb_client *)ctx;
-	bufferevent_read(bev, data, 1024);
-	printf("recv[%d]:%s\n", client->fd,data);
+	char *str = "HTTP/1.1 307 Internal Redirect\r\n"
+	"Server: opweb/1.1\r\n"
+	"Non-Authoritative-Reason: HSTS\r\n"
+	"Location: https://192.168.1.15:60001\r\n\r\n";
+	int fd  =0;
+	struct opweb_client *client = NULL;
+	client = (struct opweb_client *)ctx;
+	if (!client)
+		return;
+
+	fd = bufferevent_getfd(bev);
+	write(fd, str, strlen(str));
+	release_client(client);
 	return;
 }
 
@@ -181,12 +188,14 @@ void opweb_client_event(struct bufferevent *bev, short what, void *ctx)
 	(void)ctx;
 	
 	struct opweb_client *client = NULL;
+
 	
+	opweb_log_debug("client get event:%hd\n", what);
 	if (what & (BEV_EVENT_ERROR|BEV_EVENT_EOF)) {
-		client = (struct opweb_client *)ctx;		
+		client = (struct opweb_client *)ctx;
 		if (!client)
 			return;
-
+		opweb_log_debug("client disconnect or server close it\n");
 		release_client(client);
 	}
 	
@@ -247,7 +256,7 @@ void opweb_http_accept(evutil_socket_t fd, short what, void *arg)
 		goto out;
 	}
 
-	client->t.tv_sec = 10;
+	client->t.tv_sec = 120;
 	if (event_add(client->alive_timer, &client->t) < 0) {
 		
 		opweb_log_warn("client [%u] add evtimer_new failed\n", client->client_id);
@@ -293,6 +302,13 @@ void opweb_timer(int s, short what, void *arg)
 
 	struct opweb_client *client = (struct opweb_client *)arg;
 	release_client(client);
+	return;
+}
+
+
+void opweb_bufferevent_flush(struct bufferevent *bev)
+{
+	bufferevent_flush(bev, EV_READ, BEV_NORMAL);
 	return;
 }
 
