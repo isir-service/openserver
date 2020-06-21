@@ -21,9 +21,6 @@ static struct _op_bus *self;
 #define opbus_log_debug(fmt...) log_debug(self->log,fmt)
 
 
-/*[0x0a:1][0x0d"1][request:1][from module:4][from_sub_type:4][to module:4][to sub_type:4][payload_size:4] 23*/
-/*[0x0a:1][0x0d"1][response:1][from module:4][from_sub_type:4][to module:4][to sub_type:4][payload_size:4] 23*/
-
 #define CLIENT_HEADER_WATER_LEVEL 23
 #define OPBUS_HELLOWORLD "helloworld_opbus"
 
@@ -171,7 +168,9 @@ recv_data:
 			memcpy(&client->recv_buf[15], &from_sub_id, sizeof(unsigned int));
 		}
 
-		//opbus_log_info("recv[%s],level:%lu,from module:%u, to module:%u,%s\n", client->recv_buf+23,client->water_level, client->header.from_module, client->header.to_module, bus->client[client->header.to_module].module_name);
+		opbus_log_info("from module:[%s],from sub_id:%u, to module:[%s],to sub_id:%u\n",
+			bus->client[client->header.from_module].module_name, client->header.from_sub_id,bus->client[client->header.to_module].module_name,
+			client->header.to_sub_id);
 		bufferevent_write(bus->client[client->header.to_module].buffer, client->recv_buf, client->water_level+CLIENT_HEADER_WATER_LEVEL);
 
 		client->water_level = CLIENT_HEADER_WATER_LEVEL;
@@ -296,7 +295,6 @@ void opbus_accept(evutil_socket_t fd, short what, void *arg)
 	pthread_rwlock_unlock(&bus->rwlock);
 
 	bus->client[module].thread = thread;
-	evuser_trigger(thread->trigger);
 	return;
 out:
 	if (client_fd)
@@ -314,15 +312,6 @@ void *opbus_thread_job(void *arg)
 out:
 	pthread_join(pthread_self() , NULL);
 	return NULL;
-}
-
-void opbus_trigger(int s, short what, void *arg)
-{
-	(void)s;
-	(void)what;
-	(void)arg;
-	opbus_log_debug("trigger:%x\n", (unsigned int)pthread_self());
-	return;
 }
 
 void opbus_timer(int s, short what, void *arg)

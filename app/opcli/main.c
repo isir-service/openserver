@@ -32,7 +32,6 @@ int main(int argc, char *argv[])
 	cli->bus = bus_connect(MODULE_OPCLI, opcli_bus_cb, opcli_bus_disconnect, NULL);
 	if (!cli->bus)
 		goto out;
-
 	vty_init(cli->master);
 
 	cmd_init();

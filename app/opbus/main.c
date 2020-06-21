@@ -7,6 +7,7 @@
 #include "pthread.h"
 #include "libubox/usock.h"
 #include <unistd.h>
+#include "libubox/utils.h"
 
 #include <execinfo.h>
 #include <signal.h>
@@ -17,6 +18,7 @@ int main(int argc, char**argv)
 	(void)argc;
 	(void)argv;
 	int i = 0;
+	
 	struct _op_bus *bus = opbus_init();
 	if (!bus) {
 		printf ("opbus_init");
@@ -45,13 +47,6 @@ int main(int argc, char**argv)
 	for (i = 0; i < MAX_JOB_THREAT_NUM; i++) {
 		bus->thread[i].ebase_job = event_base_new();
 		if (!bus->thread[i].ebase_job)
-			goto out;
-
-		bus->thread[i].trigger = event_new(bus->thread[i].ebase_job, -1, EV_PERSIST, opbus_trigger, NULL);
-		if (!bus->thread[i].trigger)
-			goto out;
-
-		if (event_add(bus->thread[i].trigger, NULL) < 0)
 			goto out;
 
 		if (!i) {

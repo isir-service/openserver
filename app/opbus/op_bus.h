@@ -39,7 +39,6 @@ struct op_thread {
 	pthread_t thread_id;
 	unsigned int client_num;
 	struct event_base *ebase_job;
-	struct event *trigger;
 };
 
 struct _opbus_timer {
@@ -67,7 +66,6 @@ void opbus_exit(struct _op_bus *bus);
 void opbus_accept(evutil_socket_t fd, short what, void *arg);
 
 void *opbus_thread_job(void *arg);
-void opbus_trigger(int s, short what, void *arg);
 void opbus_timer(int s, short what, void *arg);
 
 void opbus_read_cb(void *h, unsigned int from_module, unsigned int from_sub_id, unsigned int to_sub_id, void *data, unsigned int size, void *arg);

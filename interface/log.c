@@ -8,29 +8,39 @@
 #include <arpa/inet.h>
 #include <pthread.h>
 
+#define LOG_COLOR_NONE "\033[m"
+#define LOG_COLOR_HEI "\033[0;30m"
+#define LOG_COLOR_HONG "\033[0;31m"
+#define LOG_COLOR_LV "\033[0;32m"
+#define LOG_COLOR_HUANG "\033[0;33m"
+#define LOG_COLOR_LAN "\033[0;34m"
+#define LOG_COLOR_ZI "\033[0;35m"
+#define LOG_COLOR_QING "\033[0;36m"
+#define LOG_COLOR_BAI "\033[0;37m"
+
+
 enum LOG_LEVEL {
 	LEVEL_ERROR,
 	LEVEL_WARN,
-	LEVEL_DEBUG,
-	LEVEL_TRACE,
 	LEVEL_INFO,
+	LEVEL_DEBUG,
 	LEVEL_MAX,
 };
 
 
 struct level_name_map {
 	char *name;
+	char *color;
 };
 
 
 
 
 struct level_name_map level_map[LEVEL_MAX] = {
-	[LEVEL_ERROR] = {.name = "error"},
-	[LEVEL_WARN] = {.name = "warn"},
-	[LEVEL_DEBUG] = {.name = "debug"},
-	[LEVEL_TRACE] = {.name = "trace"},
-	[LEVEL_INFO] = {.name = "info"},
+	[LEVEL_ERROR] = {.name = "error", .color = LOG_COLOR_HONG},
+	[LEVEL_WARN] = {.name = "warn ", .color = LOG_COLOR_HUANG},
+	[LEVEL_INFO] = {.name = "info ", .color = LOG_COLOR_LV},
+	[LEVEL_DEBUG] = {.name = "debug", .color = LOG_COLOR_BAI},
 };
 
 struct log_module {
@@ -165,8 +175,8 @@ static int log_format(struct log_module *m, int level)
 	gettimeofday(&t2, NULL );
 	*((unsigned int*)m->buf) = htonl(m->module);
 
-	size = snprintf(m->buf+sizeof(unsigned int), sizeof(m->buf)-sizeof(unsigned int), "%d-%02d-%02d %02d:%02d:%02d:%lu %s %d %s        ",
-		t->tm_year+1900, t->tm_mon+1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec, t2.tv_usec,
+	size = snprintf(m->buf+sizeof(unsigned int), sizeof(m->buf)-sizeof(unsigned int), "%s%d-%02d-%02d %02d:%02d:%02d:%06lu %s %d %s        ",
+		level_map[level].color,t->tm_year+1900, t->tm_mon+1, t->tm_mday, t->tm_hour, t->tm_min, t->tm_sec, t2.tv_usec,
 		m->module_name, m->pid, level_map[level].name);
 
 		return size+sizeof(unsigned int);
@@ -295,8 +305,8 @@ void log_info(void *h, const char *fmt, ...)
 	va_start(args, fmt);
 	size2 = vsnprintf(m->buf + size, sizeof(m->buf) - size, fmt, args);
 	va_end(args);
-
 	log_write(m, m->buf, size+size2);
+	printf("%s",LOG_COLOR_NONE);
 	pthread_mutex_unlock(&m->lock);
 
 	return;
