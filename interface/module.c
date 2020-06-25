@@ -9,6 +9,7 @@ struct module_name_map module_map[MODULE_MAX] = {
 	[MODULE_OPBUS] = {.name = "opbus"},
 	[MODULE_OPWEB] = {.name = "opweb"},
 	[MODULE_OPLOG] = {.name = "oplog"},
+	[MODULE_OPMGR] = {.name = "opmgr"},
 };
 
 char *module_id_to_name(unsigned int module_id)

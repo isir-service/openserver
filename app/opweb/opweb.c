@@ -30,12 +30,22 @@ struct opweb *opweb_init(void)
 
 	INIT_LIST_HEAD(&web->idle.head);
 	INIT_LIST_HEAD(&web->busy.head);
+	INIT_LIST_HEAD(&web->idle_https.head);
+	INIT_LIST_HEAD(&web->busy_https.head);
+
 
 	for (i = 0; i < MAX_OPWEB_CLIENT_NUM; i ++) {
 		INIT_LIST_HEAD(&web->client[i].node);
 		web->client[i].client_id = i;
 		list_add_tail(&web->client[i].node, &web->idle.head);
 		web->idle.num++;
+	}
+
+	for (i = 0; i < MAX_OPWEB_HTTPS_CLIENT_NUM; i ++) {
+		INIT_LIST_HEAD(&web->client_https[i].node);
+		web->client_https[i].client_id = i;
+		list_add_tail(&web->client_https[i].node, &web->idle_https.head);
+		web->idle_https.num++;
 	}
 	
 	self = web;
@@ -77,7 +87,7 @@ void opweb_bus_disconnect(void *h,void *arg)
 	return;
 }
 
-static struct opweb_thread *opweb_get_thread(void)
+struct opweb_thread *opweb_get_thread(void)
 {
 	struct opweb *web = get_h_opweb();
 	unsigned int num_client = web->thread[0].client_num;
@@ -165,7 +175,8 @@ void release_client(struct opweb_client *client)
 
 void opweb_client_read(struct bufferevent *bev, void *ctx)
 {
-	char *str = "HTTP/1.1 307 Internal Redirect\r\n"
+
+	char *str = "HTTP/1.1 307 Temporary Redirect\r\n"
 	"Server: opweb/1.1\r\n"
 	"Non-Authoritative-Reason: HSTS\r\n"
 	"Location: https://192.168.1.15:60001\r\n\r\n";
@@ -186,7 +197,6 @@ void opweb_client_event(struct bufferevent *bev, short what, void *ctx)
 	(void)bev;
 	(void)what;
 	(void)ctx;
-	
 	struct opweb_client *client = NULL;
 
 	
@@ -276,7 +286,7 @@ void opweb_http_accept(evutil_socket_t fd, short what, void *arg)
 			client->client_id, thread->index, (unsigned int)thread->thread_id, thread->client_num);
 	return;
 out:
-	if (client_fd)
+	if (client_fd > 0)
 		close(client_fd);
 	return;
 }
@@ -311,5 +321,6 @@ void opweb_bufferevent_flush(struct bufferevent *bev)
 	bufferevent_flush(bev, EV_READ, BEV_NORMAL);
 	return;
 }
+
 
 
