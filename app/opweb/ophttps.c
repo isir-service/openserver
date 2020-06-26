@@ -172,7 +172,6 @@ void opweb_https_accept(evutil_socket_t fd, short what, void *arg)
 		goto out;
 	}
 
-	
 	if (SSL_accept(client->ssl) != 1) {
 		ret = SSL_get_error(client->ssl, ret1);
 		//ERR_print_errors_fp(stderr);
@@ -180,13 +179,25 @@ void opweb_https_accept(evutil_socket_t fd, short what, void *arg)
 		goto out;
 	}
 
+#if 0
+	if(SSL_get_verify_result(client->ssl) != X509_V_OK){
+		opweb_log_warn("client not provide cert\n");
+		goto out;
+	}
+
+	client->cert = SSL_get_peer_certificate(client->ssl);
+	if (!client->cert) {
+		opweb_log_warn("get peer client failed\n");
+		goto out;
+	}
+#endif
+
 	thread = opweb_get_thread();
 	if (!thread) {
 		opweb_log_warn("get thread failed\n");
 		goto out;
 	}
 
-	
 	client->ev_read = event_new(thread->base, client_fd, EV_PERSIST|EV_READ, opweb_https_read, client);
 	if (!client->ev_read) {
 		opweb_log_warn("client[%d] event_new failed\n");

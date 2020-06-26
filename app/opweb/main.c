@@ -9,6 +9,8 @@
 #include "ophttps.h"
 #include "openssl/ssl.h"
 #include "openssl/types.h"
+#include <dirent.h>
+
 #define OPWEB_CONF_PATH "/home/isir/developer/openserver/app/opweb/opweb_conf.xml"
 
 int main(int argc, char**argv)
@@ -16,7 +18,11 @@ int main(int argc, char**argv)
 	(void)argc;
 	(void)argv;
 	int i = 0;
-
+	DIR *dir = NULL;
+	struct dirent *file = NULL;
+	(void)file;
+	(void)dir;
+	
 	SSL_library_init();
 	OpenSSL_add_all_algorithms();
 	SSL_load_error_strings();
@@ -32,8 +38,7 @@ int main(int argc, char**argv)
 
 	opweb_log_debug("opweb init\n");
 
-	/*openssl req -newkey rsa:4096 -nodes -sha256 -keyout ca.key -x509 -days 365 -out ca.crt */
-	web->openssl_ctx =  SSL_CTX_new(SSLv23_server_method());
+	web->openssl_ctx =  SSL_CTX_new(TLS_server_method());
 	if (!web->openssl_ctx) {
 		opweb_log_error("openssl ctx create failed\n");
 		goto out;
@@ -43,15 +48,36 @@ int main(int argc, char**argv)
 		opweb_log_error("opweb init config failed\n");
 		goto out;
 	}
-		
-	if(SSL_CTX_use_certificate_file(web->openssl_ctx, web->ca_path ,SSL_FILETYPE_PEM) != 1) {
+
+#if 0
+	SSL_CTX_set_verify(web->openssl_ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+	SSL_CTX_set_verify_depth(web->openssl_ctx, 4);
+
+	dir = opendir(web->ca_trust_path);
+	if (!dir)
+		goto out;
+	while((file = readdir(dir))) {
+		if (file->d_type == DT_REG) {
+			snprintf((char*)web->bus_webbuf, sizeof(web->bus_webbuf), "%s/%s", web->ca_trust_path, file->d_name);
+			opweb_log_debug("trust ca:%s\n", (char*)web->bus_webbuf);
+			if (SSL_CTX_load_verify_locations(web->openssl_ctx, (char*)web->bus_webbuf, NULL) != 1) {
+				opweb_log_error("ssl load trust cert [%s] failed\n", (char*)web->bus_webbuf);
+				goto out;
+			}
+		}
+	}
+	closedir(dir);
+#endif
+
+	if(SSL_CTX_use_certificate_file(web->openssl_ctx, web->pub_path ,SSL_FILETYPE_PEM) != 1) {
 		opweb_log_error("SSL_CTX_use_certificate_file failed\n");
 		goto out;
 	}
-	if(SSL_CTX_use_PrivateKey_file(web->openssl_ctx, web->key_path ,SSL_FILETYPE_PEM) != 1) {
+	if(SSL_CTX_use_PrivateKey_file(web->openssl_ctx, web->priv_path ,SSL_FILETYPE_PEM) != 1) {
 		opweb_log_error("SSL_CTX_use_PrivateKey_file failed\n");
 		goto out;
 	}
+	
 	if (SSL_CTX_check_private_key(web->openssl_ctx) != 1) {
 		opweb_log_error("SSL_CTX_check_private_key failed\n");
 		goto out;

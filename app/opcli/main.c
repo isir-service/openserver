@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
 	cmd_install_opmgr();
 
 	sort_node ();
-	vty_serv_sock(NULL,55555,NULL);
+	vty_serv_sock("127.0.0.1",55555,NULL);
 	
 	thread_loop(cli->master);
 

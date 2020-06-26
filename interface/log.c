@@ -126,6 +126,7 @@ void *log_init(unsigned int module)
 
 	m->send_addr.sin_family = AF_INET;
 	m->send_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	//inet_aton("127.0.0.1", &m->send_addr.sin_addr);
 	send_port = get_conf_port(LOG_CONF_PATH);
 	if (send_port <= 0) {
 		free(m);

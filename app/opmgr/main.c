@@ -15,6 +15,7 @@ int main (int argc, char **argv)
 	if (!mgr->log)
 		goto out;
 
+	log_debug(mgr->log, "opmgr init\n");
 	mgr->bus = bus_connect(MODULE_OPMGR, opmgr_bus_cb, opmgr_bus_disconnect, NULL);
 	if (!mgr->bus)
 		goto out;

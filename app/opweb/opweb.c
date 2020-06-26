@@ -364,15 +364,21 @@ int opweb_config_parse(char *conf_path)
 				if (node1->type != XML_ELEMENT_NODE)
 					continue;
 				
-				if(!xmlStrcasecmp(node1->name,BAD_CAST"ca")) {
+				if(!xmlStrcasecmp(node1->name,BAD_CAST"priv_key")) {
 					value = xmlNodeGetContent(node1);
-					strlcpy(web->ca_path, (char*)value, sizeof(web->ca_path));
+					strlcpy(web->priv_path, (char*)value, sizeof(web->priv_path));
 					xmlFree(value);
 				}
 
-				if(!xmlStrcasecmp(node1->name,BAD_CAST"key")) {
+				if(!xmlStrcasecmp(node1->name,BAD_CAST"pub_key")) {
 					value = xmlNodeGetContent(node1);
-					strlcpy(web->key_path, (char*)value, sizeof(web->key_path));
+					strlcpy(web->pub_path, (char*)value, sizeof(web->pub_path));
+					xmlFree(value);
+				}
+
+				if(!xmlStrcasecmp(node1->name,BAD_CAST"trust_ca_path")) {
+					value = xmlNodeGetContent(node1);
+					strlcpy(web->ca_trust_path, (char*)value, sizeof(web->ca_trust_path));
 					xmlFree(value);
 				}
 				

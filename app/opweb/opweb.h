@@ -8,6 +8,7 @@
 #include "interface/http.h"
 #include "ophttp.h"
 #include "interface/public.h"
+#include "interface/bus.h"
 
 #define HTTPS_CLIENT_READ_BUF 8096
 #define MAX_OPWEB_THREAT_NUM 5
@@ -17,6 +18,7 @@
 struct ssl_client{
 	struct list_head node;
 	SSL *ssl;
+	X509 *cert;
 	unsigned int client_id;
 	int enable;
 	int client_fd;
@@ -91,13 +93,15 @@ struct opweb {
 	struct client_busy busy_https;
 	pthread_rwlock_t rwlock;
 	SSL_CTX *openssl_ctx;
-	char ca_path[OPSERVER_PATH_SIZE];
-	char key_path[OPSERVER_PATH_SIZE];
+	char pub_path[OPSERVER_PATH_SIZE];
+	char priv_path[OPSERVER_PATH_SIZE];
+	char ca_trust_path[OPSERVER_PATH_SIZE];
 	char www_root[OPSERVER_PATH_SIZE];
 	struct http_conf hp_conf;
 	struct http_conf hps_conf;
 	
 	struct ssl_client client_https[MAX_OPWEB_HTTPS_CLIENT_NUM];
+	unsigned char bus_webbuf[BUS_RCV_BUF_MAX];
 };
 
 struct opweb *get_h_opweb(void);
