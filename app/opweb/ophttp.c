@@ -5,7 +5,7 @@
 #include "interface/http.h"
 #include "opweb.h"
 
-enum http_rescode ophttp_get_header(unsigned char* request, unsigned int size, struct http_proto *proto)
+enum http_rescode ophttp_handle_header(unsigned char* request, unsigned int size, struct http_proto *proto)
 {
 	char *start_str = NULL;
 	char *end_str = NULL;
@@ -16,7 +16,8 @@ enum http_rescode ophttp_get_header(unsigned char* request, unsigned int size, s
 	int len = 0;
 	int copy_len = 0;
 	unsigned int num = 0;
-	int i = 0,j = 0;;
+	int i = 0,j = 0;
+	unsigned int header_id = 0;
 	
 	if (!request || !size || !proto)
 		return code_400_bad_request;
@@ -33,9 +34,10 @@ enum http_rescode ophttp_get_header(unsigned char* request, unsigned int size, s
 	num = 0;
 
 	while((str = strstr((char*)start_str, "\r\n"))) {
+		len = str- start_str;
+		begin = 0;
 		if (!num) {/*common header*/
-			len = str- start_str;
-			begin = 0;
+
 			for(i = 0; i < len;i++) {
 				if (start_str[i] == ' ' || (i == len-1)) { /*http method*/
 					if (i == len -1)
@@ -71,8 +73,6 @@ enum http_rescode ophttp_get_header(unsigned char* request, unsigned int size, s
 			if (!proto->metd || !proto->ver || !proto->uri || !strlen(proto->uri))
 				return code_400_bad_request;
 
-			len = str- start_str;
-			begin = 0;
 			for(i = 0; i < len;i++) {
 				if (start_str[i] == ':') {
 					end = i;
@@ -83,7 +83,7 @@ enum http_rescode ophttp_get_header(unsigned char* request, unsigned int size, s
 					memcpy(buf,start_str+begin, copy_len);
 					str_tolower(buf, copy_len);
 					opweb_log_debug("request header key:<%s>\n",buf);
-					if(!get_http_header_id(buf))
+					if(!(header_id = get_http_header_id(buf)))
 						opweb_log_warn("server unkown this header:%s\n",buf);
 					for (j = i+1; j < len;j++) {
 						if (start_str[j] == ' ')
@@ -105,7 +105,7 @@ enum http_rescode ophttp_get_header(unsigned char* request, unsigned int size, s
 					memset(buf,0,sizeof(buf));
 					memcpy(buf,start_str+begin, copy_len);
 					str_tolower(buf, copy_len);
-					
+					handle_http_value(header_id, proto, buf, copy_len);
 					opweb_log_debug("request header value:<%s>\n",buf);
 					break;
 					

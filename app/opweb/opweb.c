@@ -6,14 +6,18 @@
 #include <errno.h>
 #include <pthread.h>
 #include <assert.h>
+#include "libxml/tree.h"
+#include "libubox/utils.h"
+#include "libxml/parser.h"
 
-struct opweb *self = NULL;
+
+struct opweb *opweb_self = NULL;
 
 struct opweb *get_h_opweb(void)
 {
-	assert(self);
+	assert(opweb_self);
 
-	return self;
+	return opweb_self;
 }
 
 
@@ -48,7 +52,7 @@ struct opweb *opweb_init(void)
 		web->idle_https.num++;
 	}
 	
-	self = web;
+	opweb_self = web;
 
 	return web;
 
@@ -188,6 +192,7 @@ void opweb_client_read(struct bufferevent *bev, void *ctx)
 
 	fd = bufferevent_getfd(bev);
 	write(fd, str, strlen(str));
+	event_add(client->alive_timer, &client->t);
 	release_client(client);
 	return;
 }
@@ -321,6 +326,90 @@ void opweb_bufferevent_flush(struct bufferevent *bev)
 	bufferevent_flush(bev, EV_READ, BEV_NORMAL);
 	return;
 }
+
+int opweb_config_parse(char *conf_path)
+{
+	int ret = -1;
+	xmlDocPtr doc = NULL;
+	xmlNodePtr root = NULL;
+	xmlNodePtr node;
+	xmlNodePtr node1;
+	struct opweb *web = NULL;
+	xmlChar *value;
+
+	if (!conf_path)
+		goto out;
+
+	web = get_h_opweb();
+
+	doc = xmlReadFile(conf_path, "utf-8", XML_PARSE_NOBLANKS);
+	if (!doc)
+		goto out;
+
+	root = xmlDocGetRootElement(doc);
+	if (!root)
+		goto out;
+	
+	for (node=root->children;node;node=node->next) {
+		if (node->type != XML_ELEMENT_NODE)
+			continue;
+
+		if(!xmlStrcasecmp(node->name,BAD_CAST"www_root")) {
+			value = xmlNodeGetContent(node);
+			strlcpy(web->www_root, (char*)value, sizeof(web->www_root));
+			xmlFree(value);
+		} else if(!xmlStrcasecmp(node->name,BAD_CAST"cert_root")) {
+
+			for(node1=node->children; node1; node1=node1->next) {
+				if (node1->type != XML_ELEMENT_NODE)
+					continue;
+				
+				if(!xmlStrcasecmp(node1->name,BAD_CAST"ca")) {
+					value = xmlNodeGetContent(node1);
+					strlcpy(web->ca_path, (char*)value, sizeof(web->ca_path));
+					xmlFree(value);
+				}
+
+				if(!xmlStrcasecmp(node1->name,BAD_CAST"key")) {
+					value = xmlNodeGetContent(node1);
+					strlcpy(web->key_path, (char*)value, sizeof(web->key_path));
+					xmlFree(value);
+				}
+				
+			}
+		} else if (!xmlStrcasecmp(node->name,BAD_CAST"http_port")) {
+			value = xmlNodeGetContent(node);
+			if (!isport((char*)value)) {
+				xmlFree(value);
+				goto out;
+			}
+
+			web->hp_conf.port = atoi((char*)value) & 0xffff;
+			xmlFree(value);
+		} else if (!xmlStrcasecmp(node->name,BAD_CAST"https_port")) {
+			value = xmlNodeGetContent(node);
+			if (!isport((char*)value)) {
+				xmlFree(value);
+				goto out;
+			}
+
+			web->hps_conf.port = atoi((char*)value) & 0xffff;
+			xmlFree(value);
+		}
+	}
+
+
+	ret = 0;
+
+out:
+	if (doc) {
+		xmlFreeDoc(doc);
+		xmlCleanupParser();
+	}
+
+	return ret;
+}
+
 
 
 

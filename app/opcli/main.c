@@ -9,8 +9,9 @@
 #include "interface/module.h"
 #include "cmd_opbus.h"
 #include "interface/log.h"
-
+#include "cmd_opmgr.h"
 #include <signal.h>
+
 int main(int argc, char *argv[])
 {
 
@@ -38,6 +39,7 @@ int main(int argc, char *argv[])
 
 	/*install element*/
 	cmd_install_opbus();
+	cmd_install_opmgr();
 
 	sort_node ();
 	vty_serv_sock(NULL,55555,NULL);

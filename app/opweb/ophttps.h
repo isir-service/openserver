@@ -10,11 +10,13 @@ struct ssl_client *opweb_alloc_idle_ssl_client(void);
 
 void opweb_release_idle_ssl_client(struct ssl_client *client);
 
+void opweb_https_client_free(struct ssl_client *client);
 
 void opweb_https_accept(evutil_socket_t fd, short what, void *arg);
 
 void opweb_https_read(evutil_socket_t fd, short what, void *arg);
 
+void opweb_https_timer(int s, short what, void *arg);
 
 
 

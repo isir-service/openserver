@@ -6,9 +6,8 @@
 
 DEFUN (opbus_show_cfg_func,
 		opbus_show_cfg_cmd,
-		"show opbus config",
+		"show config",
 		"show\n"
-		"opbus module\n"
 		"config")
 {
 	(void)self;
@@ -22,7 +21,7 @@ DEFUN (opbus_show_cfg_func,
 void cmd_install_opbus(void)
 {
 
-	install_element(SHOW_NODE, &opbus_show_cfg_cmd);
+	install_element(OPBUS_NODE, &opbus_show_cfg_cmd);
 
 	return;
 }

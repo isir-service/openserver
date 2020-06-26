@@ -1,6 +1,20 @@
 #ifndef __HTTP_H__
 #define __HTTP_H__
 
+#define HTTP_URI 1024
+#define HTTP_HOST 128
+
+struct http_proto {
+	unsigned int metd ;
+	unsigned int ver;
+	char uri[HTTP_URI];
+	char host[HTTP_HOST];
+
+	//header
+	unsigned int keep_alive;
+
+};
+
 struct http_mtd_map {
 	char *name;
 };
@@ -13,8 +27,10 @@ struct http_res_code_map {
 	char *desc;
 };
 
+typedef void (*header_type_cb) (struct http_proto *, char *, int);
 struct http_header_map {
 	char *name;
+	header_type_cb cb;
 };
 
 enum http_method {
@@ -94,6 +110,7 @@ enum http_header {
 	header_cache_control = 1,
 	header_date,
 	header_connection,
+
 	//request
 	header_accept,
 	header_accept_charset,
@@ -125,6 +142,12 @@ enum http_header {
 
 };
 
+enum http_header_value {
+	hd_value_keep_alive = 1,
+
+
+};
+
 char *get_http_metd_name(unsigned int method);
 unsigned int get_http_metd_id(char *name);
 
@@ -135,11 +158,14 @@ char *get_http_res_code_desc(unsigned int code);
 
 char *get_http_header_name(unsigned int header);
 unsigned int get_http_header_id(char *name);
+void handle_http_value(unsigned int header, struct http_proto *proto, char *value, int size);
 
 int urlencode(char *url, int size, char *enurl, int en_size);
 int urldecode(char *en_url, int size, char*deurl ,int de_size);
 
 void str_toupper(char *str, int size);
 void str_tolower(char *str, int size);
+
+void header_connection_cb(struct http_proto *proto, char *value, int size);
 
 #endif

@@ -9,6 +9,7 @@
 #include "ophttps.h"
 #include "openssl/ssl.h"
 #include "openssl/types.h"
+#define OPWEB_CONF_PATH "/home/isir/developer/openserver/app/opweb/opweb_conf.xml"
 
 int main(int argc, char**argv)
 {
@@ -38,12 +39,16 @@ int main(int argc, char**argv)
 		goto out;
 	}
 
-
-	if(SSL_CTX_use_certificate_file(web->openssl_ctx, "/home/isir/developer/openserver/app/opweb/conf/ca.crt",SSL_FILETYPE_PEM) != 1) {
+	if (opweb_config_parse(OPWEB_CONF_PATH) < 0) {
+		opweb_log_error("opweb init config failed\n");
+		goto out;
+	}
+		
+	if(SSL_CTX_use_certificate_file(web->openssl_ctx, web->ca_path ,SSL_FILETYPE_PEM) != 1) {
 		opweb_log_error("SSL_CTX_use_certificate_file failed\n");
 		goto out;
 	}
-	if(SSL_CTX_use_PrivateKey_file(web->openssl_ctx, "/home/isir/developer/openserver/app/opweb/conf/ca.key",SSL_FILETYPE_PEM) != 1) {
+	if(SSL_CTX_use_PrivateKey_file(web->openssl_ctx, web->key_path ,SSL_FILETYPE_PEM) != 1) {
 		opweb_log_error("SSL_CTX_use_PrivateKey_file failed\n");
 		goto out;
 	}
@@ -60,11 +65,11 @@ int main(int argc, char**argv)
 	if (!web->bus)
 		goto out;
 
-	web->http_fd = usock(USOCK_TCP|USOCK_SERVER, "0.0.0.0", usock_port(60000));
+	web->http_fd = usock(USOCK_TCP|USOCK_SERVER, "0.0.0.0", usock_port(web->hp_conf.port));
 	if (web->http_fd < 0)
 		goto out;
 
-	web->https_fd = usock(USOCK_TCP|USOCK_SERVER, "0.0.0.0", usock_port(60001));
+	web->https_fd = usock(USOCK_TCP|USOCK_SERVER, "0.0.0.0", usock_port(web->hps_conf.port));
 	if (web->https_fd < 0)
 		goto out;
 

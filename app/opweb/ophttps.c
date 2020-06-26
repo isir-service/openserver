@@ -39,6 +39,27 @@ struct ssl_client *opweb_alloc_idle_ssl_client(void)
 
 }
 
+void opweb_https_client_free(struct ssl_client *client)
+{
+	struct opweb *web = get_h_opweb();
+
+	if(!client)
+		return;
+	
+	pthread_rwlock_wrlock(&web->rwlock);
+	SSL_shutdown(client->ssl);
+	SSL_free(client->ssl);
+	client->thread->client_num--;
+	close(client->client_fd);
+	evtimer_del(client->alive_timer);
+	pthread_rwlock_unlock(&web->rwlock);
+
+	opweb_release_idle_ssl_client(client);
+
+	return;
+
+}
+
 void opweb_release_idle_ssl_client(struct ssl_client *client)
 {
 
@@ -56,6 +77,22 @@ void opweb_release_idle_ssl_client(struct ssl_client *client)
 	return;
 }
 
+void opweb_https_timer(int s, short what, void *arg)
+{
+	(void)s;
+	(void)what;
+	
+	struct ssl_client *client = NULL;
+
+	client= (struct ssl_client *)arg;
+	if (!client)
+		return;
+
+	opweb_https_client_free(client);
+
+	return;
+}
+
 void opweb_https_read(evutil_socket_t fd, short what, void *arg)
 {
 	(void)fd;
@@ -66,30 +103,32 @@ void opweb_https_read(evutil_socket_t fd, short what, void *arg)
 	struct ssl_client *client = (struct ssl_client *)arg;
 	if (!client) {
 		opweb_log_warn("client pointer is null\n");
-		goto out;
+		return;
 	}
 
 	read_size = SSL_read(client->ssl, client->read_buf, sizeof(client->read_buf));
 	if (read_size < 0) {
-		SSL_shutdown(client->ssl);
-		SSL_free(client->ssl);
-		opweb_release_idle_ssl_client(client);
-		close(client->client_fd);
+		opweb_https_client_free(client);
 		opweb_log_debug("opweb_https read size = %d\n",read_size);
-		goto out;
+		return;
 	}
 
 	if (!read_size) {
 		opweb_log_debug("opweb_https read is 0\n");
-		return;
+		goto out;
 	}
 
-	if (ophttp_get_header(client->read_buf, read_size, &client->proto) < 0)
-		goto out;
-
+	evtimer_del(client->alive_timer);
 	
-
+	if (!ophttp_handle_header(client->read_buf, read_size, &client->proto))
+		goto out;
+	
 out:
+	event_add(client->alive_timer, &client->t);
+
+	if (!client->proto.keep_alive)
+		opweb_https_client_free(client);
+
 	return;
 }
 
@@ -156,6 +195,18 @@ void opweb_https_accept(evutil_socket_t fd, short what, void *arg)
 
 	if (event_add(client->ev_read, NULL)) {
 		opweb_log_warn("client[%d] event_add failed\n");
+		goto out;
+	}
+	client->alive_timer = evtimer_new(thread->base, opweb_https_timer, client);
+	if (!client->alive_timer) {
+		opweb_log_warn("client [%u] alloc evtimer_new failed\n", client_fd);
+		goto out;
+	}
+
+	client->t.tv_sec = 120;
+	if (event_add(client->alive_timer, &client->t) < 0) {
+		
+		opweb_log_warn("client [%u] add evtimer_new failed\n", client_fd);
 		goto out;
 	}
 	

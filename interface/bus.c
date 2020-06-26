@@ -35,7 +35,7 @@ struct bus_h {
 	struct bufferevent *buffer;
 	struct evbuffer *evbuff;
 	size_t water_level;
-	unsigned char recv_buf[40960];
+	unsigned char recv_buf[BUS_RCV_BUF_MAX];
 	unsigned int read_index;
 	int recv_type;
 	void *arg;
@@ -273,9 +273,16 @@ int bus_send(void *h,unsigned int from_sub_id,  unsigned int to_module, unsigned
 	unsigned int to_module_tmp;
 	unsigned int to_sub_id_tmp;
 	unsigned int size_tmp;
+	unsigned int size_send = 0;
 
-	if (!hb || !data || size > sizeof(hb->recv_buf) - 17)
+	if (!hb)
 		goto out;
+
+	if (!size || !data)
+		size_send = 0;
+	else
+		size_send = size;
+
 
 	hb->recv_buf[0] = 0x0a;
 	hb->recv_buf[1] = 0x0d;
@@ -285,7 +292,7 @@ int bus_send(void *h,unsigned int from_sub_id,  unsigned int to_module, unsigned
 	from_sub_id_tmp = htonl(from_sub_id);
 	to_module_tmp = htonl(to_module);
 	to_sub_id_tmp = htonl(to_sub_id);
-	size_tmp = htonl(size);
+	size_tmp = htonl(size_send);
 
 	pthread_mutex_lock(&hb->lock);
 	memcpy(&hb->recv_buf[3], &from_module_tmp, sizeof(unsigned int));
@@ -293,8 +300,8 @@ int bus_send(void *h,unsigned int from_sub_id,  unsigned int to_module, unsigned
 	memcpy(&hb->recv_buf[11], &to_module_tmp, sizeof(unsigned int));
 	memcpy(&hb->recv_buf[15], &to_sub_id_tmp, sizeof(unsigned int));
 	memcpy(&hb->recv_buf[19], &size_tmp, sizeof(unsigned int));
-	memcpy(&hb->recv_buf[23], data, size);
-	bufferevent_write(hb->buffer, (void*)hb->recv_buf, size+23);
+	memcpy(&hb->recv_buf[23], data, size_send);
+	bufferevent_write(hb->buffer, (void*)hb->recv_buf, size_send+23);
 	pthread_mutex_unlock(&hb->lock);
 	return 0;
 	
@@ -310,16 +317,25 @@ int bus_send_sync(void *h,unsigned int from_sub_id,  unsigned int to_module, uns
 	unsigned int to_module_tmp;
 	unsigned int to_sub_id_tmp;
 	unsigned int size_tmp;
+	unsigned int actual = 0;
 	int sock_fd;
 	int poll_ret = -1;
+	unsigned int size_send = 0;
 	unsigned int mem_size  = 0;
 	(void)sock_fd;
 	(void)poll_ret;
 	(void)res;
 	(void)res_size;
 	(void)ms;
-	if (!hb || !data || size > sizeof(hb->recv_buf) - 17)
+	if (!hb)
 		return -1;
+
+	if (!size || !data)
+		size_send = 0;
+	else
+		size_send = size;
+
+	memset(res, 0, res_size);
 
 	hb->recv_buf[0] = 0x0a;
 	hb->recv_buf[1] = 0x0d;
@@ -329,7 +345,7 @@ int bus_send_sync(void *h,unsigned int from_sub_id,  unsigned int to_module, uns
 	from_sub_id_tmp = htonl(from_sub_id);
 	to_module_tmp = htonl(to_module);
 	to_sub_id_tmp = htonl(to_sub_id);
-	size_tmp = htonl(size);
+	size_tmp = htonl(size_send);
 	
 	pthread_mutex_lock(&hb->lock);
 	memcpy(&hb->recv_buf[3], &from_module_tmp, sizeof(unsigned int));
@@ -337,11 +353,11 @@ int bus_send_sync(void *h,unsigned int from_sub_id,  unsigned int to_module, uns
 	memcpy(&hb->recv_buf[11], &to_module_tmp, sizeof(unsigned int));
 	memcpy(&hb->recv_buf[15], &to_sub_id_tmp, sizeof(unsigned int));
 	memcpy(&hb->recv_buf[19], &size_tmp, sizeof(unsigned int));
-	memcpy(&hb->recv_buf[23], data, size);
+	memcpy(&hb->recv_buf[23], data, size_send);
 	
 	sock_fd = bufferevent_getfd(hb->buffer);
 	event_base_loopbreak(bufferevent_get_base(hb->buffer));
-	bufferevent_write(hb->buffer, (void*)hb->recv_buf, size+23);
+	bufferevent_write(hb->buffer, (void*)hb->recv_buf, size_send+23);
 	
 	poll_ret = usock_wait_ready(sock_fd, ms);
 
@@ -349,9 +365,16 @@ int bus_send_sync(void *h,unsigned int from_sub_id,  unsigned int to_module, uns
 		goto out;
 	
 	read(sock_fd, hb->recv_buf, sizeof(hb->recv_buf));
-	*res_actual = ntohl(*((unsigned int *)(&hb->recv_buf[19])));
-	mem_size = *res_actual > res_size?res_size:*res_actual;
-	memcpy(res, &hb->recv_buf[23], mem_size);
+	actual = ntohl(*((unsigned int *)(&hb->recv_buf[19])));
+
+	mem_size = actual > res_size?res_size:actual;
+
+	if (res)
+		memcpy(res, &hb->recv_buf[23], mem_size);
+
+	if (res_actual)
+		*res_actual = actual;
+	
 	pthread_mutex_unlock(&hb->lock);
 	return 0;
 

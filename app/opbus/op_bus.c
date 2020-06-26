@@ -13,12 +13,12 @@
 #include "libubox/usock.h"
 
 #define WAIT_HELLO_TIMEOUT_MS 1000
-static struct _op_bus *self;
+static struct _op_bus *opbus_self;
 
-#define opbus_log_error(fmt...) log_err(self->log,fmt)
-#define opbus_log_warn(fmt...) log_warn(self->log,fmt)
-#define opbus_log_info(fmt...) log_info(self->log,fmt)
-#define opbus_log_debug(fmt...) log_debug(self->log,fmt)
+#define opbus_log_error(fmt...) log_err(opbus_self->log,fmt)
+#define opbus_log_warn(fmt...) log_warn(opbus_self->log,fmt)
+#define opbus_log_info(fmt...) log_info(opbus_self->log,fmt)
+#define opbus_log_debug(fmt...) log_debug(opbus_self->log,fmt)
 
 
 #define CLIENT_HEADER_WATER_LEVEL 23
@@ -30,14 +30,14 @@ enum {
 };
 struct _op_bus *get_h_opbus(void)
 {
-	assert(self);
+	assert(opbus_self);
 
-	return self;
+	return opbus_self;
 }
 
 void set_h_opbus(struct _op_bus *bus)
 {
-	self = bus;
+	opbus_self = bus;
 	return;
 }
 

@@ -10,7 +10,8 @@
 #include <time.h>
 #include <string.h>
 
-static struct oplog *h_oplog = NULL;
+static struct oplog *oplog_self = NULL;
+
 struct oplog *oplog_init(void)
 {
 	struct oplog * h_log = NULL;
@@ -34,14 +35,14 @@ void oplog_exit(struct oplog *h_log)
 
 struct oplog *get_h_oplog(void)
 {
-	assert(h_oplog);
+	assert(oplog_self);
 
-	return h_oplog;
+	return oplog_self;
 }
 
 void set_h_oplog(struct oplog *h_log)
 {
-	h_oplog = h_log;
+	oplog_self = h_log;
 	return;
 }
 

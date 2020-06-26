@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root name="conf">
+	<www_root>/home/isir/developer/www</www_root>
+	<cert_root>
+		<ca>/home/isir/developer/openserver/app/opweb/conf/ca.crt</ca>
+		<key>/home/isir/developer/openserver/app/opweb/conf/ca.key</key>
+	</cert_root>
+	<http_port>60000</http_port>
+	<https_port>60001</https_port>
+	
+</root>

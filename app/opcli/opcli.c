@@ -1,11 +1,11 @@
 #include "opcli.h"
 #include <stdlib.h>
 
-static struct opcli *self;
+static struct opcli *opcli_self;
 
 void*get_opcli_bus(void)
 {
-	return self->bus;
+	return opcli_self->bus;
 }
 
 struct opcli *opcli_init(void)
@@ -14,7 +14,7 @@ struct opcli *opcli_init(void)
 	if (!cli)
 		return NULL;
 	
-	self = cli;
+	opcli_self = cli;
 	return cli;
 }
 

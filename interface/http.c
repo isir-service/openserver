@@ -73,7 +73,7 @@ struct http_header_map header_map[header_max] = {
 		//common
 	[header_cache_control] = { .name = "cache-control"},
 	[header_date] = { .name = "date"},
-	[header_connection] = { .name = "connection"},
+	[header_connection] = { .name = "connection", .cb = header_connection_cb},
 	//request
 	[header_accept] = { .name = "accept"},
 	[header_accept_charset] = { .name = "ccept-charset"},
@@ -177,7 +177,17 @@ unsigned int get_http_header_id(char *name)
 
 	return 0;
 
+}
 
+void handle_http_value(unsigned int header, struct http_proto *proto, char *value, int size)
+{
+	if (header >= header_max || !header || !value || size <= 0 || !proto)
+		return;
+
+	if (header_map[header].cb)
+		header_map[header].cb(proto, value, size);
+
+	return;
 }
 
 int hex2dec(char c)
@@ -292,6 +302,19 @@ void str_tolower(char *str, int size)
 	return;
 
 
+}
+
+void header_connection_cb(struct http_proto *proto, char *value, int size)
+{
+	if (!proto || !value || size <= 0)
+		return;
+
+	if (!strcmp(value, "keep-alive"))
+		proto->keep_alive = 1;
+	else if (!strcmp(value, "close"))
+		proto->keep_alive = 0;
+
+	return;
 }
 
 
