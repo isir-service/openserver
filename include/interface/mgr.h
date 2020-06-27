@@ -3,7 +3,7 @@
 
 enum mgr_sub_id {
 	mgr_meminfo = 1,
-
+	mgr_cpu_usage,
 	mgr_max,
 };
 

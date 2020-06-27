@@ -5,4 +5,6 @@ int handle_mgr_sub_id(unsigned int from_module, unsigned int sub_id, unsigned ch
 
 int opmgr_get_meminfo(unsigned int from_module, unsigned char *encap_buf, unsigned int size);
 
+int opmgr_get_cpu_usage(unsigned int from_module, unsigned char *encap_buf, unsigned int size);
+
 #endif

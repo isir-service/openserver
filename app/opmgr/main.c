@@ -24,6 +24,13 @@ int main (int argc, char **argv)
 	if (!mgr->base)
 		goto out;
 
+	mgr->et_cpu = event_new(mgr->base, -1, EV_PERSIST, opmgr_cpu_calc_timer, mgr);
+	if (!mgr->et_cpu)
+		goto out;
+
+	if (event_add(mgr->et_cpu, &mgr->t_cpu) < 0)
+		goto out;
+
 	event_base_loop(mgr->base,EVLOOP_NO_EXIT_ON_EMPTY);
 
 	return 0;
