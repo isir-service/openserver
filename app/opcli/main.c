@@ -21,14 +21,20 @@ int main(int argc, char *argv[])
 	struct opcli *cli = opcli_init();
 	if (!cli)
 		goto out;
+
+	cli->log = log_init(MODULE_OPCLI);
+	if (!cli->log)
+		goto out;
+
+	
+	log_debug(cli->log, "opcli init\n");
 	
 	cli->master = thread_master_create();
 	if (!cli->master)
 		goto out;
 
-	cli->log = log_init(MODULE_OPCLI);
-	if (!cli->log)
-		goto out;
+
+
 
 	cli->bus = bus_connect(MODULE_OPCLI, opcli_bus_cb, opcli_bus_disconnect, NULL);
 	if (!cli->bus)

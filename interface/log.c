@@ -348,4 +348,13 @@ void log_debug(void *h, const char *fmt, ...)
 
 }
 
+int get_log_fd(void *h)
+{
+	struct log_module *m = NULL;
+	m = (struct log_module *)h;
+	if (!m)
+		return -1;
+
+	return m->send_fd;
+}
 

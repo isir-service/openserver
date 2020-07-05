@@ -1,5 +1,5 @@
 #include "ophttps.h"
-#include "opweb.h"
+#include "opweb_pub.h"
 #include "errno.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -8,6 +8,10 @@
 #include <string.h>
 #include "openssl/err.h"
 #include "interface/http.h"
+#include "ophttp.h"
+#include "fastcgi.h"
+#include <fcntl.h>
+#include "libubox/usock.h"
 
 struct ssl_client *opweb_alloc_idle_ssl_client(void)
 {
@@ -99,6 +103,10 @@ void opweb_https_read(evutil_socket_t fd, short what, void *arg)
 	(void)what;
 
 	int read_size = 0;
+	int response_code = 0;
+	struct opweb *web = get_h_opweb();
+	(void)web;
+	
 	opweb_log_debug("opweb_https read， event = %d\n", what);
 	struct ssl_client *client = (struct ssl_client *)arg;
 	if (!client) {
@@ -120,8 +128,24 @@ void opweb_https_read(evutil_socket_t fd, short what, void *arg)
 
 	evtimer_del(client->alive_timer);
 	
-	if (!ophttp_handle_header(client->read_buf, read_size, &client->proto))
+	if ((response_code = ophttp_handle_header(client, client->read_buf, read_size, &client->proto)) < 0)
 		goto out;
+	
+	opweb_log_debug("request path:%s, param:%s\n", client->proto.uri_path, client->proto.uri_param);
+
+	#if 0
+	if (client->doc_type == doc_type_unkonw) {
+		opweb_log_warn("unkonw path:%s\n", client->proto.uri_path);
+		goto out;
+	}
+
+	#endif
+	
+	if (client->proto.metd == metd_GET && (client->doc_type == doc_type_html || client->doc_type == doc_type_other ||
+			client->doc_type == doc_type_unkonw))
+		ophttp_static_docment(client, client->proto.uri_path, client->write_buf, sizeof(client->write_buf));
+	else
+		opweb_cb_fastcgi(client,  client->write_buf, sizeof(client->write_buf));
 	
 out:
 	event_add(client->alive_timer, &client->t);
@@ -172,18 +196,14 @@ void opweb_https_accept(evutil_socket_t fd, short what, void *arg)
 		goto out;
 	}
 
-	if (SSL_accept(client->ssl) != 1) {
+	if ((ret1 = SSL_accept(client->ssl)) != 1) {
 		ret = SSL_get_error(client->ssl, ret1);
-		//ERR_print_errors_fp(stderr);
+		ERR_print_errors_fp(fdopen(get_log_fd(web->log), "w"));
 		opweb_log_warn("client[%d] SSL_accept failed,error = %d\n", ret);
 		goto out;
 	}
 
 #if 0
-	if(SSL_get_verify_result(client->ssl) != X509_V_OK){
-		opweb_log_warn("client not provide cert\n");
-		goto out;
-	}
 
 	client->cert = SSL_get_peer_certificate(client->ssl);
 	if (!client->cert) {
@@ -214,7 +234,7 @@ void opweb_https_accept(evutil_socket_t fd, short what, void *arg)
 		goto out;
 	}
 
-	client->t.tv_sec = 120;
+	client->t.tv_sec = 600;
 	if (event_add(client->alive_timer, &client->t) < 0) {
 		
 		opweb_log_warn("client [%u] add evtimer_new failed\n", client_fd);
@@ -237,4 +257,182 @@ out:
 	
 	return;
 }
+
+int opweb_cb_fastcgi(struct ssl_client *client, unsigned char *write_buf, unsigned int write_size)
+{
+	if(!client)
+		goto out;
+
+	int i = 0,j = 0;
+	int ret = 0;
+	unsigned short size = 0;
+	unsigned char * rd_buf = NULL;
+	struct fast_header *header = NULL;
+	unsigned short header_size  = 0;
+	char key[HTTP_KEY_LEN];
+	char value[HTTP_PAREAMS_LEN];
+	char *str = NULL;
+	char *start_str = NULL;
+	int len = 0;
+	char *end_str = NULL;
+	int begin = 0,end = 0;
+	int copy_len = 0;
+	int index = 0;
+	unsigned int content_len = 0;
+	char *write_respose = NULL;
+
+	void * fcgi = fastcgi_connect("127.0.0.1", 9000);
+	if (!fcgi) {
+		opweb_log_warn("connect fcgi failed\n");
+		goto out;
+	}
+
+	write_respose = (char*)write_buf;
+
+	fastcgi_begin_request(fcgi, fcgi_responser, fcgi_keep_conn);
+
+	fastcgi_params(fcgi, "SCRIPT_FILENAME", client->proto.uri_path);
+	fastcgi_params(fcgi, "REQUEST_METHOD", get_http_metd_name(client->proto.metd));
+	opweb_log_debug("fast cgi:script_filename:%s, method:%s\n", client->proto.uri_path, get_http_metd_name(client->proto.metd));
+
+	fastcgi_end_request(fcgi, fcgi_params);
+
+	fastcgi_end_request(fcgi, fcgi_begin_request);
+	
+	fastcgi_end_begin(fcgi);
+
+	ret = usock_wait_ready(fastcgi_get_fd(fcgi), 200);
+	if (ret <= 0)
+		goto out;
+
+	rd_buf = fastcgi_get_read_buf(fcgi, &size);
+	if (!rd_buf)
+		goto out;
+
+read_again:
+	ret = read(fastcgi_get_fd(fcgi), rd_buf, sizeof(struct fast_header));
+	if (ret < (int)sizeof(struct fast_header)) {
+		opweb_log_warn("get header size[%d] not euql\n", ret);
+		goto out;
+	}
+
+	header = (struct fast_header*)rd_buf;
+	if (header->type != fcgi_stdout) {
+		header_size = header->content_length_h1 << 8 | header->content_length_h0;
+		header_size = header_size > size?size:header_size;
+		opweb_log_debug("get header type[%hhu] ignore, try read[%hu] skip it\n", header->type, header_size);
+		ret = read(fastcgi_get_fd(fcgi), rd_buf, header_size);
+		if (ret <= 0) {
+			opweb_log_warn("get header type[%hhu] ignore, try read[%hu] skip it, read failed\n", header->type, header_size);
+			goto out;
+		}
+		goto read_again;
+	}
+
+	header_size = header->content_length_h1 << 8 | header->content_length_h0;
+	header_size = header_size > size?size:header_size;
+	ret = read(fastcgi_get_fd(fcgi), rd_buf, header_size);
+	if (ret <= 0) {
+		opweb_log_warn("stdout :try read[%hu] failed\n", header_size);
+		goto out;
+	}
+
+	fastcgi_disconnect(fcgi);
+
+	start_str = (char*)rd_buf;
+	end_str = strstr((char*)rd_buf, "\r\n\r\n");
+	if (!end_str) {
+		opweb_log_warn("stdout :can not found %s\n","\r\n\r\n");
+		goto out;
+	}
+
+	content_len = header_size-(end_str-start_str) + 4;
+
+	index  = 0;
+	ret = snprintf(write_respose+index, write_size-index, "%s 200 %s\r\n", get_http_ver_name(client->proto.ver), get_http_res_code_desc(code_200_ok));
+	if (ret <= 0)
+		goto out;
+	
+	index += ret;
+	while((str = strstr(start_str, "\r\n")) && (str < end_str+2)) {
+		len = str - start_str;
+		begin = 0;
+
+		for (i = 0; i < len; i++) {
+			if (start_str[i] == ':') {
+				end = i;
+				copy_len = end-begin >= (int)sizeof(key)?(int)sizeof(key)-1:end-begin;
+				if (copy_len <= 0)
+					goto out;
+				memset(key,0,sizeof(key));
+				memcpy(key,start_str+begin, copy_len);
+				str_tolower(key, copy_len);
+				
+				for (j = i+1; j < len;j++) {
+					if (start_str[j] == ' ')
+						continue;
+					break;
+				}
+			
+				if (j >= len)
+					goto out;
+
+				begin = j;
+				end = len;
+				copy_len = end-begin >= (int)sizeof(value)?(int)sizeof(value)-1:end-begin;
+				if (copy_len <= 0)
+					goto out;
+			
+				memset(value,0,sizeof(value));
+				memcpy(value,start_str+begin, copy_len);
+				str_tolower(value, copy_len);
+
+				ret = snprintf(write_respose+index, write_size-index, "%s: %s\r\n", key, value);
+				if (ret <= 0)
+					goto out;
+				
+				index += ret;
+				
+				break;
+			}
+
+		}
+
+		start_str = str+2;
+	}
+
+	if (client->proto.keep_alive)
+			ret = snprintf(write_respose+index, write_size - index, "%s: %s\r\n", get_http_header_name(header_connection), "keep-alive");
+		else
+			ret = snprintf(write_respose+index, write_size - index, "%s: %s\r\n", get_http_header_name(header_connection), "close");
+		if (ret <= 0)
+			goto out;
+		
+	index += ret;
+		
+	ret = snprintf(write_respose+index, write_size-index, "%s: %u\r\n", get_http_header_name(header_content_length), content_len);
+	if (ret <= 0)
+		goto out;
+	
+	index += ret;
+
+	ret = snprintf(write_respose+index, write_size-index, "\r\n");
+	if (ret <= 0)
+		goto out;
+	
+	index += ret;
+
+	if (write_size-index < content_len)
+		goto out;
+
+	memcpy(write_respose+index, end_str+4, content_len);
+
+	index += content_len;
+	SSL_write(client->ssl, write_respose, index);
+	return 0;
+out:
+	fastcgi_disconnect(fcgi);
+	return -1;
+}
+
 

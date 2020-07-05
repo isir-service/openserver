@@ -1,5 +1,6 @@
 project(opweb VERSION 1.0)
 aux_source_directory(. src_file)
+aux_source_directory(./fpm src_file)
 ADD_EXECUTABLE(${PROJECT_NAME} ${src_file})
 message(${PROJECT_NAME})
 target_link_libraries(${PROJECT_NAME} event interface xml2 ubox pthread crypto openssl)

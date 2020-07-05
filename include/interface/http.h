@@ -4,16 +4,9 @@
 #define HTTP_URI 1024
 #define HTTP_HOST 128
 
-struct http_proto {
-	unsigned int metd ;
-	unsigned int ver;
-	char uri[HTTP_URI];
-	char host[HTTP_HOST];
+#define HTTP_KEY_LEN 96
+#define HTTP_PAREAMS_LEN 496
 
-	//header
-	unsigned int keep_alive;
-
-};
 
 struct http_mtd_map {
 	char *name;
@@ -26,6 +19,8 @@ struct http_ver_map {
 struct http_res_code_map {
 	char *desc;
 };
+
+struct http_proto;
 
 typedef void (*header_type_cb) (struct http_proto *, char *, int);
 struct http_header_map {
@@ -111,6 +106,15 @@ enum http_header {
 	header_date,
 	header_connection,
 
+	//entiry
+	header_content_encoding,
+	header_content_type,
+	header_content_language,
+	header_content_length,
+	header_last_modified,
+	header_expires,
+	header_transfer_encoding,
+
 	//request
 	header_accept,
 	header_accept_charset,
@@ -129,17 +133,24 @@ enum http_header {
 	header_www_authenticate,
 	header_set_cookie,
 
-	//entiry
-	header_content_encoding,
-	header_content_type,
-	header_content_language,
-	header_content_length,
-	header_last_modified,
-	header_expires,
-	header_transfer_encoding,
-
 	header_max,
 
+};
+
+struct header_key {
+	char value[HTTP_PAREAMS_LEN];
+	int valid;
+};
+
+struct http_proto {
+	unsigned int metd ;
+	unsigned int ver;
+	char uri[HTTP_URI];
+	char host[HTTP_HOST];
+	char uri_path[HTTP_URI];
+	char uri_param[HTTP_URI];
+	struct  header_key key[header_max];
+	unsigned int keep_alive;
 };
 
 enum http_header_value {

@@ -3,10 +3,11 @@
 	<www_root>/home/isir/developer/www</www_root>
 	<cert_root>
 		<trust_ca_path>/home/isir/developer/openserver/app/opweb/trust_cert</trust_ca_path>
-		<priv_key>/home/isir/developer/openserver/app/opweb/conf/server.key</priv_key>
-		<pub_key>/home/isir/developer/openserver/app/opweb/conf/server.crt</pub_key>
+		<priv_key>/home/isir/developer/openserver/app/opweb/conf/server.pem</priv_key>
+		<pub_key>/home/isir/developer/openserver/app/opweb/conf/server_cert.pem</pub_key>
 	</cert_root>
 	<http_port>60000</http_port>
 	<https_port>60001</https_port>
+	<fast_cgi>127.0.0.1:9000</fast_cgi>
 	
 </root>

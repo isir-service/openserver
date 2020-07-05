@@ -25,6 +25,7 @@ int main(int argc, char**argv)
 	
 	SSL_library_init();
 	OpenSSL_add_all_algorithms();
+	ERR_load_BIO_strings();
 	SSL_load_error_strings();
 
 	struct opweb *web = NULL; 
@@ -37,6 +38,7 @@ int main(int argc, char**argv)
 		goto out;
 
 	opweb_log_debug("opweb init\n");
+	
 
 	web->openssl_ctx =  SSL_CTX_new(TLS_server_method());
 	if (!web->openssl_ctx) {
@@ -49,9 +51,8 @@ int main(int argc, char**argv)
 		goto out;
 	}
 
-#if 0
-	SSL_CTX_set_verify(web->openssl_ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
-	SSL_CTX_set_verify_depth(web->openssl_ctx, 4);
+#if 1
+	//SSL_CTX_set_verify(web->openssl_ctx, SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
 
 	dir = opendir(web->ca_trust_path);
 	if (!dir)
@@ -82,6 +83,8 @@ int main(int argc, char**argv)
 		opweb_log_error("SSL_CTX_check_private_key failed\n");
 		goto out;
 	}
+
+	SSL_CTX_set_options(web->openssl_ctx, SSL_OP_NO_SSLv2);
 
 	web->base = event_base_new();
 	if (!web->base)

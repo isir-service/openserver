@@ -99,7 +99,7 @@ int opmgr_get_cpu_usage(unsigned int from_module, unsigned char *encap_buf, unsi
 				mgr->cpu_usage[i].cpu_name, mgr->cpu_usage[i].user, mgr->cpu_usage[i].nice,mgr->cpu_usage[i].system,
 				mgr->cpu_usage[i].iowait,mgr->cpu_usage[i].steal,mgr->cpu_usage[i].cpu_use,str_form);
 
-			if (ret < 0)
+			if (ret <= 0)
 				goto out;
 			
 			index += ret;
