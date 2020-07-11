@@ -179,4 +179,6 @@ void str_tolower(char *str, int size);
 
 void header_connection_cb(struct http_proto *proto, char *value, int size);
 
+char *get_http_content_name_by_tail(char *tail);
+
 #endif

@@ -2,11 +2,15 @@
 #include "event.h"
 #include "interface/log.h"
 #include "opmgr.h"
+#include "libubox/utils.h"
 
 int main (int argc, char **argv)
 {
 	(void)argc;
 	(void)argv;
+	
+	signal_action();
+
 	struct opmgr *mgr = opmgr_init();
 	if (!mgr)
 		goto out;

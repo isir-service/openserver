@@ -11,6 +11,8 @@ int main(int argc ,char **argv)
 	(void)argc;
 	(void)argv;
 
+	signal_action();
+
 	struct oplog *op_log = oplog_init();
 	if (!op_log)
 		goto out;

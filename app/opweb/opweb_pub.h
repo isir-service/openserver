@@ -15,6 +15,12 @@
 #define MAX_OPWEB_THREAT_NUM 5
 #define MAX_OPWEB_CLIENT_NUM 10
 #define MAX_OPWEB_HTTPS_CLIENT_NUM 100
+#define MAX_HEADER_ITEM 96
+
+struct ssl_header {
+	char value[64];
+	int enable;
+};
 
 struct ssl_client{
 	struct list_head node;
@@ -32,6 +38,9 @@ struct ssl_client{
 	struct timeval t;
 	struct event *alive_timer;
 	unsigned int doc_type;
+	struct ssl_header res_header[MAX_HEADER_ITEM+1];
+	int res_head_index;
+	
 };
 
 struct opweb *opweb_self;

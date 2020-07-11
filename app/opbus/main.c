@@ -19,6 +19,8 @@ int main(int argc, char**argv)
 	(void)argv;
 	int i = 0;
 	
+	signal_action();
+
 	struct _op_bus *bus = opbus_init();
 	if (!bus) {
 		printf ("opbus_init");

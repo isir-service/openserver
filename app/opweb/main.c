@@ -23,6 +23,8 @@ int main(int argc, char**argv)
 	(void)file;
 	(void)dir;
 	
+	signal_action();
+	
 	SSL_library_init();
 	OpenSSL_add_all_algorithms();
 	ERR_load_BIO_strings();

@@ -11,12 +11,16 @@
 #include "interface/log.h"
 #include "cmd_opmgr.h"
 #include <signal.h>
+#include "libubox/utils.h"
 
 int main(int argc, char *argv[])
 {
 
 	(void)argc;
 	(void)argv;
+	
+	signal_action();
+
 
 	struct opcli *cli = opcli_init();
 	if (!cli)

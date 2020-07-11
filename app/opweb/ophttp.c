@@ -88,7 +88,7 @@ int ophttp_handle_header(struct ssl_client *client,unsigned char* request, unsig
 			if (str_tmp) {
 				copy_len = str_tmp-proto->uri >= (int)sizeof(proto->uri_path)?(int)sizeof(proto->uri_path)-1:(str_tmp-proto->uri);
 				memcpy(proto->uri_path+strlen(web->www_root), proto->uri, copy_len);
-				strlcpy(proto->uri_param, str, sizeof(proto->uri_param));
+				strlcpy(proto->uri_param, str_tmp+1, sizeof(proto->uri_param));
 			} else {
 				if (!strcmp(proto->uri,"/")) {
 					snprintf(proto->uri_path+strlen(web->www_root), sizeof(proto->uri_path)-strlen(web->www_root), "/index.html");
@@ -190,103 +190,203 @@ int ophttp_handle_header(struct ssl_client *client,unsigned char* request, unsig
 
 }
 
+void ophttp_print_first(struct ssl_client *client, const char *fmt, ...)
+{
+
+	int size  = 0;
+
+	va_list args;
+
+	if (!client)
+		return;
+	va_start(args, fmt);
+	size = vsnprintf(client->res_header[0].value , sizeof(client->res_header[0].value), fmt, args);
+	if (size > 0)
+		client->res_header[0].enable = 1;
+	va_end(args);
+
+	return;
+
+}
+
+void ophttp_print_end(struct ssl_client *client, const char *fmt, ...)
+{
+	int size  = 0;
+
+	va_list args;
+
+	if (!client)
+		return;
+	
+	va_start(args, fmt);
+	size = vsnprintf(client->res_header[MAX_HEADER_ITEM].value , sizeof(client->res_header[MAX_HEADER_ITEM].value), fmt, args);
+	if (size > 0)
+		client->res_header[MAX_HEADER_ITEM].enable = 1;
+	va_end(args);
+
+	return;
+
+}
+
+
+
+void ophttp_print(struct ssl_client *client, const char *fmt, ...)
+{
+
+	va_list args;
+	int size  = 0;
+
+	if (!client || client->res_head_index >= MAX_HEADER_ITEM)
+		return;
+	
+
+	va_start(args, fmt);
+	size = vsnprintf(client->res_header[client->res_head_index].value , sizeof(client->res_header[client->res_head_index].value), fmt, args);
+	if (size > 0) {
+		client->res_header[client->res_head_index].enable = 1;
+		client->res_head_index++;
+	}
+	va_end(args);
+
+	return;
+
+}
+
+int ophttp_get_print_size(struct ssl_client *client)
+{
+
+	int size = 0;
+	int i = 0;
+	
+	if (!client)
+		return -1;
+
+	size = 0;
+
+	for (i = 0; i <= MAX_HEADER_ITEM;i++) {
+		if (!client->res_header[i].enable)
+			continue;
+		
+		size += (int)strlen(client->res_header[i].value);
+	}
+
+	return size;
+
+}
+
+void ophttp_resonse(struct ssl_client *client)
+{
+	int index = 0;
+	int ret = 0;
+	int i = 0;
+	
+	if (!client)
+		return;
+
+	index = 0;
+	for (i = 0; i < client->res_head_index;i++) {
+		if (!client->res_header[i].enable)
+			continue;
+		
+		ret = snprintf((char*)client->write_buf+index, (int)sizeof(client->write_buf) - index, "%s", client->res_header[i].value);
+		if (ret <= 0)
+			goto out;
+
+		client->res_header[i].enable = 0;
+		index += ret;
+	}
+
+	ret = snprintf((char*)client->write_buf+index, (int)sizeof(client->write_buf) - index, "%s", client->res_header[MAX_HEADER_ITEM].value);
+	if (ret <= 0)
+		goto out;
+
+	client->res_header[MAX_HEADER_ITEM].enable = 0;
+	index += ret;
+
+	SSL_write(client->ssl, client->write_buf, index);
+out:
+	
+	client->res_head_index = 1;
+	return;
+}
+
 void ophttp_static_docment(struct ssl_client *client, const char *path, unsigned char *write_buf, unsigned int write_size)
 {
 
 	char * write_str = NULL;
 	int ret = 0;
 	time_t t = 0;
-	int index = 0;
 	t = time(NULL);
 	int content_size = 0;
+	int read_size = 0;
 	(void)t;
 	int fd = 0;
 	struct stat st;
+	char tail_name[96] = {};
+	char *str = NULL;
 	
 	write_str = (char*)write_buf;
 
 	if (!client || !path || !write_size)
 		goto out;
 
-	index = 0;
+
+	if (client->proto.keep_alive)
+			ophttp_print(client, "%s: %s\r\n", get_http_header_name(header_connection), "keep-alive");
+	else
+			ophttp_print(client, "%s: %s\r\n", get_http_header_name(header_connection), "close");
+
+	ophttp_print_end(client, "\r\n");
 	
-	if (stat(path, &st) < 0) {
+	if (stat(path, &st) < 0 || (st.st_mode & S_IFDIR)) {
 
-		ret = snprintf(write_str+index, write_size - index, "%s 404 %s\r\n", get_http_ver_name(client->proto.ver), get_http_res_code_desc(code_404_not_found));
-		if (ret <= 0)
-			goto out;
-		
-		index += ret;
+		ophttp_print_first(client, "%s 404 %s\r\n", get_http_ver_name(client->proto.ver), get_http_res_code_desc(code_404_not_found));
 
-		if (client->proto.keep_alive)
-			ret = snprintf(write_str+index, write_size - index, "%s: %s\r\n", get_http_header_name(header_connection), "keep-alive");
-		else
-			ret = snprintf(write_str+index, write_size - index, "%s: %s\r\n", get_http_header_name(header_connection), "close");
-		if (ret <= 0)
-			goto out;
+		ophttp_print(client, "%s: %d\r\n", get_http_header_name(header_content_length), 0);
 
-		index += ret;
-
-		ret = snprintf(write_str+index, write_size - index, "%s: %d\r\n", get_http_header_name(header_content_length), 0);
-		if (ret <= 0)
-			goto out;
-
-		index += ret;
-		
-		ret = snprintf(write_str+index, write_size - index, "\r\n");
-
-		if (ret <= 0)
-			goto out;
-		index += ret;
-	
 		goto out;
 	}
+
 
 	fd = open(path, O_RDONLY);
 	if (fd < 0) {
-		ret = snprintf(write_str+index, write_size - index, "%s 500 %s\r\n", get_http_ver_name(client->proto.ver), get_http_res_code_desc(code_500_internal_error));
-		if (ret <= 0)
-			goto out;
 		
-		index += ret;
+		ophttp_print_first(client,"%s 500 %s\r\n", get_http_ver_name(client->proto.ver), get_http_res_code_desc(code_500_internal_error));
+		ophttp_print(client,"%s: %d\r\n", get_http_header_name(header_content_length), 0);
 		goto out;
 	}
 
+	ophttp_print_first(client,"%s 200 %s\r\n", get_http_ver_name(client->proto.ver), get_http_res_code_desc(code_200_ok));
 	content_size = (int)st.st_size;
-	ret = snprintf(write_str+index, write_size - index, "%s 200 %s\r\n", get_http_ver_name(client->proto.ver), get_http_res_code_desc(code_200_ok));
-	if (ret <= 0)
-		goto out;
+
+	ophttp_print(client, "%s: %d\r\n", get_http_header_name(header_content_length), content_size);
+
+	if ((str = strrchr(path, '.')))
+		snprintf(tail_name, sizeof(tail_name),"%s", str);
+
 	
-	index += ret;
+	ophttp_print(client, "%s: %s\r\n", get_http_header_name(header_content_type), get_http_content_name_by_tail(tail_name));
 
-	ret = snprintf(write_str+index, write_size - index, "%s: %d\r\n", get_http_header_name(header_content_length), content_size);
-	if (ret <= 0)
-		goto out;
 	
-	index += ret;
-
-	if (client->proto.keep_alive)
-		ret = snprintf(write_str+index, write_size - index, "%s: %s\r\n", get_http_header_name(header_connection), "keep-alive");
-	else
-		ret = snprintf(write_str+index, write_size - index, "%s: %s\r\n", get_http_header_name(header_connection), "close");
-	if (ret <= 0)
-		goto out;
+	ophttp_resonse(client);
 	
-	index += ret;
+	
 
+	read_size = 0;
 
-	ret = snprintf(write_str+index, write_size - index, "\r\n");
-	if (ret <= 0)
-		goto out;
-	index += ret;
-
-	ret = read(fd, write_str+index, write_size - index);
+	while(read_size < content_size) {
+		ret = read(fd, write_str, write_size);
+		SSL_write(client->ssl, write_str, ret);
+		read_size += ret;
+	}
+		
+	
 	close(fd);
-	index+= ret;
-	
+
+	return;
 out:
-	opweb_log_debug("server response:%s,content<%d><%d>\n", write_str, content_size, ret);
-	SSL_write(client->ssl, write_str, index);
+	
+	ophttp_resonse(client);
 	return;
 }
 
