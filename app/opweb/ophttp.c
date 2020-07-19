@@ -336,7 +336,6 @@ void ophttp_static_docment(struct ssl_client *client, const char *path, unsigned
 	else
 			ophttp_print(client, "%s: %s\r\n", get_http_header_name(header_connection), "close");
 
-	ophttp_print_end(client, "\r\n");
 	
 	if (stat(path, &st) < 0 || (st.st_mode & S_IFDIR)) {
 
@@ -367,7 +366,7 @@ void ophttp_static_docment(struct ssl_client *client, const char *path, unsigned
 	
 	ophttp_print(client, "%s: %s\r\n", get_http_header_name(header_content_type), get_http_content_name_by_tail(tail_name));
 
-	
+	ophttp_print_end(client, "\r\n");
 	ophttp_resonse(client);
 	
 	
@@ -385,7 +384,7 @@ void ophttp_static_docment(struct ssl_client *client, const char *path, unsigned
 
 	return;
 out:
-	
+	ophttp_print_end(client, "\r\n");
 	ophttp_resonse(client);
 	return;
 }

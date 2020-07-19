@@ -115,7 +115,7 @@ void opweb_https_read(evutil_socket_t fd, short what, void *arg)
 	}
 
 	read_size = SSL_read(client->ssl, client->read_buf, sizeof(client->read_buf));
-	if (read_size < 0) {
+	if (read_size <= 0) {
 		opweb_https_client_free(client);
 		opweb_log_debug("opweb_https read size = %d\n",read_size);
 		return;
@@ -125,7 +125,7 @@ void opweb_https_read(evutil_socket_t fd, short what, void *arg)
 		opweb_log_debug("opweb_https read is 0\n");
 		goto out;
 	}
-
+	opweb_log_debug("opweb_https read %s\n",client->read_buf);
 	evtimer_del(client->alive_timer);
 	
 	if ((response_code = ophttp_handle_header(client, client->read_buf, read_size, &client->proto)) < 0)
@@ -335,7 +335,7 @@ read_again:
 			goto read_again;
 		}
 
-		
+		opweb_log_warn("fast cgi type = %d\n", header->type);
 		header_size = header->content_length_h1 << 8 | header->content_length_h0;
 		header_size = header_size > size?size:header_size;
 		ret = read(fastcgi_get_fd(fcgi), rd_buf, header_size);
@@ -436,6 +436,7 @@ continue_content:
 
 	return 0;
 out:
+	SSL_write(client->ssl , "0\r\n\r\n", 5);
 	fastcgi_disconnect(fcgi);
 	return -1;
 }

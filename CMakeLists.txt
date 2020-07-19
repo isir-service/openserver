@@ -11,6 +11,7 @@ add_subdirectory(app/oplog)
 add_subdirectory(app/opbus)
 add_subdirectory(app/opweb)
 add_subdirectory(app/opmgr)
+add_subdirectory(app/cell)
 add_subdirectory(app/test)
 add_subdirectory(app/test2)
 
