@@ -5,6 +5,7 @@
 
 int u9300_init(struct lte_module_info *module);
 
-int u9300_send_short_message(char *phone_num, char * message, unsigned short size, int decode_type);
+int u9300_send_text_message(char *phone_num, char * message, unsigned short size);
+int u9300_send_pdu_message(char *phone_num, char *phone_center, char * message, unsigned short size);
 
 #endif

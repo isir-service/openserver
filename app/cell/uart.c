@@ -49,23 +49,26 @@ void uart_read(int s, short what, void *arg)
 		pthread_mutex_destroy(&module->lock);
 		return;
 	}
+	
+	pthread_mutex_lock(&module->lock);
+	if (!module->current_map) {
+		read(s, module->read_buf.buf+module->read_buf.index, module->read_buf.buf_size - module->read_buf.index);
+		goto out;
+	}
 
 	ret = read(s, module->read_buf.buf+module->read_buf.index, module->read_buf.buf_size - module->read_buf.index);
 	if (ret <= 0)
-		return;
+		goto out;
 
-	pthread_mutex_lock(&module->lock);
-	if (!module->current_map) {
-		pthread_mutex_unlock(&module->lock);
-		return;
-	}
-
-	if (!module->current_map->cb) {
-		pthread_mutex_unlock(&module->lock);
-		return;
-	}
+	if (!module->current_map->cb)
+		goto out;
+		
 
 	module->current_map->cb(module->read_buf.buf,ret+module->read_buf.index,module);
+	module->current_map = NULL;
+
+out:
+
 	module->current_map = NULL;
 	pthread_cond_broadcast(&module->cond);
 	pthread_mutex_unlock(&module->lock);
