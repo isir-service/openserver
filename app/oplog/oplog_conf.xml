@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<root name="conf">
-	<path>/tmp/log</path>
-	<port>5000</port>
-</root>
-
-
