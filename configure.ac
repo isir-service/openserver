@@ -7,12 +7,12 @@ AM_INIT_AUTOMAKE([subdir-objects foreign])
 AC_CONFIG_HEADERS([config.h])
 # Checks for programs.
 AC_PROG_CC
-
+AC_PROG_LIBTOOL 
 # Checks for libraries.
 # Checks for header files.
 
 # Checks for typedefs, structures, and compiler characteristics.
 
 # Checks for library functions.
-AC_CONFIG_FILES([Makefile src/Makefile])
-AC_OUTPUT
+AC_CONFIG_FILES([src/opbox/Makefile src/Makefile])
+AC_OUTPUT([Makefile])
