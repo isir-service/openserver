@@ -11866,8 +11866,10 @@ CC=$lt_save_CC
 
 # Checks for typedefs, structures, and compiler characteristics.
 
+$as_echo "#define OPSERVER_CONF \"/opserver/etc/opserver.conf\"" >>confdefs.h
+
 # Checks for library functions.
-ac_config_files="$ac_config_files src/opbox/Makefile src/Makefile"
+ac_config_files="$ac_config_files src/base/Makefile src/opbox/Makefile src/Makefile"
 
 ac_config_files="$ac_config_files Makefile"
 
@@ -12882,6 +12884,7 @@ do
     "config.h") CONFIG_HEADERS="$CONFIG_HEADERS config.h" ;;
     "depfiles") CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
     "libtool") CONFIG_COMMANDS="$CONFIG_COMMANDS libtool" ;;
+    "src/base/Makefile") CONFIG_FILES="$CONFIG_FILES src/base/Makefile" ;;
     "src/opbox/Makefile") CONFIG_FILES="$CONFIG_FILES src/opbox/Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;

@@ -1,1 +1,1 @@
-SUBDIRS = src src/opbox
+SUBDIRS = src/opbox  src/base src
