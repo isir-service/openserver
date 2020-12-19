@@ -1,0 +1,199 @@
+autoscan: warning: missing AC_CHECK_FUNCS([clock_gettime]) wanted by: 
+	src/opbox/uloop.c:500
+	src/opbox/usock.c:115
+	src/opbox/usock.c:132
+	src/opbox/utils.c:69
+	src/opbox/utils.h:66
+autoscan: warning: missing AC_CHECK_FUNCS([dup2]) wanted by: 
+	src/opbox/utils.c:239
+	src/opbox/utils.c:240
+	src/opbox/utils.c:241
+autoscan: warning: missing AC_CHECK_FUNCS([ftruncate]) wanted by: 
+	src/opbox/utils.c:107
+autoscan: warning: missing AC_CHECK_FUNCS([inet_ntoa]) wanted by: 
+	src/opbox/utils.c:271
+autoscan: warning: missing AC_CHECK_FUNCS([memset]) wanted by: 
+	src/opbox/hash.c:216
+	src/opbox/uloop.c:228
+	src/opbox/utils.c:267
+autoscan: warning: missing AC_CHECK_FUNCS([mkdir]) wanted by: 
+	src/opbox/utils.c:297
+autoscan: warning: missing AC_CHECK_FUNCS([munmap]) wanted by: 
+	src/opbox/utils.c:124
+	src/opbox/utils.c:135
+autoscan: warning: missing AC_CHECK_FUNCS([socket]) wanted by: 
+	src/opbox/usock.c:52
+	src/base/oplog.c:298
+autoscan: warning: missing AC_CHECK_HEADERS([arpa/inet.h]) wanted by: 
+	src/opbox/usock.c:22
+	src/opbox/utils.c:31
+	src/base/oplog.c:14
+autoscan: warning: missing AC_CHECK_HEADERS([fcntl.h]) wanted by: 
+	src/opbox/uloop.c:27
+	src/opbox/usock.c:30
+	src/opbox/utils.c:32
+	src/opbox/utils.c:36
+autoscan: warning: missing AC_CHECK_HEADERS([netdb.h]) wanted by: 
+	src/opbox/usock.c:26
+autoscan: warning: missing AC_CHECK_HEADERS([netinet/in.h]) wanted by: 
+	src/opbox/usock.c:21
+	src/opbox/utils.c:30
+	src/base/oplog.c:16
+autoscan: warning: missing AC_CHECK_HEADERS([stddef.h]) wanted by: 
+	src/opbox/list.h:32
+autoscan: warning: missing AC_CHECK_HEADERS([sys/socket.h]) wanted by: 
+	src/opbox/usock.c:20
+	src/opbox/utils.c:29
+	src/base/oplog.c:15
+autoscan: warning: missing AC_CHECK_HEADERS([sys/time.h]) wanted by: 
+	src/opbox/uloop.c:18
+	src/opbox/uloop.h:21
+	src/opbox/utils.h:23
+autoscan: warning: missing AC_CHECK_HEADER_STDBOOL wanted by: 
+	src/opbox/list.h:60
+	src/opbox/list.h:66
+	src/opbox/list.h:73
+	src/opbox/uloop.c:60
+	src/opbox/uloop.c:61
+	src/opbox/uloop.c:63
+	src/opbox/uloop.c:336
+	src/opbox/uloop.c:353
+	src/opbox/uloop.c:635
+	src/opbox/uloop.c:659
+	src/opbox/uloop.c:681
+	src/opbox/uloop.c:742
+	src/opbox/uloop.h:62
+	src/opbox/uloop.h:63
+	src/opbox/uloop.h:64
+	src/opbox/uloop.h:71
+	src/opbox/uloop.h:80
+	src/opbox/uloop.h:86
+	src/opbox/uloop.h:87
+	src/opbox/uloop.h:100
+	src/opbox/usock.c:48
+	src/opbox/usock.c:77
+	src/opbox/usock.c:94
+	src/opbox/usock.c:144
+	src/opbox/uloop.c:60
+	src/opbox/uloop.c:63
+	src/opbox/uloop.c:362
+	src/opbox/uloop.c:376
+	src/opbox/uloop.c:442
+	src/opbox/uloop.c:443
+	src/opbox/uloop.c:463
+	src/opbox/uloop.c:531
+	src/opbox/uloop.c:575
+	src/opbox/uloop.c:586
+	src/opbox/uloop.c:755
+	src/opbox/uloop.c:782
+	src/opbox/uloop.c:61
+	src/opbox/uloop.c:179
+	src/opbox/uloop.c:190
+	src/opbox/uloop.c:268
+	src/opbox/uloop.c:279
+	src/opbox/uloop.c:348
+	src/opbox/uloop.c:373
+	src/opbox/uloop.c:441
+	src/opbox/uloop.c:491
+	src/opbox/uloop.c:564
+	src/opbox/uloop.c:624
+	src/opbox/uloop.c:631
+	src/opbox/uloop.h:104
+autoscan: warning: missing AC_C_INLINE wanted by: 
+	src/opbox/list.h:54
+	src/opbox/list.h:60
+	src/opbox/list.h:66
+	src/opbox/list.h:73
+	src/opbox/list.h:80
+	src/opbox/list.h:87
+	src/opbox/list.h:94
+	src/opbox/list.h:105
+	src/opbox/list.h:138
+	src/opbox/list.h:144
+	src/opbox/list.h:150
+	src/opbox/list.h:157
+	src/opbox/list.h:164
+	src/opbox/list.h:182
+	src/opbox/list.h:188
+	src/opbox/list.h:194
+	src/opbox/list.h:201
+	src/opbox/uloop.h:102
+	src/opbox/uloop.h:109
+	src/opbox/usock.h:37
+	src/opbox/utils.h:236
+	src/opbox/utils.h:241
+autoscan: warning: missing AC_FUNC_FORK wanted by: 
+	src/opbox/utils.c:214
+	src/opbox/utils.c:224
+autoscan: warning: missing AC_FUNC_MALLOC wanted by: 
+	src/opbox/hash.c:22
+	src/opbox/hash.c:24
+	src/opbox/hash.c:94
+autoscan: warning: missing AC_FUNC_MMAP wanted by: 
+	src/opbox/utils.c:114
+	src/opbox/utils.c:120
+	src/opbox/utils.c:122
+autoscan: warning: missing AC_FUNC_REALLOC wanted by: 
+	src/opbox/hash.c:210
+	src/opbox/hash.c:254
+autoscan: warning: missing AC_PROG_CXX wanted by: 
+	ltmain.sh:2198
+	ltmain.sh:2657
+	ltmain.sh:2660
+	ltmain.sh:2665
+	ltmain.sh:2665
+	ltmain.sh:2675
+	ltmain.sh:2679
+	ltmain.sh:2682
+	ltmain.sh:2682
+	ltmain.sh:3759
+	ltmain.sh:8641
+	ltmain.sh:8653
+	ltmain.sh:8655
+	ltmain.sh:8893
+autoscan: warning: missing AC_PROG_RANLIB wanted by: 
+	ltmain.sh:3772
+autoscan: warning: missing AC_TYPE_PID_T wanted by: 
+	src/opbox/uloop.c:583
+	src/opbox/uloop.h:83
+autoscan: warning: missing AC_TYPE_SIZE_T wanted by: 
+	src/opbox/utils.h:228
+	src/opbox/utils.h:229
+	src/opbox/utils.h:231
+	src/base/oplog.c:460
+autoscan: warning: missing AC_TYPE_UINT16_T wanted by: 
+	src/opbox/uloop.c:91
+	src/opbox/uloop.c:93
+	src/opbox/uloop.c:114
+	src/opbox/utils.h:100
+	src/opbox/utils.h:100
+	src/opbox/utils.h:101
+	src/opbox/utils.h:101
+autoscan: warning: missing AC_TYPE_UINT32_T wanted by: 
+	src/opbox/utils.h:104
+	src/opbox/utils.h:104
+	src/opbox/utils.h:105
+	src/opbox/utils.h:105
+	src/opbox/utils.h:106
+	src/opbox/utils.h:106
+	src/opbox/utils.h:107
+	src/opbox/utils.h:107
+autoscan: warning: missing AC_TYPE_UINT64_T wanted by: 
+	src/opbox/utils.h:110
+	src/opbox/utils.h:110
+	src/opbox/utils.h:111
+	src/opbox/utils.h:111
+	src/opbox/utils.h:112
+	src/opbox/utils.h:112
+	src/opbox/utils.h:113
+	src/opbox/utils.h:113
+	src/opbox/utils.h:114
+	src/opbox/utils.h:114
+	src/opbox/utils.h:115
+	src/opbox/utils.h:115
+	src/opbox/utils.h:116
+	src/opbox/utils.h:116
+	src/opbox/utils.h:117
+	src/opbox/utils.h:117
+autoscan: warning: missing AC_TYPE_UINT8_T wanted by: 
+	src/opbox/uloop.h:65
