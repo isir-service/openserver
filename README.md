@@ -1,2 +1,1 @@
-# openserver
-test
+open server  test
