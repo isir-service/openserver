@@ -100,7 +100,7 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(opserverdir)"
+am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(opserveretcdir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_opserver_OBJECTS = opserver-opserver.$(OBJEXT)
 opserver_OBJECTS = $(am_opserver_OBJECTS)
@@ -180,7 +180,7 @@ am__uninstall_files_from_dir = { \
     || { echo " ( cd '$$dir' && rm -f" $$files ")"; \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
-DATA = $(opserver_DATA)
+DATA = $(opserveretc_DATA)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP)
 # Read a list of newline-separated strings from the standard input,
 # and print each of them once, without duplicates.  Input order is
@@ -327,8 +327,8 @@ opserver_CFLAGS = -I$(prefix)/include -W -Wall -Wchar-subscripts \
 	-Wcomment -Wformat -Wimplicit -Wmissing-braces -Wparentheses \
 	-Wswitch -Wno-unused-parameter -Wfloat-equal -Wsign-compare \
 	-Wpointer-arith -Winline -Werror -rdynamic -g
-opserverdir = $(prefix)/etc
-opserver_DATA = opserver.conf
+opserveretcdir = $(prefix)/etc
+opserveretc_DATA = opserver.conf
 all: all-am
 
 .SUFFIXES:
@@ -467,27 +467,27 @@ mostlyclean-libtool:
 
 clean-libtool:
 	-rm -rf .libs _libs
-install-opserverDATA: $(opserver_DATA)
+install-opserveretcDATA: $(opserveretc_DATA)
 	@$(NORMAL_INSTALL)
-	@list='$(opserver_DATA)'; test -n "$(opserverdir)" || list=; \
+	@list='$(opserveretc_DATA)'; test -n "$(opserveretcdir)" || list=; \
 	if test -n "$$list"; then \
-	  echo " $(MKDIR_P) '$(DESTDIR)$(opserverdir)'"; \
-	  $(MKDIR_P) "$(DESTDIR)$(opserverdir)" || exit 1; \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(opserveretcdir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(opserveretcdir)" || exit 1; \
 	fi; \
 	for p in $$list; do \
 	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
 	  echo "$$d$$p"; \
 	done | $(am__base_list) | \
 	while read files; do \
-	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(opserverdir)'"; \
-	  $(INSTALL_DATA) $$files "$(DESTDIR)$(opserverdir)" || exit $$?; \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(opserveretcdir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(opserveretcdir)" || exit $$?; \
 	done
 
-uninstall-opserverDATA:
+uninstall-opserveretcDATA:
 	@$(NORMAL_UNINSTALL)
-	@list='$(opserver_DATA)'; test -n "$(opserverdir)" || list=; \
+	@list='$(opserveretc_DATA)'; test -n "$(opserveretcdir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
-	dir='$(DESTDIR)$(opserverdir)'; $(am__uninstall_files_from_dir)
+	dir='$(DESTDIR)$(opserveretcdir)'; $(am__uninstall_files_from_dir)
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
@@ -575,7 +575,7 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(PROGRAMS) $(DATA)
 installdirs:
-	for dir in "$(DESTDIR)$(bindir)" "$(DESTDIR)$(opserverdir)"; do \
+	for dir in "$(DESTDIR)$(bindir)" "$(DESTDIR)$(opserveretcdir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -630,7 +630,7 @@ info: info-am
 
 info-am:
 
-install-data-am: install-opserverDATA
+install-data-am: install-opserveretcDATA
 
 install-dvi: install-dvi-am
 
@@ -676,7 +676,7 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-binPROGRAMS uninstall-opserverDATA
+uninstall-am: uninstall-binPROGRAMS uninstall-opserveretcDATA
 
 .MAKE: install-am install-strip
 
@@ -687,13 +687,13 @@ uninstall-am: uninstall-binPROGRAMS uninstall-opserverDATA
 	html-am info info-am install install-am install-binPROGRAMS \
 	install-data install-data-am install-dvi install-dvi-am \
 	install-exec install-exec-am install-html install-html-am \
-	install-info install-info-am install-man install-opserverDATA \
-	install-pdf install-pdf-am install-ps install-ps-am \
-	install-strip installcheck installcheck-am installdirs \
-	maintainer-clean maintainer-clean-generic mostlyclean \
-	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
-	pdf pdf-am ps ps-am tags tags-am uninstall uninstall-am \
-	uninstall-binPROGRAMS uninstall-opserverDATA
+	install-info install-info-am install-man \
+	install-opserveretcDATA install-pdf install-pdf-am install-ps \
+	install-ps-am install-strip installcheck installcheck-am \
+	installdirs maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-compile mostlyclean-generic \
+	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-am uninstall \
+	uninstall-am uninstall-binPROGRAMS uninstall-opserveretcDATA
 
 .PRECIOUS: Makefile
 

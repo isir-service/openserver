@@ -7,11 +7,46 @@
 #define UP_LOAD         (2*LH_LOAD_MULT) /* load times 256 (default 2) */
 #define DOWN_LOAD       (LH_LOAD_MULT) /* load times 256 (default 1) */
 
+#define LH_LOAD_MULT    256
+
+struct op_hash_node_st {
+	void *data;
+	struct op_hash_node_st *next;
+};
+
+struct op_hash_st {
+    struct op_hash_node_st **b;
+	int (*comp) (const void *, const void *);
+	
+	unsigned long (*hash) (const void *);
+    unsigned int num_nodes;
+    unsigned int num_alloc_nodes;
+    unsigned int p;
+    unsigned int pmax;
+    unsigned long up_load;      /* load times 256 */
+    unsigned long down_load;    /* load times 256 */
+    unsigned long num_items;
+    unsigned long num_expands;
+    unsigned long num_expand_reallocs;
+    unsigned long num_contracts;
+    unsigned long num_contract_reallocs;
+    unsigned long num_hash_calls;
+    unsigned long num_comp_calls;
+    unsigned long num_insert;
+    unsigned long num_replace;
+    unsigned long num_delete;
+    unsigned long num_no_delete;
+    unsigned long num_retrieve;
+    unsigned long num_retrieve_miss;
+    unsigned long num_hash_comps;
+    int error;
+};
+
 static int expand(struct op_hash_st *lh);
 static void contract(struct op_hash_st *lh);
 static struct op_hash_node_st **getrn(struct op_hash_st *lh, const void *data, unsigned long *rhash);
 
-struct op_hash_st *op_hash_new(unsigned long (*hash) (const void *), int (*compare) (const void *, const void *))
+void *op_hash_new(unsigned long (*hash) (const void *), int (*compare) (const void *, const void *))
 {
     struct op_hash_st *ret;
     int i;
@@ -19,9 +54,10 @@ struct op_hash_st *op_hash_new(unsigned long (*hash) (const void *), int (*compa
 	if (hash == NULL || compare == NULL) {
 		return NULL;
 	}
-    if ((ret = malloc(sizeof(struct op_hash_st))) == NULL)
+
+    if ((ret = calloc(1, sizeof(struct op_hash_st))) == NULL)
         goto err0;
-    if ((ret->b = malloc(sizeof(struct op_hash_node_st *) * MIN_NODES)) == NULL)
+    if ((ret->b = calloc(1, sizeof(struct op_hash_node_st *) * MIN_NODES)) == NULL)
         goto err1;
     for (i = 0; i < MIN_NODES; i++)
         ret->b[i] = NULL;
@@ -57,10 +93,11 @@ struct op_hash_st *op_hash_new(unsigned long (*hash) (const void *), int (*compa
     return (NULL);
 }
 
-void op_hash_free(struct op_hash_st *lh)
+void op_hash_free(void *h)
 {
     unsigned int i;
     struct op_hash_node_st *n, *nn;
+	struct op_hash_st *lh = (struct op_hash_st *)h;
 
     if (lh == NULL)
         return;
@@ -77,11 +114,12 @@ void op_hash_free(struct op_hash_st *lh)
     free(lh);
 }
 
-void *op_hash_insert(struct op_hash_st *lh, void *data)
+void *op_hash_insert(void *h, void *data)
 {
     unsigned long hash;
     struct op_hash_node_st *nn, **rn;
     void *ret;
+	struct op_hash_st *lh = (struct op_hash_st *)h;
 
     lh->error = 0;
     if (lh->up_load <= (lh->num_items * LH_LOAD_MULT / lh->num_nodes)
@@ -91,7 +129,7 @@ void *op_hash_insert(struct op_hash_st *lh, void *data)
     rn = getrn(lh, data, &hash);
 
     if (*rn == NULL) {
-        if ((nn = (struct op_hash_node_st *)malloc(sizeof(struct op_hash_node_st))) == NULL) {
+        if ((nn = (struct op_hash_node_st *)calloc(1,sizeof(struct op_hash_node_st))) == NULL) {
             lh->error++;
             return (NULL);
         }
@@ -110,12 +148,12 @@ void *op_hash_insert(struct op_hash_st *lh, void *data)
     return (ret);
 }
 
-void *op_hash_delete(struct op_hash_st *lh, const void *data)
+void *op_hash_delete(void *h, const void *data)
 {
     unsigned long hash;
     struct op_hash_node_st *nn, **rn;
     void *ret;
-
+	struct op_hash_st *lh = (struct op_hash_st *)h;
     lh->error = 0;
     rn = getrn(lh, data, &hash);
 
@@ -138,12 +176,12 @@ void *op_hash_delete(struct op_hash_st *lh, const void *data)
     return (ret);
 }
 
-void *op_hash_retrieve(struct op_hash_st *lh, const void *data)
+void *op_hash_retrieve(void *h, const void *data)
 {
     unsigned long hash;
     struct op_hash_node_st **rn;
     void *ret;
-
+	struct op_hash_st *lh = (struct op_hash_st *)h;
     lh->error = 0;
     rn = getrn(lh, data, &hash);
 
@@ -190,8 +228,10 @@ static void doall_util_fn(struct op_hash_st *lh, int use_arg, void (*search) (vo
     }
 }
 
-void op_hash_doall(struct op_hash_st *lh, void (*search) (void *))
+void op_hash_doall(void *h, void (*search) (void *))
 {
+	struct op_hash_st *lh = (struct op_hash_st *)h;
+
     doall_util_fn(lh, 0, search, NULL, NULL);
 }
 
@@ -311,8 +351,10 @@ static struct op_hash_node_st **getrn(struct op_hash_st *lh, const void *data, u
  * as good as MD5, but still good.
  */
 
-unsigned long op_hash_num_items(const struct op_hash_st *lh)
+unsigned long op_hash_num_items(void *h)
 {
+	struct op_hash_st *lh = (struct op_hash_st *)h;
+
     return lh ? lh->num_items : 0;
 }
 

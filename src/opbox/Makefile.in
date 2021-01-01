@@ -132,7 +132,8 @@ am__installdirs = "$(DESTDIR)$(libdir)" \
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libopbox_la_LIBADD =
 am_libopbox_la_OBJECTS = libopbox_la-hash.lo libopbox_la-uloop.lo \
-	libopbox_la-usock.lo libopbox_la-utils.lo
+	libopbox_la-usock.lo libopbox_la-utils.lo \
+	libopbox_la-ptelnet.lo libopbox_la-vty.lo
 libopbox_la_OBJECTS = $(am_libopbox_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -323,9 +324,9 @@ top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS = foreign
 lib_LTLIBRARIES = libopbox.la
-libopbox_la_SOURCES = hash.c uloop.c usock.c utils.c
+libopbox_la_SOURCES = hash.c uloop.c usock.c utils.c ptelnet.c vty.c
 libopbox_la_includedir = $(prefix)/include/opbox
-libopbox_la_include_HEADERS = hash.h list.h uloop.h usock.h utils.h
+libopbox_la_include_HEADERS = hash.h list.h uloop.h usock.h utils.h ptelnet.h vty.h
 libopbox_la_CFLAGS = -W -Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wmissing-braces -Wparentheses -Wswitch -Wno-unused-parameter  -Wfloat-equal -Wsign-compare -Wpointer-arith -Winline -Werror -rdynamic -g
 all: all-am
 
@@ -406,9 +407,11 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopbox_la-hash.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopbox_la-ptelnet.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopbox_la-uloop.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopbox_la-usock.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopbox_la-utils.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopbox_la-vty.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -461,6 +464,20 @@ libopbox_la-utils.lo: utils.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils.c' object='libopbox_la-utils.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -c -o libopbox_la-utils.lo `test -f 'utils.c' || echo '$(srcdir)/'`utils.c
+
+libopbox_la-ptelnet.lo: ptelnet.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -MT libopbox_la-ptelnet.lo -MD -MP -MF $(DEPDIR)/libopbox_la-ptelnet.Tpo -c -o libopbox_la-ptelnet.lo `test -f 'ptelnet.c' || echo '$(srcdir)/'`ptelnet.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libopbox_la-ptelnet.Tpo $(DEPDIR)/libopbox_la-ptelnet.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ptelnet.c' object='libopbox_la-ptelnet.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -c -o libopbox_la-ptelnet.lo `test -f 'ptelnet.c' || echo '$(srcdir)/'`ptelnet.c
+
+libopbox_la-vty.lo: vty.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -MT libopbox_la-vty.lo -MD -MP -MF $(DEPDIR)/libopbox_la-vty.Tpo -c -o libopbox_la-vty.lo `test -f 'vty.c' || echo '$(srcdir)/'`vty.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libopbox_la-vty.Tpo $(DEPDIR)/libopbox_la-vty.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='vty.c' object='libopbox_la-vty.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -c -o libopbox_la-vty.lo `test -f 'vty.c' || echo '$(srcdir)/'`vty.c
 
 mostlyclean-libtool:
 	-rm -f *.lo

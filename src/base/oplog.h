@@ -1,10 +1,13 @@
 #ifndef __OP_LOG_H__
 #define __OP_LOG_H__
+#include <string.h>
+
 enum OPLOGLEVEL{
 	oplog_level_error,
 	oplog_level_warn,
 	oplog_level_info,
 	oplog_level_debug,
+	oplog_level_max,
 };
 
 enum OPLOGTYPE {

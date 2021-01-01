@@ -270,4 +270,7 @@ int is_dir_exist(char *dir, int create);
 void signal_segvdump(void);
 void signal_action(void);
 
+void print_hex(unsigned char *dest, int size);
+void print_dec(unsigned char *dest, int size);
+
 #endif

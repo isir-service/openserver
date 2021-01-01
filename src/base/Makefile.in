@@ -15,6 +15,7 @@
 @SET_MAKE@
 
 
+
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -127,11 +128,12 @@ am__uninstall_files_from_dir = { \
     || { echo " ( cd '$$dir' && rm -f" $$files ")"; \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
-am__installdirs = "$(DESTDIR)$(libdir)" \
+am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libbase_ladir)" \
 	"$(DESTDIR)$(libbase_la_includedir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libbase_la_DEPENDENCIES =
-am_libbase_la_OBJECTS = libbase_la-oplog.lo
+am_libbase_la_OBJECTS = libbase_la-oplog.lo libbase_la-opbus.lo \
+	libbase_la-opcli.lo
 libbase_la_OBJECTS = $(am_libbase_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -181,6 +183,7 @@ am__can_run_installinfo = \
     n|no|NO) false;; \
     *) (install-info --version) >/dev/null 2>&1;; \
   esac
+DATA = $(libbase_la_DATA)
 HEADERS = $(libbase_la_include_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP)
 # Read a list of newline-separated strings from the standard input,
@@ -322,18 +325,18 @@ top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS = foreign
 lib_LTLIBRARIES = libbase.la
-libbase_la_SOURCES = oplog.c
+libbase_la_SOURCES = oplog.c opbus.c opcli.c
 libbase_la_includedir = $(prefix)/include/base
-libbase_la_include_HEADERS = oplog.h
-
-#libdir=$(prefix)/lib/opbox
-#lib=libopbox.la
-libbase_la_CFLAGS = -I$(prefix)/include -W -Wall -Wchar-subscripts \
-	-Wcomment -Wformat -Wimplicit -Wmissing-braces -Wparentheses \
-	-Wswitch -Wno-unused-parameter -Wfloat-equal -Wsign-compare \
-	-Wpointer-arith -Winline -Werror -rdynamic
+libbase_la_include_HEADERS = oplog.h opbus.h opcli.h
+libbase_la_CFLAGS = -I$(top_srcdir)/src -I$(prefix)/include -W -Wall \
+	-Wchar-subscripts -Wcomment -Wformat -Wimplicit \
+	-Wmissing-braces -Wparentheses -Wswitch -Wno-unused-parameter \
+	-Wfloat-equal -Wsign-compare -Wpointer-arith -Winline -Werror \
+	-rdynamic -std=gnu99
 libbase_la_LDFLAGS = -L$(top_builddir)/src/opbox/.libs -L$(prefix)/lib
 libbase_la_LIBADD = -liniparser -lpthread -lopbox -levent
+libbase_ladir = $(prefix)/log/prog
+libbase_la_DATA = readme
 all: all-am
 
 .SUFFIXES:
@@ -412,6 +415,8 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbase_la-opbus.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbase_la-opcli.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbase_la-oplog.Plo@am__quote@
 
 .c.o:
@@ -445,11 +450,46 @@ libbase_la-oplog.lo: oplog.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libbase_la_CFLAGS) $(CFLAGS) -c -o libbase_la-oplog.lo `test -f 'oplog.c' || echo '$(srcdir)/'`oplog.c
 
+libbase_la-opbus.lo: opbus.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libbase_la_CFLAGS) $(CFLAGS) -MT libbase_la-opbus.lo -MD -MP -MF $(DEPDIR)/libbase_la-opbus.Tpo -c -o libbase_la-opbus.lo `test -f 'opbus.c' || echo '$(srcdir)/'`opbus.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libbase_la-opbus.Tpo $(DEPDIR)/libbase_la-opbus.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='opbus.c' object='libbase_la-opbus.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libbase_la_CFLAGS) $(CFLAGS) -c -o libbase_la-opbus.lo `test -f 'opbus.c' || echo '$(srcdir)/'`opbus.c
+
+libbase_la-opcli.lo: opcli.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libbase_la_CFLAGS) $(CFLAGS) -MT libbase_la-opcli.lo -MD -MP -MF $(DEPDIR)/libbase_la-opcli.Tpo -c -o libbase_la-opcli.lo `test -f 'opcli.c' || echo '$(srcdir)/'`opcli.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libbase_la-opcli.Tpo $(DEPDIR)/libbase_la-opcli.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='opcli.c' object='libbase_la-opcli.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libbase_la_CFLAGS) $(CFLAGS) -c -o libbase_la-opcli.lo `test -f 'opcli.c' || echo '$(srcdir)/'`opcli.c
+
 mostlyclean-libtool:
 	-rm -f *.lo
 
 clean-libtool:
 	-rm -rf .libs _libs
+install-libbase_laDATA: $(libbase_la_DATA)
+	@$(NORMAL_INSTALL)
+	@list='$(libbase_la_DATA)'; test -n "$(libbase_ladir)" || list=; \
+	if test -n "$$list"; then \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(libbase_ladir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(libbase_ladir)" || exit 1; \
+	fi; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(libbase_ladir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(libbase_ladir)" || exit $$?; \
+	done
+
+uninstall-libbase_laDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(libbase_la_DATA)'; test -n "$(libbase_ladir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	dir='$(DESTDIR)$(libbase_ladir)'; $(am__uninstall_files_from_dir)
 install-libbase_la_includeHEADERS: $(libbase_la_include_HEADERS)
 	@$(NORMAL_INSTALL)
 	@list='$(libbase_la_include_HEADERS)'; test -n "$(libbase_la_includedir)" || list=; \
@@ -556,9 +596,9 @@ distdir: $(DISTFILES)
 	done
 check-am: all-am
 check: check-am
-all-am: Makefile $(LTLIBRARIES) $(HEADERS)
+all-am: Makefile $(LTLIBRARIES) $(DATA) $(HEADERS)
 installdirs:
-	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libbase_la_includedir)"; do \
+	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libbase_ladir)" "$(DESTDIR)$(libbase_la_includedir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -614,7 +654,8 @@ info: info-am
 
 info-am:
 
-install-data-am: install-libbase_la_includeHEADERS
+install-data-am: install-libbase_laDATA \
+	install-libbase_la_includeHEADERS
 
 install-dvi: install-dvi-am
 
@@ -660,7 +701,7 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-libLTLIBRARIES \
+uninstall-am: uninstall-libLTLIBRARIES uninstall-libbase_laDATA \
 	uninstall-libbase_la_includeHEADERS
 
 .MAKE: install-am install-strip
@@ -672,14 +713,14 @@ uninstall-am: uninstall-libLTLIBRARIES \
 	html-am info info-am install install-am install-data \
 	install-data-am install-dvi install-dvi-am install-exec \
 	install-exec-am install-html install-html-am install-info \
-	install-info-am install-libLTLIBRARIES \
+	install-info-am install-libLTLIBRARIES install-libbase_laDATA \
 	install-libbase_la_includeHEADERS install-man install-pdf \
 	install-pdf-am install-ps install-ps-am install-strip \
 	installcheck installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
 	tags tags-am uninstall uninstall-am uninstall-libLTLIBRARIES \
-	uninstall-libbase_la_includeHEADERS
+	uninstall-libbase_laDATA uninstall-libbase_la_includeHEADERS
 
 .PRECIOUS: Makefile
 

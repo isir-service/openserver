@@ -7,5 +7,5 @@ opserver_LDFLAGS+=-L$(prefix)/lib
 opserver_LDADD = -lopbox -liniparser -lbase -levent
 opserver_CFLAGS = -I$(prefix)/include
 opserver_CFLAGS += -W -Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wmissing-braces -Wparentheses -Wswitch -Wno-unused-parameter  -Wfloat-equal -Wsign-compare -Wpointer-arith -Winline -Werror -rdynamic -g
-opserverdir = $(prefix)/etc
-opserver_DATA=opserver.conf
+opserveretcdir = $(prefix)/etc
+opserveretc_DATA=opserver.conf

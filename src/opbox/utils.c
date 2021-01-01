@@ -345,4 +345,34 @@ void signal_action(void)
 
 }
 
+void print_hex(unsigned char *dest, int size)
+{
+	int i = 0;
+
+	if (!dest || size <= 0)
+		return;
+
+	while(i < size)
+		printf ("%02x ", dest[i++]);
+
+	printf("\n");
+
+	return;
+}
+
+void print_dec(unsigned char *dest, int size)
+{
+	int i = 0;
+
+	if (!dest || size <= 0)
+		return;
+
+	while(i < size)
+		printf ("%02d ", dest[i++]);
+
+	printf("\n");
+
+	return;
+}
+
 

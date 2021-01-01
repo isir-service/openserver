@@ -1,12 +1,3 @@
-#include "config.h"
-#include "oplog.h"
-#include "iniparser.h"
-#include "opbox/usock.h"
-#include "opbox/utils.h"
-
-#include "event.h"
-#include "opbox/list.h"
-
 #include <stdio.h>
 #include <pthread.h>
 #include <errno.h>
@@ -15,6 +6,15 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <signal.h>
+#include <fcntl.h>
+
+#include "config.h"
+#include "oplog.h"
+#include "iniparser.h"
+#include "opbox/usock.h"
+#include "opbox/utils.h"
+#include "event.h"
+#include "opbox/list.h"
 
 #define LOG_COLOR_NONE "\033[m"
 #define LOG_COLOR_BLACK "\033[0;30m"
@@ -27,15 +27,22 @@
 
 #define LOG_SERVER "oplog:log_ip"
 #define LOG_PORT "oplog:log_port"
+#define LOG_PROG_ROOT "oplog:prog_log_path"
 
 #define LOG_SEND_BUF_SIZE 4096
 #define LOG_RECV_BUF_SIZE 4096
+#define LOG_PROG_FORMAT_SIZE 8192
 #define LOG_RECV_LIST_SIZE 1024
 #define LOG_DISK_THREAD_NUM 2
 
 struct log_level_name_map {
 	char *name;
 	char *color;
+};
+
+enum LOG_FORMAT_TYPE {
+	LOG_FORMAT_DETAIL,
+
 };
 
 struct log_level_name_map log_level_map[] = {
@@ -73,7 +80,6 @@ struct _log_send_ {
 	struct sockaddr_in send_addr;
 	pthread_mutex_t lock;
 	pthread_mutexattr_t attr;
-	struct _log_send_header head;
 	unsigned char buf_send[LOG_SEND_BUF_SIZE];
 };
 
@@ -99,6 +105,13 @@ struct _log_recv_ {
 	int disk_run;
 };
 
+struct _log_prog_ {
+	int fd;
+	char root_path[256];
+	struct tm tm;
+	unsigned char log_format[LOG_PROG_FORMAT_SIZE];
+};
+
 struct _oplog_struct_
 {
 	struct _log_thread_ thread;
@@ -107,6 +120,7 @@ struct _oplog_struct_
 	struct event *ev;
 	struct _log_send_ send;
 	struct _log_recv_ recv;
+	struct _log_prog_ prog;
 };
 
 static struct _oplog_struct_ *self;
@@ -189,12 +203,113 @@ exit:
 
 static int _oplog_check_disk(void)
 {
-	return 0;
+	time_t t;
+	struct tm *tm;
+	char buf_format[512];
+
+	t=time(NULL);
+	tm = localtime(&t);
+
+	if (tm->tm_year != self->prog.tm.tm_year || tm->tm_mon != self->prog.tm.tm_mon ||
+			tm->tm_mday != self->prog.tm.tm_mday)
+		memcpy(&self->prog.tm, tm, sizeof(struct tm));
+
+	snprintf(buf_format, sizeof(buf_format), "%s/%d-%02d-%02d", self->prog.root_path,
+			self->prog.tm.tm_year+1900, self->prog.tm.tm_mon+1, self->prog.tm.tm_mday);
+
+	if (access(buf_format, F_OK) < 0 || !self->prog.fd) {
+
+		if (self->prog.fd)
+			close(self->prog.fd);
+
+		self->prog.fd = open(buf_format, O_WRONLY|O_APPEND|O_CREAT, 0666);
+		if (self->prog.fd < 0) {
+			printf ("%s %d _oplog_check_disk open failed[%s][%d]\n",__FILE__,__LINE__, 
+					buf_format, errno);
+			return -1;
+		}
+
+		return self->prog.fd;
+	}
+
+	return self->prog.fd;
+}
+
+static void log_header_ntohl(struct _log_send_header * head)
+{
+	if (!head)
+		return;
+
+	head->level = ntohl(head->level);
+	head->line = ntohl(head->line);
+	head->type = ntohl(head->type);
+	return;
+}
+
+static int _oplog_format(int format_type, unsigned char * fromat_buf, int buf_size, struct _log_send_header *head, unsigned char *message)
+{
+	time_t ti;
+	struct tm *t;
+	struct timeval t2;
+	int ret = 0;
+
+	ti = time(NULL);
+	
+	t = localtime(&ti);
+
+	gettimeofday(&t2, NULL);
+
+	switch(format_type) {
+
+		case LOG_FORMAT_DETAIL:
+			ret = snprintf((char*)fromat_buf, buf_size,
+					"%s%d-%02d-%02d %02d:%02d:%02d:%03lu %s %d %s 	%s",
+					log_level_map[head->level].color,t->tm_year+1900, t->tm_mon+1, t->tm_mday,
+					t->tm_hour, t->tm_min, t->tm_sec, t2.tv_usec/1000,head->function, head->line,
+					log_level_map[head->level].name, message);
+			break;
+		default:
+			ret = snprintf((char*)fromat_buf, buf_size,
+					"%s%d-%02d-%02d %02d:%02d:%02d:%03lu %s 	%s",
+					log_level_map[head->level].color,t->tm_year+1900, t->tm_mon+1, t->tm_mday,
+					t->tm_hour, t->tm_min, t->tm_sec, t2.tv_usec/1000,
+					log_level_map[head->level].name, message);
+			break;
+	}
+
+
+	return ret;
+
 }
 
 static void _oplog_sync_to_disk(int fd, struct _log_item_buf_ *log)
 {
+	struct _log_send_header *head = NULL;
+	unsigned char *message = NULL;
+	int ret = 0;
 
+	if (!log->buf || log->size < (int)sizeof(struct _log_send_header) || fd < 0) {
+		printf ("%s %d _oplog_sync_to_disk parameter failed\n",__FILE__,__LINE__);
+		goto out;
+	}
+
+	head = (struct _log_send_header *)log->buf;
+	log_header_ntohl(head);
+	if (head->level > oplog_level_max) {
+		printf ("%s %d _oplog_sync_to_disk level parameter failed\n",__FILE__,__LINE__);
+		goto out;
+	}
+	
+	message = log->buf+sizeof(struct _log_send_header);
+
+	ret = _oplog_format(LOG_FORMAT_DETAIL, self->prog.log_format, LOG_PROG_FORMAT_SIZE, head, message);
+
+	if (write(fd, self->prog.log_format, ret) < 0) {
+		printf ("%s %d _oplog_sync_to_disk write failed[%d]\n",__FILE__,__LINE__, errno);
+		goto out;
+	}
+
+out:
 	return;
 }
 
@@ -256,8 +371,10 @@ void *oplog_init(void)
 	struct _oplog_struct_ *_op = NULL;
 	dictionary *dict = NULL;
 	const char *ip = NULL;
-	int port = 0;
+	const char *str = NULL;
+	int str_int = 0;
 	int i = 0;
+	struct sockaddr_in in;
 
 	_op = calloc(1, sizeof(struct _oplog_struct_));
 	if (!_op) {
@@ -268,6 +385,7 @@ void *oplog_init(void)
 	dict = iniparser_load(OPSERVER_CONF);
 	if (!dict) {
 		printf ("%s %d iniparser_load faild[%s]\n",__FILE__,__LINE__, OPSERVER_CONF);
+		goto exit;
 	}
 
 	if(!(ip = iniparser_getstring(dict,LOG_SERVER,NULL))) {
@@ -275,23 +393,32 @@ void *oplog_init(void)
 		iniparser_freedict(dict);
 		goto exit;
 	}
-	
-	if ((port =iniparser_getint(dict,LOG_PORT,-1))< 0) {
+
+	_op->sock.ip = ntohl(inet_addr(ip));
+	if ((str_int =iniparser_getint(dict,LOG_PORT,-1))< 0) {
 		printf ("%s %d iniparser_getint faild[%s]\n",__FILE__,__LINE__, LOG_PORT);
 		iniparser_freedict(dict);
 		goto exit;
 	}
 
-	_op->sock.ip = ntohl(inet_addr(ip));
-	_op->sock.port = port;
+	_op->sock.port = str_int;
 
-	_op->sock.sock_fd = usock(USOCK_IPV4ONLY|USOCK_UDP|USOCK_SERVER, ip, usock_port(port));
+	if(!(str = iniparser_getstring(dict,LOG_PROG_ROOT,NULL))) {
+		printf ("%s %d iniparser_getstring faild[%s]\n",__FILE__,__LINE__, LOG_PROG_ROOT);
+		iniparser_freedict(dict);
+		goto exit;
+	}
+
+	strlcpy(_op->prog.root_path, str, sizeof(_op->prog.root_path));
+	
+	_op->sock.sock_fd = usock(USOCK_IPV4ONLY|USOCK_UDP|USOCK_SERVER, ip, usock_port(_op->sock.port));
 	if (_op->sock.sock_fd < 0) {
 		iniparser_freedict(dict);
-		printf ("%s %d iniparser_getint faild[%s]\n",__FILE__,__LINE__, LOG_PORT);
+		printf ("%s %d usock faild[%d]\n",__FILE__,__LINE__,errno);
+		goto exit;
 	}
 	
-	printf("oplog server:%s, port:%d\n", ip, port);
+	printf("oplog server:%s, port:%d\n", ip, _op->sock.port);
 
 	iniparser_freedict(dict);
 	
@@ -303,7 +430,14 @@ void *oplog_init(void)
 	_op->send.send_addr.sin_family = AF_INET;
 	_op->send.send_addr.sin_addr.s_addr = htonl(_op->sock.ip);
 	_op->send.send_addr.sin_port = htons(_op->sock.port);
-
+	memset(&in, 0, sizeof(in));
+	in.sin_family = AF_INET;
+	in.sin_addr.s_addr = htonl(_op->sock.ip);
+	if(bind(_op->send.send_fd, (struct sockaddr *) &in, sizeof(in)) < 0) {
+		printf ("%s %d bind faild[%d]\n",__FILE__,__LINE__, errno);
+		goto exit;
+	}
+	
 	if(pthread_mutexattr_init(&_op->send.attr)) {
 		printf ("%s %d oplog pthread_mutexattr_init faild\n",__FILE__,__LINE__);
 		goto exit;
@@ -366,12 +500,17 @@ void *oplog_init(void)
 	}
 	
 	for( i = 0; i < LOG_DISK_THREAD_NUM; i++) {
+		if(pthread_attr_init(&_op->thread.disk_thread_attr[i])) {
+			printf ("%s %d oplog pthread_attr_init faild\n",__FILE__,__LINE__);
+			goto exit;
+		}
+		
 		if(pthread_create(&_op->thread.disk_thread_id[i], &_op->thread.disk_thread_attr[i], oplog_disk, &_op->recv)) {
 			printf ("%s %d oplog pthread_create faild\n",__FILE__,__LINE__);
 			goto exit;
 		}
 	}
-	
+
 	return _op;
 exit:
 
@@ -388,25 +527,25 @@ void oplog_exit(void *oplog)
 	if (!oplog)
 		return;
 
-	printf ("%s %d oplog_exit\n",__FILE__,__LINE__);
+	printf ("%s %d oplog exit\n",__FILE__,__LINE__);
 
 	_op = oplog;
 
-	if(_op->base) {
-		
+	if (_op->thread.thread_id) {
 		printf ("%s %d oplog event_base_loopbreak\n",__FILE__,__LINE__);
 		while(event_base_loopbreak(_op->base) < 0)
 			usleep(100);
-		printf ("%s %d oplog pthread_kill [%d],break=%d\n",__FILE__,__LINE__, SIGUSR1, event_base_got_break(_op->base));
-
-		event_base_free(_op->base);
-	}
-
-	if (_op->thread.thread_id) {
 		pthread_kill(_op->thread.thread_id, SIGUSR1);
 		pthread_join(_op->thread.thread_id, &retval);
 		printf ("%s %d oplog thread[%x] exit,status=%s\n",__FILE__,__LINE__, (unsigned int)_op->thread.thread_id, (char*)retval);
 		pthread_attr_destroy(&_op->thread.thread_attr);
+	}
+
+	if(_op->base) {
+		printf ("%s %d oplog pthread_kill [%d],break=%d\n",__FILE__,__LINE__, SIGUSR1, event_base_got_break(_op->base));
+		if (_op->ev)
+			event_free(_op->ev);
+		event_base_free(_op->base);
 	}
 
 	if(_op->recv.disk_run) {
@@ -445,6 +584,9 @@ void oplog_exit(void *oplog)
 	free(_op);
 	_op = NULL;
 	self = NULL;
+
+	printf ("%s %d oplog exit over\n",__FILE__,__LINE__);
+
 	return;
 }
 
@@ -458,17 +600,18 @@ void oplog_print(int log_type, char *file, const char *function, int line, int l
 {
 	va_list args;
 	size_t size = 0;
+	struct _log_send_header *head =NULL;
 
 	va_start(args, fmt);
 	pthread_mutex_lock(&self->send.lock);
-	strlcpy(self->send.head.file, file, sizeof(self->send.head.file));
-	strlcpy(self->send.head.function, function, sizeof(self->send.head.function));
-	self->send.head.line = htonl(line);
-	self->send.head.level = htonl(level);
-	self->send.head.type = htonl(log_type);
-	memcpy(self->send.buf_send, &self->send.head, sizeof(self->send.head));
-	size = vsnprintf((char*)(self->send.buf_send+sizeof(self->send.head)), LOG_SEND_BUF_SIZE-sizeof(self->send.head), fmt, args);
-	log_write(self->send.buf_send,size+sizeof(self->send.head));
+	head = (struct _log_send_header *)self->send.buf_send;
+	strlcpy(head->file, file, sizeof(head->file));
+	strlcpy(head->function, function, sizeof(head->function));
+	head->line = htonl(line);
+	head->level = htonl(level);
+	head->type = htonl(log_type);
+	size = vsnprintf((char*)(self->send.buf_send+sizeof(*head)), LOG_SEND_BUF_SIZE-sizeof(*head), fmt, args);
+	log_write(self->send.buf_send,size+sizeof(*head));
 	pthread_mutex_unlock(&self->send.lock);
 	va_end(args);
 
