@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <signal.h>
 
+#include "opbus_type.h"
 #include "opbus.h"
 #include "iniparser.h"
 #include "opbox/usock.h"
@@ -104,7 +105,6 @@ static void opbus_job_thread(evutil_socket_t fd,short what,void* arg)
 	}
 	
 	if (what == EV_READ && !ret) {
-			printf ("%s %d client free[%d]\n",__FILE__,__LINE__, fd);
 			close(client->fd);
 			pthread_mutex_lock(&self->job.job_thread.lock);
 			list_del(&client->list);
@@ -148,6 +148,7 @@ static void opbus_job_thread(evutil_socket_t fd,short what,void* arg)
 		printf ("%s %d len response to long[%d]\n",__FILE__,__LINE__, ret);
 		len = _BUS_BUF_RESPONSE_SIZE;
 	}
+
 	if (write(fd, self->job.buf_response, len) < 0)
 		printf ("%s %d write failed[%d]\n",__FILE__,__LINE__, errno);
 
@@ -231,7 +232,6 @@ static void *opbus_routine (void *arg)
 exit:
 	return NULL;
 }
-
 
 void *opbus_init(void)
 {
@@ -472,7 +472,7 @@ int _opbus_send(unsigned int type, unsigned char *req, int size, unsigned char *
 	int count = 0;
 	char *str = NULL;
 	
-	if (type >= opbus_max || !req || !size) {
+	if (type >= opbus_max) {
 		printf ("%s %d _opbus_send faild[type = %u, size= %d]\n",__FILE__,__LINE__, type, size);
 		goto failed;
 	}
@@ -492,7 +492,8 @@ int _opbus_send(unsigned int type, unsigned char *req, int size, unsigned char *
 		goto failed;
 	}
 
-	memcpy(self->job.buf_req+sizeof(*head), req, size);
+	if (req && size)
+		memcpy(self->job.buf_req+sizeof(*head), req, size);
 	if (write(fd, self->job.buf_req, sizeof(*head)+size) < 0) {
 		printf ("%s %d _opbus_send write[%d]\n",__FILE__,__LINE__, errno);
 		pthread_mutex_unlock(&self->job.req_lock);
@@ -528,11 +529,12 @@ int _opbus_send(unsigned int type, unsigned char *req, int size, unsigned char *
 
 	response_head = (struct _bus_response_head *)str;
 
-	if (response && size > 0) {
-		if (size < (int)(ret-sizeof(*response_head)))
+	if (response && res_size > 0) {
+		if (res_size < (int)(ret-sizeof(*response_head)))
 			printf ("%s %d _opbus_send copy truncate[respose=%d]\n",__FILE__,__LINE__, (int)(ret-sizeof(*response_head)));
 
-		count = size > (int)(ret-sizeof(*response_head))? (int)(ret-sizeof(*response_head)):size;
+		count = res_size > (int)(ret-sizeof(*response_head))? (int)(ret-sizeof(*response_head)):res_size;
+		
 		memcpy(response, str+sizeof(*response_head), count);
 	}
 

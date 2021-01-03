@@ -263,17 +263,17 @@ static int _oplog_format(int format_type, unsigned char * fromat_buf, int buf_si
 
 		case LOG_FORMAT_DETAIL:
 			ret = snprintf((char*)fromat_buf, buf_size,
-					"%s%d-%02d-%02d %02d:%02d:%02d:%03lu %s %d %s 	%s",
+					"%s%d-%02d-%02d %02d:%02d:%02d:%03lu %s %d %s 	%s%s",
 					log_level_map[head->level].color,t->tm_year+1900, t->tm_mon+1, t->tm_mday,
 					t->tm_hour, t->tm_min, t->tm_sec, t2.tv_usec/1000,head->function, head->line,
-					log_level_map[head->level].name, message);
+					log_level_map[head->level].name, message,LOG_COLOR_NONE);
 			break;
 		default:
 			ret = snprintf((char*)fromat_buf, buf_size,
-					"%s%d-%02d-%02d %02d:%02d:%02d:%03lu %s 	%s",
+					"%s%d-%02d-%02d %02d:%02d:%02d:%03lu %s 	%s%s",
 					log_level_map[head->level].color,t->tm_year+1900, t->tm_mon+1, t->tm_mday,
 					t->tm_hour, t->tm_min, t->tm_sec, t2.tv_usec/1000,
-					log_level_map[head->level].name, message);
+					log_level_map[head->level].name, message,LOG_COLOR_NONE);
 			break;
 	}
 

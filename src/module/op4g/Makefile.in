@@ -15,7 +15,6 @@
 @SET_MAKE@
 
 
-
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -90,12 +89,12 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-subdir = src/base
+subdir = src/module/op4g
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
-DIST_COMMON = $(srcdir)/Makefile.am $(libbase_la_include_HEADERS) \
+DIST_COMMON = $(srcdir)/Makefile.am $(libop4g_la_include_HEADERS) \
 	$(am__DIST_COMMON)
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
@@ -128,20 +127,19 @@ am__uninstall_files_from_dir = { \
     || { echo " ( cd '$$dir' && rm -f" $$files ")"; \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
-am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libbase_ladir)" \
-	"$(DESTDIR)$(libbase_la_includedir)"
+am__installdirs = "$(DESTDIR)$(libdir)" \
+	"$(DESTDIR)$(libop4g_la_includedir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
-libbase_la_DEPENDENCIES =
-am_libbase_la_OBJECTS = libbase_la-oplog.lo libbase_la-opbus.lo \
-	libbase_la-opcli.lo
-libbase_la_OBJECTS = $(am_libbase_la_OBJECTS)
+libop4g_la_DEPENDENCIES =
+am_libop4g_la_OBJECTS = libop4g_la-op4g.lo libop4g_la-u9300.lo
+libop4g_la_OBJECTS = $(am_libop4g_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
-libbase_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(libbase_la_CFLAGS) \
-	$(CFLAGS) $(libbase_la_LDFLAGS) $(LDFLAGS) -o $@
+libop4g_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(libop4g_la_CFLAGS) \
+	$(CFLAGS) $(libop4g_la_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -176,15 +174,14 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(libbase_la_SOURCES)
-DIST_SOURCES = $(libbase_la_SOURCES)
+SOURCES = $(libop4g_la_SOURCES)
+DIST_SOURCES = $(libop4g_la_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
     *) (install-info --version) >/dev/null 2>&1;; \
   esac
-DATA = $(libbase_la_DATA)
-HEADERS = $(libbase_la_include_HEADERS)
+HEADERS = $(libop4g_la_include_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP)
 # Read a list of newline-separated strings from the standard input,
 # and print each of them once, without duplicates.  Input order is
@@ -324,19 +321,18 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS = foreign
-lib_LTLIBRARIES = libbase.la
-libbase_la_SOURCES = oplog.c opbus.c opcli.c
-libbase_la_includedir = $(prefix)/include/base
-libbase_la_include_HEADERS = oplog.h opbus.h opcli.h opbus_type.h
-libbase_la_CFLAGS = -I$(top_srcdir)/src -I$(prefix)/include -W -Wall \
+lib_LTLIBRARIES = libop4g.la
+libop4g_la_SOURCES = op4g.c u9300.c
+libop4g_la_includedir = $(prefix)/include/module
+libop4g_la_include_HEADERS = op4g.h
+libop4g_la_CFLAGS = -I$(top_srcdir)/src -I$(prefix)/include -W -Wall \
 	-Wchar-subscripts -Wcomment -Wformat -Wimplicit \
-	-Wmissing-braces -Wparentheses -Wswitch -Wno-unused-parameter \
-	-Wfloat-equal -Wsign-compare -Wpointer-arith -Winline -Werror \
-	-rdynamic -std=gnu99
-libbase_la_LDFLAGS = -L$(top_builddir)/src/opbox/.libs -L$(prefix)/lib
-libbase_la_LIBADD = -liniparser -lpthread -lopbox -levent
-libbase_ladir = $(prefix)/log/prog
-libbase_la_DATA = readme
+	-Wmissing-braces -Wno-error=unused-result -Wparentheses \
+	-Wswitch -Wno-unused-parameter -Wfloat-equal -Wsign-compare \
+	-Wpointer-arith -Winline -Werror -rdynamic -std=gnu99
+libop4g_la_LDFLAGS = -L$(top_builddir)/src/opbox/.libs \
+	-L$(top_builddir)/src/base/.libs -L$(prefix)/lib
+libop4g_la_LIBADD = -lpthread -levent -lbase
 all: all-am
 
 .SUFFIXES:
@@ -350,9 +346,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign src/base/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign src/module/op4g/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign src/base/Makefile
+	  $(AUTOMAKE) --foreign src/module/op4g/Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
 	  *config.status*) \
@@ -406,8 +402,8 @@ clean-libLTLIBRARIES:
 	  rm -f $${locs}; \
 	}
 
-libbase.la: $(libbase_la_OBJECTS) $(libbase_la_DEPENDENCIES) $(EXTRA_libbase_la_DEPENDENCIES) 
-	$(AM_V_CCLD)$(libbase_la_LINK) -rpath $(libdir) $(libbase_la_OBJECTS) $(libbase_la_LIBADD) $(LIBS)
+libop4g.la: $(libop4g_la_OBJECTS) $(libop4g_la_DEPENDENCIES) $(EXTRA_libop4g_la_DEPENDENCIES) 
+	$(AM_V_CCLD)$(libop4g_la_LINK) -rpath $(libdir) $(libop4g_la_OBJECTS) $(libop4g_la_LIBADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -415,9 +411,8 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbase_la-opbus.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbase_la-opcli.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbase_la-oplog.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libop4g_la-op4g.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libop4g_la-u9300.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`;\
@@ -443,74 +438,46 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
 
-libbase_la-oplog.lo: oplog.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libbase_la_CFLAGS) $(CFLAGS) -MT libbase_la-oplog.lo -MD -MP -MF $(DEPDIR)/libbase_la-oplog.Tpo -c -o libbase_la-oplog.lo `test -f 'oplog.c' || echo '$(srcdir)/'`oplog.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libbase_la-oplog.Tpo $(DEPDIR)/libbase_la-oplog.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='oplog.c' object='libbase_la-oplog.lo' libtool=yes @AMDEPBACKSLASH@
+libop4g_la-op4g.lo: op4g.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libop4g_la_CFLAGS) $(CFLAGS) -MT libop4g_la-op4g.lo -MD -MP -MF $(DEPDIR)/libop4g_la-op4g.Tpo -c -o libop4g_la-op4g.lo `test -f 'op4g.c' || echo '$(srcdir)/'`op4g.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libop4g_la-op4g.Tpo $(DEPDIR)/libop4g_la-op4g.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='op4g.c' object='libop4g_la-op4g.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libbase_la_CFLAGS) $(CFLAGS) -c -o libbase_la-oplog.lo `test -f 'oplog.c' || echo '$(srcdir)/'`oplog.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libop4g_la_CFLAGS) $(CFLAGS) -c -o libop4g_la-op4g.lo `test -f 'op4g.c' || echo '$(srcdir)/'`op4g.c
 
-libbase_la-opbus.lo: opbus.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libbase_la_CFLAGS) $(CFLAGS) -MT libbase_la-opbus.lo -MD -MP -MF $(DEPDIR)/libbase_la-opbus.Tpo -c -o libbase_la-opbus.lo `test -f 'opbus.c' || echo '$(srcdir)/'`opbus.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libbase_la-opbus.Tpo $(DEPDIR)/libbase_la-opbus.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='opbus.c' object='libbase_la-opbus.lo' libtool=yes @AMDEPBACKSLASH@
+libop4g_la-u9300.lo: u9300.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libop4g_la_CFLAGS) $(CFLAGS) -MT libop4g_la-u9300.lo -MD -MP -MF $(DEPDIR)/libop4g_la-u9300.Tpo -c -o libop4g_la-u9300.lo `test -f 'u9300.c' || echo '$(srcdir)/'`u9300.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libop4g_la-u9300.Tpo $(DEPDIR)/libop4g_la-u9300.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='u9300.c' object='libop4g_la-u9300.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libbase_la_CFLAGS) $(CFLAGS) -c -o libbase_la-opbus.lo `test -f 'opbus.c' || echo '$(srcdir)/'`opbus.c
-
-libbase_la-opcli.lo: opcli.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libbase_la_CFLAGS) $(CFLAGS) -MT libbase_la-opcli.lo -MD -MP -MF $(DEPDIR)/libbase_la-opcli.Tpo -c -o libbase_la-opcli.lo `test -f 'opcli.c' || echo '$(srcdir)/'`opcli.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libbase_la-opcli.Tpo $(DEPDIR)/libbase_la-opcli.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='opcli.c' object='libbase_la-opcli.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libbase_la_CFLAGS) $(CFLAGS) -c -o libbase_la-opcli.lo `test -f 'opcli.c' || echo '$(srcdir)/'`opcli.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libop4g_la_CFLAGS) $(CFLAGS) -c -o libop4g_la-u9300.lo `test -f 'u9300.c' || echo '$(srcdir)/'`u9300.c
 
 mostlyclean-libtool:
 	-rm -f *.lo
 
 clean-libtool:
 	-rm -rf .libs _libs
-install-libbase_laDATA: $(libbase_la_DATA)
+install-libop4g_la_includeHEADERS: $(libop4g_la_include_HEADERS)
 	@$(NORMAL_INSTALL)
-	@list='$(libbase_la_DATA)'; test -n "$(libbase_ladir)" || list=; \
+	@list='$(libop4g_la_include_HEADERS)'; test -n "$(libop4g_la_includedir)" || list=; \
 	if test -n "$$list"; then \
-	  echo " $(MKDIR_P) '$(DESTDIR)$(libbase_ladir)'"; \
-	  $(MKDIR_P) "$(DESTDIR)$(libbase_ladir)" || exit 1; \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(libop4g_la_includedir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(libop4g_la_includedir)" || exit 1; \
 	fi; \
 	for p in $$list; do \
 	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
 	  echo "$$d$$p"; \
 	done | $(am__base_list) | \
 	while read files; do \
-	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(libbase_ladir)'"; \
-	  $(INSTALL_DATA) $$files "$(DESTDIR)$(libbase_ladir)" || exit $$?; \
+	  echo " $(INSTALL_HEADER) $$files '$(DESTDIR)$(libop4g_la_includedir)'"; \
+	  $(INSTALL_HEADER) $$files "$(DESTDIR)$(libop4g_la_includedir)" || exit $$?; \
 	done
 
-uninstall-libbase_laDATA:
+uninstall-libop4g_la_includeHEADERS:
 	@$(NORMAL_UNINSTALL)
-	@list='$(libbase_la_DATA)'; test -n "$(libbase_ladir)" || list=; \
+	@list='$(libop4g_la_include_HEADERS)'; test -n "$(libop4g_la_includedir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
-	dir='$(DESTDIR)$(libbase_ladir)'; $(am__uninstall_files_from_dir)
-install-libbase_la_includeHEADERS: $(libbase_la_include_HEADERS)
-	@$(NORMAL_INSTALL)
-	@list='$(libbase_la_include_HEADERS)'; test -n "$(libbase_la_includedir)" || list=; \
-	if test -n "$$list"; then \
-	  echo " $(MKDIR_P) '$(DESTDIR)$(libbase_la_includedir)'"; \
-	  $(MKDIR_P) "$(DESTDIR)$(libbase_la_includedir)" || exit 1; \
-	fi; \
-	for p in $$list; do \
-	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
-	  echo "$$d$$p"; \
-	done | $(am__base_list) | \
-	while read files; do \
-	  echo " $(INSTALL_HEADER) $$files '$(DESTDIR)$(libbase_la_includedir)'"; \
-	  $(INSTALL_HEADER) $$files "$(DESTDIR)$(libbase_la_includedir)" || exit $$?; \
-	done
-
-uninstall-libbase_la_includeHEADERS:
-	@$(NORMAL_UNINSTALL)
-	@list='$(libbase_la_include_HEADERS)'; test -n "$(libbase_la_includedir)" || list=; \
-	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
-	dir='$(DESTDIR)$(libbase_la_includedir)'; $(am__uninstall_files_from_dir)
+	dir='$(DESTDIR)$(libop4g_la_includedir)'; $(am__uninstall_files_from_dir)
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
@@ -596,9 +563,9 @@ distdir: $(DISTFILES)
 	done
 check-am: all-am
 check: check-am
-all-am: Makefile $(LTLIBRARIES) $(DATA) $(HEADERS)
+all-am: Makefile $(LTLIBRARIES) $(HEADERS)
 installdirs:
-	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libbase_ladir)" "$(DESTDIR)$(libbase_la_includedir)"; do \
+	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libop4g_la_includedir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -654,8 +621,7 @@ info: info-am
 
 info-am:
 
-install-data-am: install-libbase_laDATA \
-	install-libbase_la_includeHEADERS
+install-data-am: install-libop4g_la_includeHEADERS
 
 install-dvi: install-dvi-am
 
@@ -701,8 +667,8 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-libLTLIBRARIES uninstall-libbase_laDATA \
-	uninstall-libbase_la_includeHEADERS
+uninstall-am: uninstall-libLTLIBRARIES \
+	uninstall-libop4g_la_includeHEADERS
 
 .MAKE: install-am install-strip
 
@@ -713,14 +679,14 @@ uninstall-am: uninstall-libLTLIBRARIES uninstall-libbase_laDATA \
 	html-am info info-am install install-am install-data \
 	install-data-am install-dvi install-dvi-am install-exec \
 	install-exec-am install-html install-html-am install-info \
-	install-info-am install-libLTLIBRARIES install-libbase_laDATA \
-	install-libbase_la_includeHEADERS install-man install-pdf \
+	install-info-am install-libLTLIBRARIES \
+	install-libop4g_la_includeHEADERS install-man install-pdf \
 	install-pdf-am install-ps install-ps-am install-strip \
 	installcheck installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
 	tags tags-am uninstall uninstall-am uninstall-libLTLIBRARIES \
-	uninstall-libbase_laDATA uninstall-libbase_la_includeHEADERS
+	uninstall-libop4g_la_includeHEADERS
 
 .PRECIOUS: Makefile
 

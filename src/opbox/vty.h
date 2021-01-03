@@ -12,6 +12,17 @@ typedef enum
 	CMD_ATTR_HIDDEN,
 }CMD_ATTR;
 
+enum {
+	VTY_TERM,
+	VTY_FILE,
+	VTY_SHELL, 
+	VTY_SHELL_SERV,
+	VTY_NORMAL, 
+	VTY_CLOSE, 
+	VTY_MORE, 
+	VTY_MORELINE
+};
+
 struct _vector 
 {
 	unsigned int active;
@@ -54,6 +65,7 @@ struct _vty
 
 struct cmd_element 
 {
+	unsigned int node;
 	char *string;
 	char *doc;
 	vector tokens;
@@ -77,6 +89,11 @@ void vty_exit(vector *v);
 int install_element (unsigned int ntype, struct cmd_element *cmd);
 int install_node (struct cmd_node *node);
 struct _vty *vty_create (int vty_sock, unsigned int node_type, char *hostname);
+
+void vty_free (struct _vty *vty);
+
+void vty_list(struct _vty *vty);
+
 int vty_read (struct _vty *vty, unsigned char *buf,int nbytes);
 
 #endif

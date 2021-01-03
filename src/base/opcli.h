@@ -5,15 +5,23 @@
 #include "opbox/list.h"
 #include "opbox/vty.h"
 
+#define _CLI_BUF_REQ_SIZE 512
+
 enum {
 	node_view,
 	node_enable,
-
+	node_opmgr,
+	node_op4G,
 	node_max,
 };
 
-#define _CLI_BUF_REQ_SIZE 512
-typedef int (*cmd_cb) (int, const char *[], struct cmd_element *, struct _vty *);
+typedef int (*cmd_cb) (int argc, const char **argv, struct cmd_element *ele, struct _vty *vty);
+
+struct cmd_in_node {
+	char *cmd;
+	char *help;
+	cmd_cb cb;
+};
 
 struct _cli_buf {
 	unsigned char buf_recv[_CLI_BUF_REQ_SIZE];

@@ -321,12 +321,16 @@ top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = foreign
 opserver_SOURCES = opserver.c
 opserver_LDFLAGS = -L$(top_builddir)/src/opbox/.libs \
-	-L$(top_builddir)/src/base/.libs -L$(prefix)/lib
-opserver_LDADD = -lopbox -liniparser -lbase -levent
-opserver_CFLAGS = -I$(prefix)/include -W -Wall -Wchar-subscripts \
-	-Wcomment -Wformat -Wimplicit -Wmissing-braces -Wparentheses \
-	-Wswitch -Wno-unused-parameter -Wfloat-equal -Wsign-compare \
-	-Wpointer-arith -Winline -Werror -rdynamic -g
+	-L$(top_builddir)/src/base/.libs \
+	-L$(top_builddir)/src/module/opmgr/.libs \
+	-L$(top_builddir)/src/module/op4g/.libs -L$(prefix)/lib
+opserver_LDADD = -lopbox -liniparser -lbase -levent -lopmgr -lop4g
+opserver_CFLAGS = -I$(top_srcdir)/src/module/opmgr \
+	-I$(top_srcdir)/src/module/op4g -I$(prefix)/include -W -Wall \
+	-Wchar-subscripts -Wcomment -Wformat -Wimplicit \
+	-Wmissing-braces -Wparentheses -Wswitch -Wno-unused-parameter \
+	-Wfloat-equal -Wsign-compare -Wpointer-arith -Winline -Werror \
+	-rdynamic -g
 opserveretcdir = $(prefix)/etc
 opserveretc_DATA = opserver.conf
 all: all-am

@@ -82,17 +82,6 @@ enum cmd_terminal_type
 	TERMINAL_IPV6_PREFIX,
 };
 
-enum {
-	VTY_TERM,
-	VTY_FILE,
-	VTY_SHELL, 
-	VTY_SHELL_SERV,
-	VTY_NORMAL, 
-	VTY_CLOSE, 
-	VTY_MORE, 
-	VTY_MORELINE
-};
-
 enum filter_type
 {
 	FILTER_RELAXED,
@@ -1983,8 +1972,8 @@ static int vty_execute (struct _vty *vty)
   /* Clear command line buffer. */
   vty->cp = vty->length = 0;
   vty_clear_buf (vty);
-
-  vty_prompt (vty);
+if (vty->status != VTY_CLOSE)
+  	vty_prompt (vty);
 
   return ret;
 }
@@ -3350,5 +3339,36 @@ struct _vty *vty_create (int vty_sock, unsigned int node_type, char *hostname)
   snprintf(vty->hostname, sizeof(vty->hostname), "%s", hostname);
   return vty;
 }
+
+void vty_list(struct _vty *vty)
+{
+	unsigned int i;
+	struct cmd_node *cnode = vector_slot (cmdvec, vty->node);
+	struct cmd_element *cmd;
+
+	for (i = 0; i < vector_active (cnode->cmd_vector); i++)
+		if ((cmd = vector_slot (cnode->cmd_vector, i)) != NULL
+				&& !(cmd->attr == CMD_ATTR_DEPRECATED
+				|| cmd->attr == CMD_ATTR_HIDDEN))
+				vty_out (vty, "  %s%s", cmd->string,VTY_NEWLINE);
+
+	return;
+}
+
+void vty_free (struct _vty *vty)
+{
+	int i =0;
+
+	if (!vty)
+		return;
+
+	for (i = 0; i < VTY_HIST_CMD_SIZE; i++) {
+		if (vty->hist[i])
+			free(vty->hist[i]);
+	}
+
+	return;
+}
+
 
 

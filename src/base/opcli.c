@@ -15,10 +15,33 @@
 #include "opbox/ptelnet.h"
 #include "opbox/hash.h"
 
+static struct _opcli_struct *self = NULL;
+
 #define CLI_SERVER "opcli:ip"
 #define CLI_PORT "opcli:port"
 #define CLI_OUT_BUF_SIZE 4096
 #define CLI_HOST "opserver"
+
+struct _node_prefix {
+	char *prefix;
+	char *cmd_in_enable;
+	char *help_in_enable;
+};
+
+#define CMD_OPMGR_NAME "opmgr"
+#define HELP_OPMGR_NAME "opmgr module\n"
+
+#define CMD_OP4G_NAME "op4G"
+#define HELP_OP4G_NAME "op4G module\n"
+
+struct _node_prefix cli_prefix [node_max] = {
+	[node_view] = {.prefix = "%s>"},
+	[node_enable] = {.prefix = "%s#"},
+	[node_opmgr] = {.prefix = "%s(opmgr)#", .cmd_in_enable= CMD_OPMGR_NAME, .help_in_enable = HELP_OPMGR_NAME},
+	[node_op4G] = {.prefix = "%s(op4G)#", .cmd_in_enable= CMD_OP4G_NAME, .help_in_enable = HELP_OP4G_NAME},
+
+};
+
 
 struct _cli_socket {
 	int sock_fd;
@@ -62,16 +85,87 @@ struct _opcli_struct {
 	vector vtyvec;
 };
 
-struct _node_prefix {
-	char *prefix;
+static int cmd_node_exit(int argc, const char **argv, struct cmd_element *ele, struct _vty * vty)
+{
+	switch (vty->node) {
+		case node_view:
+			vty->status = VTY_CLOSE;
+			break;
+		case node_enable:
+			vty->node = node_view;
+			break;
+		case node_opmgr:
+		case node_op4G:
+			vty->node = node_enable;
+			break;
+	}
+	return 0;
+}
+
+static int cmd_node_end(int argc, const char **argv, struct cmd_element *ele, struct _vty * vty)
+{
+	vty->node = node_view;
+	return 0;
+}
+
+static int cmd_node_list(int argc, const char **argv, struct cmd_element *ele, struct _vty * vty)
+{
+	vty_list(vty);
+	return 0;
+}
+
+static int cmd_node_enable(int argc, const char **argv, struct cmd_element *ele, struct _vty * vty)
+{
+	vty->node = node_enable;
+	return 0;
+}
+
+struct cmd_in_node _cmd_in_node [] = {
+	{.cmd = "exit", .help="exit to preview node\n", .cb = cmd_node_exit},
+	{.cmd = "end", .help="end to first node\n", .cb = cmd_node_end},
+	{.cmd = "list", .help="list install cmd in this node\n", .cb = cmd_node_list},
 };
 
-struct _node_prefix cli_prefix [node_max] = {
-	[node_view] = {.prefix = "%s>"},
-	[node_enable] = {.prefix = "%s#"},
+static int cmd_node_enable_module(int argc, const char **argv, struct cmd_element *ele, struct _vty * vty)
+{
+	unsigned int i = 0;
+	unsigned int len = sizeof(cli_prefix)/sizeof(cli_prefix[0]);
+
+	for (i = 0; i < len; i++) {
+		if (!cli_prefix[i].cmd_in_enable)
+			continue;
+
+		if (!strcmp(ele->string, cli_prefix[i].cmd_in_enable))
+			vty->node = i;
+	}
+	return 0;
+}
+
+struct cmd_in_node _cmd_in_node_enable [] = {
+	{.cmd = CMD_OPMGR_NAME, .help=HELP_OPMGR_NAME, .cb = cmd_node_enable_module},
+	{.cmd = CMD_OP4G_NAME, .help=HELP_OP4G_NAME, .cb = cmd_node_enable_module},
+
 };
 
-static struct _opcli_struct *self = NULL;
+
+static int install_default_cmd(unsigned int node_type)
+{
+	int i =0;
+	int len = sizeof(_cmd_in_node)/ sizeof(_cmd_in_node[0]);
+
+	for (i = 0; i < len;i++)
+		opcli_install_cmd(node_type, _cmd_in_node[i].cmd , _cmd_in_node[i].help, _cmd_in_node[i].cb);
+
+	if (node_type == node_view)
+		opcli_install_cmd(node_type, "enable", "into enable node\n", cmd_node_enable);
+	else if (node_type == node_enable) {
+		len = sizeof(_cmd_in_node_enable)/ sizeof(_cmd_in_node_enable[0]);
+		for (i = 0; i < len;i++)
+			opcli_install_cmd(node_type, _cmd_in_node_enable[i].cmd , _cmd_in_node_enable[i].help, _cmd_in_node_enable[i].cb);
+	}
+
+	return 0;
+}
 
 static void *opcli_routine (void *arg)
 {
@@ -87,6 +181,18 @@ exit:
 	return NULL;
 }
 
+static void opcli_client_free(struct _cli_client *client)
+{
+	printf ("%s %d client free[%d]\n",__FILE__,__LINE__, client->fd);
+	close(client->fd);
+	pthread_mutex_lock(&self->job.lock);
+	list_del(&client->list);
+	pthread_mutex_unlock(&self->job.lock);
+	event_free(client->ev);
+	vty_free(client->vty);
+	free(client);
+	return;
+}
 static void opcli_job_thread(evutil_socket_t fd,short what,void* arg)
 {
 	struct _cli_client *client = NULL;
@@ -100,18 +206,15 @@ static void opcli_job_thread(evutil_socket_t fd,short what,void* arg)
 	}
 	
 	if (what == EV_READ && !ret) {
-			printf ("%s %d client free[%d]\n",__FILE__,__LINE__, fd);
-			close(client->fd);
-			pthread_mutex_lock(&self->job.lock);
-			list_del(&client->list);
-			pthread_mutex_unlock(&self->job.lock);
-			event_free(client->ev);
-			free(client);
+			opcli_client_free(client);
 			goto out;
 	}
 
 	pthread_mutex_lock(&self->node.lock);
 	vty_read(client->vty, client->buf.buf_recv, ret);
+	if (client->vty->status == VTY_CLOSE)
+		opcli_client_free(client);
+
 	pthread_mutex_unlock(&self->node.lock);
 out:
 	return;
@@ -126,7 +229,7 @@ static unsigned long node_hash (const void *data)
 	unsigned long v;
 	int r;
 	char *c = NULL;
-
+	
 	cli_cmd = (struct cmd_element *)data;
 	if (!cli_cmd) {
 		printf ("%s %d node_hash faild data is unvalid\n",__FILE__,__LINE__);
@@ -159,8 +262,7 @@ static int node_compare (const void *data_in_list, const void *data)
 	if (!cli_cmd || !cli_data || !cli_cmd->string || !cli_data->string )
 		return 1;
 
-	
-	return strcmp(cli_cmd->string, cli_data->string);
+	return (strcmp(cli_cmd->string, cli_data->string) | (cli_cmd->node != cli_data->node));
 }
 
 static int opcli_node_init(struct _cli_node *node, unsigned int node_max_num)
@@ -171,18 +273,6 @@ static int opcli_node_init(struct _cli_node *node, unsigned int node_max_num)
 		printf ("%s %d opcli_node_init faild[%d]\n",__FILE__,__LINE__, node_max_num);
 		goto failed;
 	}
-	
-	for (i = 0 ; i < node_max_num; i++) {
-		node->node_ele[i].cmd_hash = op_hash_new(node_hash, node_compare);
-		if (!node->node_ele[i].cmd_hash) {
-			printf ("%s %d op_hash_new faild\n",__FILE__,__LINE__);
-			goto failed;
-		}
-		node->node_ele[i].node = i;
-		
-		node->node_ele[i].prompt = cli_prefix[i].prefix;
-		install_node(&node->node_ele[i]);
-	}
 
 	if(pthread_mutexattr_init(&node->attr)) {
 		printf ("%s %d opcli pthread_mutexattr_init faild\n",__FILE__,__LINE__);
@@ -192,6 +282,20 @@ static int opcli_node_init(struct _cli_node *node, unsigned int node_max_num)
 	if(pthread_mutex_init(&node->lock, &node->attr)) {
 		printf ("%s %d opcli pthread_mutex_init faild\n",__FILE__,__LINE__);
 		goto failed;
+	}
+
+	for (i = 0 ; i < node_max_num; i++) {
+		node->node_ele[i].cmd_hash = op_hash_new(node_hash, node_compare);
+		if (!node->node_ele[i].cmd_hash) {
+			printf ("%s %d op_hash_new faild\n",__FILE__,__LINE__);
+			goto failed;
+		}
+		node->node_ele[i].node = i;
+		
+		node->node_ele[i].prompt = cli_prefix[i].prefix;
+		
+		install_node(&node->node_ele[i]);
+		install_default_cmd(i);
 	}
 
 	return 0;
@@ -455,7 +559,7 @@ int opcli_install_cmd(unsigned int node, char *cmd, char*help ,cmd_cb cb)
 	void *data = NULL;
 
 	if (!cmd || !help || !cb || node >= node_max) {
-		printf ("%s %d opcli_install_cmd faild[cmd=%s,help=%s, node=%u]\n",__FILE__,__LINE__, cmd, help, node);
+		printf ("%s %d opcli_install_cmd faild[cmd=%s, node=%u, cb=%p]\n",__FILE__,__LINE__, cmd, node, cb);
 		goto failed;
 	}
 
@@ -465,6 +569,7 @@ int opcli_install_cmd(unsigned int node, char *cmd, char*help ,cmd_cb cb)
 		goto failed;
 	}
 
+	cli_cmd->node = node;
 	cli_cmd->cb = cb;
 	cli_cmd->string = strdup(cmd);
 	if (!cli_cmd->string) {
@@ -482,7 +587,7 @@ int opcli_install_cmd(unsigned int node, char *cmd, char*help ,cmd_cb cb)
 	pthread_mutex_lock(&self->node.lock);
 	data = op_hash_retrieve(self->node.node_ele[node].cmd_hash, cli_cmd);
 	if (data) {
-		printf ("%s %d element has exist\n",__FILE__,__LINE__);
+		printf ("%s %d element has exist[cmd=%s, node=%u, cb=%p]\n",__FILE__,__LINE__, cmd, node, cb);
 		pthread_mutex_unlock(&self->node.lock);
 		goto failed;
 	}

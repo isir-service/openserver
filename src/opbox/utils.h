@@ -263,7 +263,9 @@ unsigned int ipv4touint(const char *str_ip);
 
 char * uinttoipv4(unsigned int ip);
 
-int strlcpy(char *src, const char *dest, unsigned int size);
+int strlcpy(char *dest, const char *src, unsigned int dest_size);
+
+int memlcpy(void *dest, unsigned int dest_size, void *src, unsigned int src_size);
 
 int is_dir_exist(char *dir, int create);
 
@@ -272,5 +274,7 @@ void signal_action(void);
 
 void print_hex(unsigned char *dest, int size);
 void print_dec(unsigned char *dest, int size);
+
+int uart_open(char *dev);
 
 #endif

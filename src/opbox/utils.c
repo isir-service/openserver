@@ -35,6 +35,8 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <execinfo.h>
+#include <termios.h>
+#include <errno.h>
 
 #define BACKTRACE_SIZE   20
 
@@ -274,18 +276,30 @@ char * uinttoipv4(unsigned int ip)
 }
 
 
-int strlcpy(char *src, const char *dest, unsigned int size)
+int strlcpy(char *dest, const char *src, unsigned int dest_size)
 {
 
 	unsigned int size_copy = 0;
 
-	if (!src || !dest || !size)
+	if (!src || !dest || !dest_size)
 		return 0;
 
-	size_copy = size > strlen(dest)?strlen(dest):size-1;
-	memcpy(src, dest, size_copy);
-	src[size_copy] = 0;
+	size_copy = dest_size > strlen(src)?strlen(src):dest_size-1;
+	memcpy(dest, src, size_copy);
+	dest[size_copy] = 0;
 
+	return size_copy;
+}
+
+int memlcpy(void *dest, unsigned int dest_size, void *src, unsigned int src_size)
+{
+	unsigned int size_copy = 0;
+
+	if (!src || !dest || !dest_size)
+		return 0;
+
+	size_copy = dest_size > src_size?src_size:dest_size;
+	memcpy(dest, src, size_copy);
 	return size_copy;
 }
 
@@ -373,6 +387,44 @@ void print_dec(unsigned char *dest, int size)
 	printf("\n");
 
 	return;
+}
+
+int uart_open(char *dev)
+{
+	struct termios term;
+	int fd = -1;
+	if (!dev) {
+		printf ("%s %d dev name is unvalid\n", __FUNCTION__, __LINE__);
+		goto out;
+	}
+
+	fd = open(dev, O_RDWR | O_NOCTTY | O_NONBLOCK);
+	if (fd < 0) {
+		printf ("%s %d open failed[%s] [%d]\n", __FUNCTION__, __LINE__,dev, errno);
+		goto out;
+	}
+	
+	fcntl(fd, F_SETFL, O_RDWR);
+	tcgetattr(fd, &term);
+	term.c_lflag &= ~(ICANON | ECHO | ECHONL);
+	term.c_lflag &= ~ISIG;
+	term.c_lflag &= ~(IXON | ICRNL);
+	term.c_oflag &= ~(ONLCR);
+	term.c_iflag &= ~(IXOFF|IXON|IXANY|BRKINT|INLCR|ICRNL|IUCLC|IMAXBEL);
+	cfsetspeed(&term, B9600);
+	cfsetospeed(&term, B9600);
+	
+	term.c_cflag &= ~PARENB;
+	term.c_cflag &= ~CSTOPB;
+	term.c_cflag &= ~CSIZE;
+	term.c_cflag |= CS8;
+
+	term.c_cc[VMIN] = 1;
+	term.c_cc[VTIME] = 0;
+	tcsetattr(fd, TCSAFLUSH, &term);
+	tcflush(fd,TCIOFLUSH);
+out:
+	return fd;
 }
 
 
