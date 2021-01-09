@@ -12,29 +12,35 @@
 #include "op4g_handle.h"
 
 #include "opbox/utils.h"
+#include "_4g_pdu.h"
 
 #define _4G_DEV "op4G:dev"
+#define _4G_CENTER_MESSAGE "op4G:message_centor"
+
 #define _4G_READ_BUF_SIZE 2048
 
 enum {
 	MODULE_U9300,
 };
 
-typedef int (*module_init) (int fd);
+typedef int (*module_init) (int fd, char*);
 typedef void (*module_exit) (void);
 
-typedef int (*module_handle) (int fd, unsigned int event_type, struct _4g_handle *handle);
+typedef int (*module_uart) (int fd, unsigned int event_type, struct _4g_uart_handle *handle);
+typedef int (*module_interface)(int fd, unsigned int event_type, struct _4g_iface_handle *iface);
 
 struct _4g_module_support {
 	int vendor_id;
 	int product_id;
 	module_init init;
 	module_exit exit;
-	module_handle handle;
+	module_uart uart_handle;
+	module_interface iface;
+	
 };
 
 struct _4g_module_support module_support[] = {
-	[MODULE_U9300] = {.vendor_id = 0x1c9e, .product_id= 0x9b3c, .init = u9300_init, .exit = u9300_exit, .handle = u9300_handle},
+	[MODULE_U9300] = {.vendor_id = 0x1c9e, .product_id= 0x9b3c, .init = u9300_init, .exit = u9300_exit, .uart_handle = u9300_uart_handle, .iface = u9300_interface},
 };
 
 struct _4g_thread_ 
@@ -62,6 +68,7 @@ struct _op4g_struct {
 	pthread_mutex_t lock;
 	pthread_mutexattr_t attr;
 	struct _4g_buf buf;
+	char center_message[64];
 };
 
 struct _op4g_struct *self = NULL;
@@ -96,7 +103,7 @@ static void op4g_job(evutil_socket_t fd,short what,void* arg)
 	int ret = 0;
 	int event = 0;
 
-	struct _4g_handle handle_param;
+	struct _4g_uart_handle handle_param;
 	memset(&handle_param, 0, sizeof(handle_param));
 
 	if (self->buf.index >= _4G_READ_BUF_SIZE-1)
@@ -109,7 +116,6 @@ static void op4g_job(evutil_socket_t fd,short what,void* arg)
 		event_free(self->ev);
 		goto out;
 	}
-
 	self->buf.index += ret;
 	self->buf.bf[self->buf.index] = 0;
 	module = (struct _4g_module_support *)arg;
@@ -118,13 +124,15 @@ static void op4g_job(evutil_socket_t fd,short what,void* arg)
 		goto out;
 	}
 
-	handle_param.req = self->buf.bf;
-	handle_param.req_size = self->buf.index;
-	handle_param.resp = NULL;
-	handle_param.resp_size = 0;
+	log_debug("op4g_job resp: %s\n", self->buf.bf);
+
+	handle_param.req = NULL;
+	handle_param.req_size = 0;
+	handle_param.resp = self->buf.bf;
+	handle_param.resp_size = self->buf.index;
 	event = _4G_EVENT_READ;
 
-	event = module->handle(fd, event, &handle_param);
+	event = module->uart_handle(fd, event, &handle_param);
 	switch (event) {
 		case _4G_EVENT_MORE:
 			break;
@@ -162,7 +170,6 @@ void *op4g_init(void)
 	int product_id = 0;
 
 	log_debug("op4g init\n");
-
 	_4g = calloc(1, sizeof(*_4g));
 	if (!_4g) {
 		log_error("calloc failed[%d]\n", errno);
@@ -186,7 +193,14 @@ void *op4g_init(void)
 	log_info("op4g: dev(%s)\n",str);
 
 	strlcpy(_4g->uart.dev_name, str, sizeof(_4g->uart.dev_name));
-	
+
+	if(!(str = iniparser_getstring(dict,_4G_CENTER_MESSAGE,NULL))) {
+		log_error ("iniparser_getstring faild[%s]\n", _4G_CENTER_MESSAGE);
+		iniparser_freedict(dict);
+		goto exit;
+	}
+
+	strlcpy(_4g->center_message, str, sizeof(_4g->center_message));
 	iniparser_freedict(dict);
 
 	_4g->uart.fd = uart_open(_4g->uart.dev_name);
@@ -202,7 +216,7 @@ void *op4g_init(void)
 	}
 
 	log_info("op4g: vendor_id=%x, product_id=%x\n", vendor_id, product_id);
-	if (_4g->module->init(_4g->uart.fd) < 0) {
+	if (_4g->module->init(_4g->uart.fd, _4g->center_message) < 0) {
 		log_error("op4g: module init failed\n");
 		goto exit;
 	}
@@ -244,11 +258,32 @@ void *op4g_init(void)
 		goto exit;
 	}
 
+#ifdef _4G_TEST
+	char buf_test[1024];
+	int count = 0;
+	int ret_test = 0;
+	ret_test =  message_ucs2_combi_mesage("+8613010112500", "18519127396", "上山打老虎a", buf_test, 1024, &count);
+	print_HEX((unsigned char*)buf_test, ret_test);
+	printf("count=%d\n", count);
+
+#endif
+
 	return _4g;
 
 exit:
 	op4g_exit(_4g);
 	return NULL;
+}
+
+void op4g_send_message(char *phone_num, char *message)
+{
+	struct _op4g_struct *_4g = self;
+	struct _4g_iface_handle iface;
+	memset(&iface, 0, sizeof(iface));
+	iface.req[0] = phone_num;
+	iface.req[1] = message;
+	_4g->module->iface(_4g->uart.fd, _4G_EVENT_SEND_MESSAGE, &iface);
+	return;
 }
 
 void op4g_exit(void *_4g)

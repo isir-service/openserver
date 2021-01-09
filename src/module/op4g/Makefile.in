@@ -131,7 +131,8 @@ am__installdirs = "$(DESTDIR)$(libdir)" \
 	"$(DESTDIR)$(libop4g_la_includedir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libop4g_la_DEPENDENCIES =
-am_libop4g_la_OBJECTS = libop4g_la-op4g.lo libop4g_la-u9300.lo
+am_libop4g_la_OBJECTS = libop4g_la-op4g.lo libop4g_la-u9300.lo \
+	libop4g_la-_4g_pdu.lo
 libop4g_la_OBJECTS = $(am_libop4g_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -322,9 +323,9 @@ top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS = foreign
 lib_LTLIBRARIES = libop4g.la
-libop4g_la_SOURCES = op4g.c u9300.c
+libop4g_la_SOURCES = op4g.c u9300.c _4g_pdu.c
 libop4g_la_includedir = $(prefix)/include/module
-libop4g_la_include_HEADERS = op4g.h
+libop4g_la_include_HEADERS = op4g.h op4g_handle.h
 libop4g_la_CFLAGS = -I$(top_srcdir)/src -I$(prefix)/include -W -Wall \
 	-Wchar-subscripts -Wcomment -Wformat -Wimplicit \
 	-Wmissing-braces -Wno-error=unused-result -Wparentheses \
@@ -411,6 +412,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libop4g_la-_4g_pdu.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libop4g_la-op4g.Plo@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libop4g_la-u9300.Plo@am__quote@
 
@@ -451,6 +453,13 @@ libop4g_la-u9300.lo: u9300.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='u9300.c' object='libop4g_la-u9300.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libop4g_la_CFLAGS) $(CFLAGS) -c -o libop4g_la-u9300.lo `test -f 'u9300.c' || echo '$(srcdir)/'`u9300.c
+
+libop4g_la-_4g_pdu.lo: _4g_pdu.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libop4g_la_CFLAGS) $(CFLAGS) -MT libop4g_la-_4g_pdu.lo -MD -MP -MF $(DEPDIR)/libop4g_la-_4g_pdu.Tpo -c -o libop4g_la-_4g_pdu.lo `test -f '_4g_pdu.c' || echo '$(srcdir)/'`_4g_pdu.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libop4g_la-_4g_pdu.Tpo $(DEPDIR)/libop4g_la-_4g_pdu.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='_4g_pdu.c' object='libop4g_la-_4g_pdu.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libop4g_la_CFLAGS) $(CFLAGS) -c -o libop4g_la-_4g_pdu.lo `test -f '_4g_pdu.c' || echo '$(srcdir)/'`_4g_pdu.c
 
 mostlyclean-libtool:
 	-rm -f *.lo

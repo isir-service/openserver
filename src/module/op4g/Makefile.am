@@ -3,7 +3,7 @@ ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS=foreign
 lib_LTLIBRARIES=libop4g.la
 
-libop4g_la_SOURCES=op4g.c u9300.c
+libop4g_la_SOURCES=op4g.c u9300.c _4g_pdu.c
 libop4g_la_includedir=$(prefix)/include/module
 libop4g_la_include_HEADERS=op4g.h op4g_handle.h
 

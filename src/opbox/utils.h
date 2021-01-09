@@ -275,6 +275,11 @@ void signal_action(void);
 void print_hex(unsigned char *dest, int size);
 void print_dec(unsigned char *dest, int size);
 
+void print_HEX(unsigned char *dest, int size);
+
 int uart_open(char *dev);
+int utf8_to_unicode (char *inbuf, size_t *inlen, char *outbuf, size_t *outlen);
+
+int unicode_to_utf8 (char *inbuf, size_t *inlen, char *outbuf, size_t *outlen);
 
 #endif

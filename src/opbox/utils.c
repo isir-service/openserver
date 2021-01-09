@@ -37,6 +37,7 @@
 #include <execinfo.h>
 #include <termios.h>
 #include <errno.h>
+#include <iconv.h>
 
 #define BACKTRACE_SIZE   20
 
@@ -298,6 +299,7 @@ int memlcpy(void *dest, unsigned int dest_size, void *src, unsigned int src_size
 	if (!src || !dest || !dest_size)
 		return 0;
 
+	memset(dest, 0, dest_size);
 	size_copy = dest_size > src_size?src_size:dest_size;
 	memcpy(dest, src, size_copy);
 	return size_copy;
@@ -367,7 +369,22 @@ void print_hex(unsigned char *dest, int size)
 		return;
 
 	while(i < size)
-		printf ("%02x ", dest[i++]);
+		printf ("%02x", dest[i++]);
+
+	printf("\n");
+
+	return;
+}
+
+void print_HEX(unsigned char *dest, int size)
+{
+	int i = 0;
+
+	if (!dest || size <= 0)
+		return;
+
+	while(i < size)
+		printf ("%02X", dest[i++]);
 
 	printf("\n");
 
@@ -425,6 +442,62 @@ int uart_open(char *dev)
 	tcflush(fd,TCIOFLUSH);
 out:
 	return fd;
+}
+
+int unicode_to_utf8 (char *inbuf, size_t *inlen, char *outbuf, size_t *outlen)
+{
+	char *encTo = "UTF-8";
+	char *encFrom = "UCS-2BE";
+
+	char *tmpin = NULL;
+	char *tmpout = NULL;
+	int ret;
+
+	iconv_t cd = iconv_open (encTo, encFrom);
+	if (cd == (iconv_t)-1) {
+		perror ("iconv_open");
+	}
+
+	tmpin = inbuf;
+	tmpout = outbuf;
+
+	ret = iconv (cd, &tmpin, inlen, &tmpout, outlen);
+	if (ret == -1) {
+		perror ("iconv");
+	}
+
+	iconv_close (cd);
+
+	return ret;
+}
+
+int utf8_to_unicode (char *inbuf, size_t *inlen, char *outbuf, size_t *outlen)
+{
+
+	char *encTo = "UCS-2BE";
+	char *encFrom = "UTF-8";
+	char *tmpin = NULL;
+	char *tmpout = NULL;
+	int ret;
+
+	iconv_t cd = iconv_open (encTo, encFrom);
+	if (cd == (iconv_t)-1) {
+		perror ("iconv_open");
+		return  -1;
+	}
+
+	tmpin = inbuf;
+	tmpout = outbuf;
+
+	ret = iconv (cd, &tmpin, inlen, &tmpout, outlen);
+	if (ret == -1) {
+		perror ("iconv");
+		return -1;
+	}
+
+	iconv_close (cd);
+
+	return 0;
 }
 
 
