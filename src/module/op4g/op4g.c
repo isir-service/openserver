@@ -280,6 +280,8 @@ exit:
 
 void op4g_send_message(char *phone_num, char *message)
 {
+	log_debug("[%s]send message\n",phone_num);
+
 	struct _op4g_struct *_4g = self;
 	struct _4g_iface_handle iface;
 	memset(&iface, 0, sizeof(iface));

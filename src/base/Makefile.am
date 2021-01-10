@@ -1,9 +1,9 @@
 ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS=foreign
 lib_LTLIBRARIES=libbase.la
-libbase_la_SOURCES=oplog.c opbus.c opcli.c
+libbase_la_SOURCES=oplog.c opbus.c opcli.c opsql.c
 libbase_la_includedir=$(prefix)/include/base
-libbase_la_include_HEADERS=oplog.h opbus.h opcli.h opbus_type.h
+libbase_la_include_HEADERS=oplog.h opbus.h opcli.h opbus_type.h opsql.h
 
 libbase_la_CFLAGS = -I$(top_srcdir)/src
 
@@ -12,6 +12,6 @@ libbase_la_CFLAGS += -W -Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit -W
 
 libbase_la_LDFLAGS = -L$(top_builddir)/src/opbox/.libs
 libbase_la_LDFLAGS += -L$(prefix)/lib
-libbase_la_LIBADD = -liniparser -lpthread -lopbox -levent
-libbase_ladir = $(prefix)/log/prog
-libbase_la_DATA=readme
+libbase_la_LIBADD = -liniparser -lpthread -lopbox -levent -lodbcinst -lodbc
+libbase_ladir = $(prefix)/etc
+libbase_la_DATA=odbc.ini odbcinst.ini

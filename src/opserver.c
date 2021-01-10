@@ -10,6 +10,8 @@
 #include "opmgr.h"
 #include "op4g.h"
 #include "event.h"
+#include "base/opsql.h"
+#include "config.h"
 
 struct _opserver_struct_ {
 	void *log;
@@ -17,6 +19,7 @@ struct _opserver_struct_ {
 	void *cli;
 	void *mgr;
 	void *_4g;
+	void *sql;
 	struct event_base *base;
 };
 
@@ -38,6 +41,7 @@ void opserver_exit(struct _opserver_struct_ *_op)
 
 	oplog_exit(_op->_4g);
 	opmgr_exit(_op->mgr);
+	opsql_exit(_op->sql);
 	opcli_exit(_op->cli);
 	opcli_exit(_op->bus);
 	oplog_exit(_op->log);
@@ -82,6 +86,12 @@ int main(int argc, char*argv[])
 	log_warn("test log\n");
 	log_error("test log\n");
 
+	_op->sql = opsql_init(OPSERVER_CONF);
+	if (!_op->sql) {
+		printf("opserver opsql failed\n");
+		goto exit;
+	}
+
 	_op->mgr = opmgr_init();
 	if (!_op->mgr) {
 		printf("opserver opmgr failed\n");
@@ -94,6 +104,8 @@ int main(int argc, char*argv[])
 		goto exit;
 	}
 
+	op4g_send_message("18519127396", "你好");
+	
 	_op->base = event_base_new();
 	if (!_op->base) {
 		printf ("%s %d opserver event_base_new failed\n",__FILE__,__LINE__);

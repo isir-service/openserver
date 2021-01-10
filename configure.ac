@@ -12,7 +12,7 @@ AC_PROG_LIBTOOL
 # Checks for header files.
 
 # Checks for typedefs, structures, and compiler characteristics.
-AC_DEFINE([OPSERVER_CONF],["/opserver/etc/opserver.conf"],["opserver config file"])
+AC_DEFINE([OPSERVER_CONF],["/home/opserver/etc/opserver.conf"],["opserver config file"])
 # Checks for library functions.
 AC_CONFIG_FILES([src/base/Makefile src/opbox/Makefile src/module/Makefile src/module/opmgr/Makefile src/module/op4g/Makefile src/Makefile])
 AC_OUTPUT([Makefile])
