@@ -139,7 +139,7 @@ int message_ucs2_combi_mesage(char *center_num, char *phone_num, char *message, 
 
 	ret = message_center_phone_change(center_num, center_phone_buf, sizeof(center_phone_buf));
 	if (ret < 0)
-		goto out
+		goto out;
 
 	tmp_size = memlcpy(dest, dest_size, center_phone_buf, ret);
 	

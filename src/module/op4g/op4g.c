@@ -23,7 +23,7 @@ enum {
 	MODULE_U9300,
 };
 
-typedef int (*module_init) (int fd, char*);
+typedef int (*module_init) (int fd, char*, struct _4g_module_init *);
 typedef void (*module_exit) (void);
 
 typedef int (*module_uart) (int fd, unsigned int event_type, struct _4g_uart_handle *handle);
@@ -124,8 +124,6 @@ static void op4g_job(evutil_socket_t fd,short what,void* arg)
 		goto out;
 	}
 
-	log_debug("op4g_job resp: %s\n", self->buf.bf);
-
 	handle_param.req = NULL;
 	handle_param.req_size = 0;
 	handle_param.resp = self->buf.bf;
@@ -168,7 +166,9 @@ void *op4g_init(void)
 	dictionary *dict = NULL;
 	int vendor_id = 0;
 	int product_id = 0;
-
+	struct _4g_module_init module_param;
+	
+	memset(&module_param , 0, sizeof(module_param));
 	log_debug("op4g init\n");
 	_4g = calloc(1, sizeof(*_4g));
 	if (!_4g) {
@@ -216,10 +216,6 @@ void *op4g_init(void)
 	}
 
 	log_info("op4g: vendor_id=%x, product_id=%x\n", vendor_id, product_id);
-	if (_4g->module->init(_4g->uart.fd, _4g->center_message) < 0) {
-		log_error("op4g: module init failed\n");
-		goto exit;
-	}
 
 	_4g->base = event_base_new();
 	if (!_4g->base) {
@@ -255,6 +251,13 @@ void *op4g_init(void)
 
 	if(pthread_create(&_4g->thread.thread_id, &_4g->thread.thread_attr, op4g_routine, _4g->base)) {
 		log_error ("pthread_create faild\n");
+		goto exit;
+	}
+
+	module_param.base = _4g->base;
+	module_param.thread_id = _4g->thread.thread_id;
+	if (_4g->module->init(_4g->uart.fd, _4g->center_message, &module_param) < 0) {
+		log_error("op4g: module init failed\n");
 		goto exit;
 	}
 

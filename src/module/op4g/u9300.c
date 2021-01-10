@@ -4,12 +4,18 @@
 #include <errno.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <signal.h>
 
+#include "event.h"
 #include "u9300.h"
 #include "base/oplog.h"
 #include "opbox/list.h"
 #include "opbox/utils.h"
 #include "_4g_pdu.h"
+
+struct _4g_timer {
+	struct event *at_cmd;
+};
 
 struct _u9300_struct {
 	int fd;
@@ -22,6 +28,8 @@ struct _u9300_struct {
 	char short_message[_4G_MESSAGE_SIZE];
 	size_t short_message_size;
 	char center_message[64];
+	struct _4g_timer timer;
+	struct _4g_module_init param;
 };
 
 static struct _u9300_struct *self = NULL;
@@ -31,6 +39,7 @@ static int u9300_cmd_vendor_name(struct _4g_cmd *cmd, unsigned char *resp, int r
 static int u9300_cmd_module_type(struct _4g_cmd *cmd, unsigned char *resp, int resp_size);
 
 static int u9300_cmd_message(struct _4g_cmd *cmd, unsigned char *resp, int resp_size);
+static int u9300_cmd_message_content(struct _4g_cmd *cmd, unsigned char *resp, int resp_size);
 
 
 
@@ -44,6 +53,7 @@ struct _4g_cmd u9300_cmd [_4G_CMD_MAX] = {
 	[_4G_MESSAGE_SET_ENCODE] = {.at = "AT+CSCS=\"UCS2\"\r", .at_cmd_cb = NULL},
 	[_4G_MESSAGE_SET_TEXT_PARAM] = {.at = "AT+CSMP=17,71,0,8\r", .at_cmd_cb = NULL},
 	[_4G_MESSAGE_SEND] = {.at = NULL, .at_cmd_cb = u9300_cmd_message, .cmd = _4G_MESSAGE_SEND},
+	[_4G_MESSAGE_SEND_CONTENT] = {.at = NULL, .at_cmd_cb = u9300_cmd_message_content, .cmd = _4G_MESSAGE_SEND_CONTENT},
 	[_4G_AT_TMP] = {.at = NULL},
 };
 
@@ -68,6 +78,13 @@ static void u9300_set_at_cmd(unsigned int cmd, char*at_cmd, int size)
 	}
 
 	u9300_cmd[cmd].at_size =size;
+
+	if (cmd == _4G_MESSAGE_SEND) {
+		if (u9300_cmd[cmd].at) {
+			free(u9300_cmd[cmd].at);
+			u9300_cmd[cmd].at = NULL;
+		}
+	}
 
 	u9300_cmd[cmd].at = at_cmd;
 
@@ -130,18 +147,44 @@ int u9300_cmd_message(struct _4g_cmd *cmd, unsigned char *resp, int resp_size)
 	log_debug("u9300 send message\n");
 
 	struct _u9300_struct *u = self;
-	if (cmd->at) {
-		free(cmd->at);
-		cmd->at = NULL;
-	}
 
-	u9300_set_at_cmd(_4G_AT_TMP, u->short_message, u->short_message_size);
-	u9300_add_cmd(_4G_AT_TMP);
+	u9300_set_at_cmd(_4G_MESSAGE_SEND_CONTENT, u->short_message, u->short_message_size);
+	u9300_add_cmd(_4G_MESSAGE_SEND_CONTENT);
 
 	return 0;
 }
 
-int u9300_init(int fd, char*center_message)
+int u9300_cmd_message_content(struct _4g_cmd *cmd, unsigned char *resp, int resp_size)
+{
+	log_debug("u9300 message content handle:%s\n", resp);
+	if (!strstr((char*)resp, "OK"))
+		return -1;
+
+	return 0;
+}
+
+static  void u9300_atcmd_timeout(evutil_socket_t fd , short what, void *arg)
+{
+	struct _u9300_struct *u = self;
+	struct _4g_cmd *item = NULL;
+
+	if (!u->current)
+		return;
+	log_warn("cmd current is timeout, release it :%s\n", u->current->at);
+	while(!list_empty(&u->list)) {
+		item = list_first_entry(&u->list, struct _4g_cmd , list);
+		list_del(&item->list);
+	}
+	pthread_cond_signal(&u->cont);
+	u->current = NULL;
+	pthread_mutex_unlock(&u->lock);
+
+	log_warn("cmd current is timeout, release over\n");
+
+	return;
+}
+
+int u9300_init(int fd, char*center_message, struct _4g_module_init * param)
 {
 	struct _u9300_struct *u = NULL;
 	int i = 0;
@@ -156,9 +199,9 @@ int u9300_init(int fd, char*center_message)
 	}
 	
 	u->fd = fd;
-
 	self = u;
 
+	memcpy(&u->param, param, sizeof(u->param));
 	strlcpy(u->center_message,center_message, sizeof(u->center_message));
 	if(pthread_mutexattr_init(&u->attr)) {
 		log_error ("pthread_mutexattr_init faild\n");
@@ -181,6 +224,12 @@ int u9300_init(int fd, char*center_message)
 	}
 
 	INIT_LIST_HEAD(&u->list);
+
+	u->timer.at_cmd = evtimer_new(u->param.base, u9300_atcmd_timeout, NULL);
+	if (!u->timer.at_cmd) {
+		log_error (" evtimer_newfaild\n");
+		goto exit;
+	}
 
 	len = sizeof(u9300_cmd)/sizeof(u9300_cmd[0]);
 
@@ -224,6 +273,8 @@ int u9300_uart_handle(int fd, unsigned int event_type, struct _4g_uart_handle *h
 	struct _4g_cmd *item = NULL;
 	struct _u9300_struct *u = self;
 	int size = 0;
+	int ret = 0;
+	struct timeval tv;
 
 	pthread_mutex_lock(&u->lock);
 
@@ -237,7 +288,20 @@ int u9300_uart_handle(int fd, unsigned int event_type, struct _4g_uart_handle *h
 
 	log_debug("u9300 try call cb\n");
 	if (u->current->at_cmd_cb)
-		u->current->at_cmd_cb(u->current, handle->resp, handle->resp_size);
+		ret = u->current->at_cmd_cb(u->current, handle->resp, handle->resp_size);
+
+	if (ret < 0) {
+		log_warn("add timer wait timeout for cmd:%s\n",u->current->at);
+		tv.tv_sec = 7;
+		tv.tv_usec = 0;
+		event_add(u->timer.at_cmd, &tv);
+		pthread_kill(u->param.thread_id, SIGUSR1);
+		goto MORE;
+	}
+
+	event_del(u->timer.at_cmd);
+
+	log_debug("delete cmd:%s\n",u->current->at);
 
 	list_del(&u->current->list);
 
@@ -293,7 +357,6 @@ static int u9300_send_message(char *phone, char *message)
 	
 
 	u->short_message_size =  message_ucs2_combi_mesage(u->center_message, phone, message, u->short_message, sizeof(u->short_message), &count);
-
 	snprintf(at_cmd, SET_MESSGASE_SEND_SIZE, "AT+CMGS=%02d\r", count);
 	u9300_set_at_cmd(_4G_MESSAGE_SEND, at_cmd, 0);
 

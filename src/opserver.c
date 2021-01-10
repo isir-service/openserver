@@ -94,8 +94,6 @@ int main(int argc, char*argv[])
 		goto exit;
 	}
 
-	//op4g_send_message("18519127396", "telnet 当然可以输入中文了！我在自己的机器上试验过了，用CMD自带的输入法");
-
 	_op->base = event_base_new();
 	if (!_op->base) {
 		printf ("%s %d opserver event_base_new failed\n",__FILE__,__LINE__);

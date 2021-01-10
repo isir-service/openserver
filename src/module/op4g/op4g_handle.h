@@ -1,8 +1,11 @@
 #ifndef _OP4G_HANDLE_H__
 #define _OP4G_HANDLE_H__
 
+#include <pthread.h>
+
+#include "event.h"
 #include "opbox/list.h"
-#define _4G_IFACE_REQ_NUM 4
+#define _4G_IFACE_REQ_NUM 10
 #define _4G_MESSAGE_SIZE 1024
 enum {
 	_4G_EVENT_NONE,
@@ -26,6 +29,7 @@ enum {
 	_4G_MESSAGE_SET_ENCODE,
 	_4G_MESSAGE_SET_TEXT_PARAM,
 	_4G_MESSAGE_SEND,
+	_4G_MESSAGE_SEND_CONTENT,
 	_4G_AT_TMP,
 	_4G_CMD_MAX,
 };
@@ -36,6 +40,11 @@ struct _4g_cmd {
 	char *at;
 	int at_size;
 	int (*at_cmd_cb)(struct _4g_cmd *cmd, unsigned char *resp, int resp_size);
+};
+
+struct _4g_module_init {
+	void *base;
+	pthread_t thread_id;
 };
 
 struct _4g_uart_handle {

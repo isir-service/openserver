@@ -3,7 +3,7 @@
 
 #include "op4g_handle.h"
 
-int u9300_init(int fd, char*center_message);
+int u9300_init(int fd, char*center_message, struct _4g_module_init *);
 
 void u9300_exit(void);
 
