@@ -11,7 +11,7 @@ enum {
 	node_view,
 	node_enable,
 	node_opmgr,
-	node_op4G,
+	node_op4g,
 	node_max,
 };
 

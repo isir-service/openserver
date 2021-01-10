@@ -38,7 +38,7 @@ struct _node_prefix cli_prefix [node_max] = {
 	[node_view] = {.prefix = "%s>"},
 	[node_enable] = {.prefix = "%s#"},
 	[node_opmgr] = {.prefix = "%s(opmgr)#", .cmd_in_enable= CMD_OPMGR_NAME, .help_in_enable = HELP_OPMGR_NAME},
-	[node_op4G] = {.prefix = "%s(op4G)#", .cmd_in_enable= CMD_OP4G_NAME, .help_in_enable = HELP_OP4G_NAME},
+	[node_op4g] = {.prefix = "%s(op4g)#", .cmd_in_enable= CMD_OP4G_NAME, .help_in_enable = HELP_OP4G_NAME},
 
 };
 
@@ -95,7 +95,7 @@ static int cmd_node_exit(int argc, const char **argv, struct cmd_element *ele, s
 			vty->node = node_view;
 			break;
 		case node_opmgr:
-		case node_op4G:
+		case node_op4g:
 			vty->node = node_enable;
 			break;
 	}

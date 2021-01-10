@@ -104,8 +104,6 @@ int main(int argc, char*argv[])
 		goto exit;
 	}
 
-	op4g_send_message("18519127396", "你好");
-	
 	_op->base = event_base_new();
 	if (!_op->base) {
 		printf ("%s %d opserver event_base_new failed\n",__FILE__,__LINE__);
