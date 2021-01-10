@@ -116,6 +116,7 @@ int main(int argc, char*argv[])
 		printf ("%s %d opserver failed\n",__FILE__,__LINE__);
 		goto exit;
 	}
+
 	return 0;
 exit:
 	sleep(3);
