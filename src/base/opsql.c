@@ -24,6 +24,8 @@ struct _opsql_struct {
 	char path[128];
 };
 
+static struct _opsql_struct *self;
+
 void *opsql_init(char *conf_path)
 {
 
@@ -41,7 +43,8 @@ void *opsql_init(char *conf_path)
 		goto exit;
 	}
 	
-	
+	self = _sql;
+
 	dict = iniparser_load(conf_path);
 	if (!dict) {
 		printf ("%s %d iniparser_load faild[%s]\n",__FILE__,__LINE__, conf_path);
@@ -138,6 +141,140 @@ exit:
 } 
 
 
+void *opsql_alloc(void)
+{
+	SQLHSTMT stmt = NULL;
+	struct _opsql_struct *_sql = self;
+	SQLRETURN rcode = 0;
+
+	stmt = calloc(1, sizeof(SQLHSTMT));
+	if (!stmt) {
+		printf ("%s %d calloc failed\n",__FUNCTION__,__LINE__);
+		goto failed;
+	}
+
+	pthread_mutex_lock(&_sql->lock);
+
+	rcode = SQLAllocHandle(SQL_HANDLE_STMT, _sql->hdbc,&stmt);
+	if (rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
+		printf ("%s %d SQLAllocHandle failed\n",__FUNCTION__,__LINE__);
+		pthread_mutex_unlock(&_sql->lock);
+		goto failed;
+	}
+
+	//SQLSetStmtAttr(stmt,SQL_ATTR_CURSOR_SCROLLABLE,SQL_NONSCROLLABLE,SQL_NTS);
+	SQLSetStmtAttr(stmt,SQL_ATTR_CURSOR_SCROLLABLE,(SQLPOINTER)SQL_SCROLLABLE,SQL_NTS);
+
+	pthread_mutex_unlock(&_sql->lock);
+
+	return stmt;
+failed:
+	if (stmt)
+		free(stmt);
+	return NULL;
+}
+
+int opsql_bind_col(void *handle, int col, int type, void* param, int param_size)
+{
+	SQLRETURN rcode = 0;
+	static SQLLEN res = SQL_NTS;
+	rcode = SQLBindCol(handle, col, type, param, param_size, &res);
+	if(rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
+		printf("%s %d opsql_bind_col [%d][%d] failed!\n", __FUNCTION__, __LINE__, col, rcode);
+		goto failed;
+	}
+
+	return 0;
+failed:
+	return -1;
+}
+
+int opsql_query(void *handle,char *sql)
+{
+	SQLRETURN rcode = 0;
+	SQLLEN row_count = 0;
+
+	rcode = SQLExecDirect(handle, (SQLCHAR*)sql, SQL_NTS);
+	if(rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
+		printf("%s %d SQLExecDirect [%s] failed!\n", __FUNCTION__, __LINE__, sql);
+		goto failed;
+	}
+
+	rcode = SQLRowCount(handle, &row_count);
+	if(rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
+		printf("%s %d SQLRowCount [%s] failed!\n", __FUNCTION__, __LINE__, sql);
+		goto failed;
+	}
+
+
+	return row_count;
+failed:
+	return -1;
+}
+
+int opsql_query_table_row(void *handle,char *table)
+{
+	SQLRETURN rcode = 0;
+	SQLLEN res = SQL_NTS;
+	int row_num = 0;
+
+	char sql[OPSQL_LEN];
+	snprintf (sql, OPSQL_LEN, "select count(*) from %s", table);
+
+	rcode = SQLExecDirect(handle, (SQLCHAR*)sql, SQL_NTS);
+	if(rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
+		printf("%s %d SQLExecDirect [%s] failed!\n", __FUNCTION__, __LINE__, sql);
+		goto failed;
+	}
+
+	rcode = SQLFetch(handle);
+	if(rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
+		printf("%s %d opsql_fetch failed!\n", __FUNCTION__, __LINE__);
+		goto failed;
+	}
+
+	rcode = SQLGetData(handle, 1, OPSQL_INTEGER, &row_num, sizeof(row_num), &res);	
+
+	if(rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
+		printf("%s %d SQLGetData failed!\n", __FUNCTION__, __LINE__);
+		goto failed;
+	}
+
+	return row_num;
+failed:
+	return -1;
+
+}
+
+int opsql_fetch(void *handle)
+{
+	SQLRETURN rcode = 0;
+	rcode = SQLFetch(handle);
+	if(rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
+		printf("%s %d opsql_fetch failed!\n", __FUNCTION__, __LINE__);
+		goto failed;
+	}
+
+	return 0;
+failed:
+	return -1;
+}
+
+int opsql_fetch_scroll(void *handle, int row)
+{
+	SQLRETURN rcode = 0;
+	rcode = SQLFetchScroll(handle, SQL_FETCH_ABSOLUTE, row);
+	if(rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
+		printf("%s %d SQLFetchScroll failed!\n", __FUNCTION__, __LINE__);
+		goto failed;
+	}
+
+	return 0;
+failed:
+	return -1;
+
+}
+
 void opsql_exit(void *_sql)
 {
 	//清理工作, 释放具体的资源句柄
@@ -145,6 +282,44 @@ void opsql_exit(void *_sql)
 	//SQLDisconnect(hdbc);
 	//SQLFreeHandle(SQL_HANDLE_DBC, hdbc);
 	//SQLFreeHandle(SQL_HANDLE_ENV, henv);
+	
+	//rcode = SQLNumResultCols(stmt,&col_num);
+	//if(rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
+		//printf("%s %d SQLNumResultCols [%s] failed!\n", __FUNCTION__, __LINE__, sql);
+		//goto failed;
+	//}
+
+#if 0
+		void *handle = NULL;
+	handle = opsql_alloc();
+	
+	char sno[30];
+	char sname[30];
+	char ssex[30];
+	char sbirthday[30];
+	char sclass[30];
+
+	//printf("student2 has %d row num\n", opsql_query_table_row(handle, "student2"));
+	int count = opsql_query(handle, "select * from student2");
+
+	printf("----------------count=%d\n", count);
+	opsql_bind_col(handle, 1, OPSQL_CHAR, sno, sizeof(sno));
+	opsql_bind_col(handle, 2, OPSQL_CHAR, sname, sizeof(sname));
+	opsql_bind_col(handle, 3, OPSQL_CHAR, ssex, sizeof(ssex));
+	opsql_bind_col(handle, 4, OPSQL_DATETIME, sbirthday, sizeof(sbirthday));
+	opsql_bind_col(handle, 5, OPSQL_CHAR, sclass, sizeof(sclass));
+
+	while(count >= 1) {
+		opsql_fetch(handle);
+		printf("sno=%s,sname=%s, ssex=%s, sclass=%s\n", sno, sname, ssex, sclass );
+		count--;
+	}
+	printf("******************\n");
+	opsql_fetch_scroll(handle, 5);
+	printf("sno=%s,sname=%s, ssex=%s, sclass=%s\n", sno, sname, ssex, sclass );
+	opsql_fetch_scroll(handle, 7);
+	printf("sno=%s,sname=%s, ssex=%s, sclass=%s\n", sno, sname, ssex, sclass );
+#endif
 	return;
 }
 

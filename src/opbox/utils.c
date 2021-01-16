@@ -500,4 +500,19 @@ int utf8_to_unicode (char *inbuf, size_t *inlen, char *outbuf, size_t *outlen)
 	return 0;
 }
 
+int is_leap_year(int year)
+{
+
+	if(year%400==0)
+		return 1;
+	else {
+		if(year%4==0&&year%100!=0)
+			return 1;
+		else
+			return 0;
+	}
+
+	return 0;
+}
+
 

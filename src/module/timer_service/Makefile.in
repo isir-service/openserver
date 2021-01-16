@@ -15,6 +15,7 @@
 @SET_MAKE@
 
 
+
 VPATH = @srcdir@
 am__is_gnu_make = { \
   if test -z '$(MAKELEVEL)'; then \
@@ -89,12 +90,12 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-subdir = src/opbox
+subdir = src/module/timer_service
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
-DIST_COMMON = $(srcdir)/Makefile.am $(libopbox_la_include_HEADERS) \
+DIST_COMMON = $(srcdir)/Makefile.am $(libtimer_la_include_HEADERS) \
 	$(am__DIST_COMMON)
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
@@ -127,22 +128,19 @@ am__uninstall_files_from_dir = { \
     || { echo " ( cd '$$dir' && rm -f" $$files ")"; \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
-am__installdirs = "$(DESTDIR)$(libdir)" \
-	"$(DESTDIR)$(libopbox_la_includedir)"
+am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libtimeretcdir)" \
+	"$(DESTDIR)$(libtimer_la_includedir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
-libopbox_la_LIBADD =
-am_libopbox_la_OBJECTS = libopbox_la-hash.lo libopbox_la-uloop.lo \
-	libopbox_la-usock.lo libopbox_la-utils.lo \
-	libopbox_la-ptelnet.lo libopbox_la-vty.lo \
-	libopbox_la-parser.lo
-libopbox_la_OBJECTS = $(am_libopbox_la_OBJECTS)
+libtimer_la_DEPENDENCIES =
+am_libtimer_la_OBJECTS = libtimer_la-timer_service.lo
+libtimer_la_OBJECTS = $(am_libtimer_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
 am__v_lt_0 = --silent
 am__v_lt_1 = 
-libopbox_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(libopbox_la_CFLAGS) \
-	$(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
+libtimer_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(libtimer_la_CFLAGS) \
+	$(CFLAGS) $(libtimer_la_LDFLAGS) $(LDFLAGS) -o $@
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -158,13 +156,7 @@ am__v_at_1 =
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/libopbox_la-hash.Plo \
-	./$(DEPDIR)/libopbox_la-parser.Plo \
-	./$(DEPDIR)/libopbox_la-ptelnet.Plo \
-	./$(DEPDIR)/libopbox_la-uloop.Plo \
-	./$(DEPDIR)/libopbox_la-usock.Plo \
-	./$(DEPDIR)/libopbox_la-utils.Plo \
-	./$(DEPDIR)/libopbox_la-vty.Plo
+am__depfiles_remade = ./$(DEPDIR)/libtimer_la-timer_service.Plo
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
@@ -184,14 +176,15 @@ AM_V_CCLD = $(am__v_CCLD_@AM_V@)
 am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(libopbox_la_SOURCES)
-DIST_SOURCES = $(libopbox_la_SOURCES)
+SOURCES = $(libtimer_la_SOURCES)
+DIST_SOURCES = $(libtimer_la_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
     *) (install-info --version) >/dev/null 2>&1;; \
   esac
-HEADERS = $(libopbox_la_include_HEADERS)
+DATA = $(libtimeretc_DATA)
+HEADERS = $(libtimer_la_include_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP)
 # Read a list of newline-separated strings from the standard input,
 # and print each of them once, without duplicates.  Input order is
@@ -331,11 +324,20 @@ top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS = foreign
-lib_LTLIBRARIES = libopbox.la
-libopbox_la_SOURCES = hash.c uloop.c usock.c utils.c ptelnet.c vty.c parser.c
-libopbox_la_includedir = $(prefix)/include/opbox
-libopbox_la_include_HEADERS = hash.h list.h uloop.h usock.h utils.h ptelnet.h vty.h parser.h
-libopbox_la_CFLAGS = -W -Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wmissing-braces -Wparentheses -Wswitch -Wno-unused-parameter  -Wfloat-equal -Wsign-compare -Wpointer-arith -Winline -Werror -rdynamic -g
+lib_LTLIBRARIES = libtimer.la
+libtimer_la_SOURCES = timer_service.c
+libtimer_la_includedir = $(prefix)/include/module
+libtimer_la_include_HEADERS = timer_service.h
+libtimer_la_CFLAGS = -I$(top_srcdir)/src -I$(prefix)/include -W -Wall \
+	-Wchar-subscripts -Wcomment -Wformat -Wimplicit \
+	-Wmissing-braces -Wno-error=unused-result -Wparentheses \
+	-Wswitch -Wno-unused-parameter -Wfloat-equal -Wsign-compare \
+	-Wpointer-arith -Winline -Werror -rdynamic -std=gnu99
+libtimer_la_LDFLAGS = -L$(top_builddir)/src/opbox/.libs \
+	-L$(top_builddir)/src/base/.libs -L$(prefix)/lib
+libtimer_la_LIBADD = -lpthread -levent -lbase
+libtimeretcdir = $(prefix)/etc/opcron
+libtimeretc_DATA = timer_serv
 all: all-am
 
 .SUFFIXES:
@@ -349,9 +351,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign src/opbox/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign src/module/timer_service/Makefile'; \
 	$(am__cd) $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign src/opbox/Makefile
+	  $(AUTOMAKE) --foreign src/module/timer_service/Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
 	  *config.status*) \
@@ -405,8 +407,8 @@ clean-libLTLIBRARIES:
 	  rm -f $${locs}; \
 	}
 
-libopbox.la: $(libopbox_la_OBJECTS) $(libopbox_la_DEPENDENCIES) $(EXTRA_libopbox_la_DEPENDENCIES) 
-	$(AM_V_CCLD)$(libopbox_la_LINK) -rpath $(libdir) $(libopbox_la_OBJECTS) $(libopbox_la_LIBADD) $(LIBS)
+libtimer.la: $(libtimer_la_OBJECTS) $(libtimer_la_DEPENDENCIES) $(EXTRA_libtimer_la_DEPENDENCIES) 
+	$(AM_V_CCLD)$(libtimer_la_LINK) -rpath $(libdir) $(libtimer_la_OBJECTS) $(libtimer_la_LIBADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -414,13 +416,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopbox_la-hash.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopbox_la-parser.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopbox_la-ptelnet.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopbox_la-uloop.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopbox_la-usock.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopbox_la-utils.Plo@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopbox_la-vty.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libtimer_la-timer_service.Plo@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -452,81 +448,60 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
 
-libopbox_la-hash.lo: hash.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -MT libopbox_la-hash.lo -MD -MP -MF $(DEPDIR)/libopbox_la-hash.Tpo -c -o libopbox_la-hash.lo `test -f 'hash.c' || echo '$(srcdir)/'`hash.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libopbox_la-hash.Tpo $(DEPDIR)/libopbox_la-hash.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='hash.c' object='libopbox_la-hash.lo' libtool=yes @AMDEPBACKSLASH@
+libtimer_la-timer_service.lo: timer_service.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libtimer_la_CFLAGS) $(CFLAGS) -MT libtimer_la-timer_service.lo -MD -MP -MF $(DEPDIR)/libtimer_la-timer_service.Tpo -c -o libtimer_la-timer_service.lo `test -f 'timer_service.c' || echo '$(srcdir)/'`timer_service.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libtimer_la-timer_service.Tpo $(DEPDIR)/libtimer_la-timer_service.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='timer_service.c' object='libtimer_la-timer_service.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -c -o libopbox_la-hash.lo `test -f 'hash.c' || echo '$(srcdir)/'`hash.c
-
-libopbox_la-uloop.lo: uloop.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -MT libopbox_la-uloop.lo -MD -MP -MF $(DEPDIR)/libopbox_la-uloop.Tpo -c -o libopbox_la-uloop.lo `test -f 'uloop.c' || echo '$(srcdir)/'`uloop.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libopbox_la-uloop.Tpo $(DEPDIR)/libopbox_la-uloop.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='uloop.c' object='libopbox_la-uloop.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -c -o libopbox_la-uloop.lo `test -f 'uloop.c' || echo '$(srcdir)/'`uloop.c
-
-libopbox_la-usock.lo: usock.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -MT libopbox_la-usock.lo -MD -MP -MF $(DEPDIR)/libopbox_la-usock.Tpo -c -o libopbox_la-usock.lo `test -f 'usock.c' || echo '$(srcdir)/'`usock.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libopbox_la-usock.Tpo $(DEPDIR)/libopbox_la-usock.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='usock.c' object='libopbox_la-usock.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -c -o libopbox_la-usock.lo `test -f 'usock.c' || echo '$(srcdir)/'`usock.c
-
-libopbox_la-utils.lo: utils.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -MT libopbox_la-utils.lo -MD -MP -MF $(DEPDIR)/libopbox_la-utils.Tpo -c -o libopbox_la-utils.lo `test -f 'utils.c' || echo '$(srcdir)/'`utils.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libopbox_la-utils.Tpo $(DEPDIR)/libopbox_la-utils.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='utils.c' object='libopbox_la-utils.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -c -o libopbox_la-utils.lo `test -f 'utils.c' || echo '$(srcdir)/'`utils.c
-
-libopbox_la-ptelnet.lo: ptelnet.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -MT libopbox_la-ptelnet.lo -MD -MP -MF $(DEPDIR)/libopbox_la-ptelnet.Tpo -c -o libopbox_la-ptelnet.lo `test -f 'ptelnet.c' || echo '$(srcdir)/'`ptelnet.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libopbox_la-ptelnet.Tpo $(DEPDIR)/libopbox_la-ptelnet.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='ptelnet.c' object='libopbox_la-ptelnet.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -c -o libopbox_la-ptelnet.lo `test -f 'ptelnet.c' || echo '$(srcdir)/'`ptelnet.c
-
-libopbox_la-vty.lo: vty.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -MT libopbox_la-vty.lo -MD -MP -MF $(DEPDIR)/libopbox_la-vty.Tpo -c -o libopbox_la-vty.lo `test -f 'vty.c' || echo '$(srcdir)/'`vty.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libopbox_la-vty.Tpo $(DEPDIR)/libopbox_la-vty.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='vty.c' object='libopbox_la-vty.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -c -o libopbox_la-vty.lo `test -f 'vty.c' || echo '$(srcdir)/'`vty.c
-
-libopbox_la-parser.lo: parser.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -MT libopbox_la-parser.lo -MD -MP -MF $(DEPDIR)/libopbox_la-parser.Tpo -c -o libopbox_la-parser.lo `test -f 'parser.c' || echo '$(srcdir)/'`parser.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libopbox_la-parser.Tpo $(DEPDIR)/libopbox_la-parser.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='parser.c' object='libopbox_la-parser.lo' libtool=yes @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopbox_la_CFLAGS) $(CFLAGS) -c -o libopbox_la-parser.lo `test -f 'parser.c' || echo '$(srcdir)/'`parser.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libtimer_la_CFLAGS) $(CFLAGS) -c -o libtimer_la-timer_service.lo `test -f 'timer_service.c' || echo '$(srcdir)/'`timer_service.c
 
 mostlyclean-libtool:
 	-rm -f *.lo
 
 clean-libtool:
 	-rm -rf .libs _libs
-install-libopbox_la_includeHEADERS: $(libopbox_la_include_HEADERS)
+install-libtimeretcDATA: $(libtimeretc_DATA)
 	@$(NORMAL_INSTALL)
-	@list='$(libopbox_la_include_HEADERS)'; test -n "$(libopbox_la_includedir)" || list=; \
+	@list='$(libtimeretc_DATA)'; test -n "$(libtimeretcdir)" || list=; \
 	if test -n "$$list"; then \
-	  echo " $(MKDIR_P) '$(DESTDIR)$(libopbox_la_includedir)'"; \
-	  $(MKDIR_P) "$(DESTDIR)$(libopbox_la_includedir)" || exit 1; \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(libtimeretcdir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(libtimeretcdir)" || exit 1; \
 	fi; \
 	for p in $$list; do \
 	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
 	  echo "$$d$$p"; \
 	done | $(am__base_list) | \
 	while read files; do \
-	  echo " $(INSTALL_HEADER) $$files '$(DESTDIR)$(libopbox_la_includedir)'"; \
-	  $(INSTALL_HEADER) $$files "$(DESTDIR)$(libopbox_la_includedir)" || exit $$?; \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(libtimeretcdir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(libtimeretcdir)" || exit $$?; \
 	done
 
-uninstall-libopbox_la_includeHEADERS:
+uninstall-libtimeretcDATA:
 	@$(NORMAL_UNINSTALL)
-	@list='$(libopbox_la_include_HEADERS)'; test -n "$(libopbox_la_includedir)" || list=; \
+	@list='$(libtimeretc_DATA)'; test -n "$(libtimeretcdir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
-	dir='$(DESTDIR)$(libopbox_la_includedir)'; $(am__uninstall_files_from_dir)
+	dir='$(DESTDIR)$(libtimeretcdir)'; $(am__uninstall_files_from_dir)
+install-libtimer_la_includeHEADERS: $(libtimer_la_include_HEADERS)
+	@$(NORMAL_INSTALL)
+	@list='$(libtimer_la_include_HEADERS)'; test -n "$(libtimer_la_includedir)" || list=; \
+	if test -n "$$list"; then \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(libtimer_la_includedir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(libtimer_la_includedir)" || exit 1; \
+	fi; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_HEADER) $$files '$(DESTDIR)$(libtimer_la_includedir)'"; \
+	  $(INSTALL_HEADER) $$files "$(DESTDIR)$(libtimer_la_includedir)" || exit $$?; \
+	done
+
+uninstall-libtimer_la_includeHEADERS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(libtimer_la_include_HEADERS)'; test -n "$(libtimer_la_includedir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	dir='$(DESTDIR)$(libtimer_la_includedir)'; $(am__uninstall_files_from_dir)
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
@@ -615,9 +590,9 @@ distdir-am: $(DISTFILES)
 	done
 check-am: all-am
 check: check-am
-all-am: Makefile $(LTLIBRARIES) $(HEADERS)
+all-am: Makefile $(LTLIBRARIES) $(DATA) $(HEADERS)
 installdirs:
-	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libopbox_la_includedir)"; do \
+	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libtimeretcdir)" "$(DESTDIR)$(libtimer_la_includedir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -656,13 +631,7 @@ clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
 	mostlyclean-am
 
 distclean: distclean-am
-		-rm -f ./$(DEPDIR)/libopbox_la-hash.Plo
-	-rm -f ./$(DEPDIR)/libopbox_la-parser.Plo
-	-rm -f ./$(DEPDIR)/libopbox_la-ptelnet.Plo
-	-rm -f ./$(DEPDIR)/libopbox_la-uloop.Plo
-	-rm -f ./$(DEPDIR)/libopbox_la-usock.Plo
-	-rm -f ./$(DEPDIR)/libopbox_la-utils.Plo
-	-rm -f ./$(DEPDIR)/libopbox_la-vty.Plo
+		-rm -f ./$(DEPDIR)/libtimer_la-timer_service.Plo
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -679,7 +648,8 @@ info: info-am
 
 info-am:
 
-install-data-am: install-libopbox_la_includeHEADERS
+install-data-am: install-libtimer_la_includeHEADERS \
+	install-libtimeretcDATA
 
 install-dvi: install-dvi-am
 
@@ -708,13 +678,7 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-		-rm -f ./$(DEPDIR)/libopbox_la-hash.Plo
-	-rm -f ./$(DEPDIR)/libopbox_la-parser.Plo
-	-rm -f ./$(DEPDIR)/libopbox_la-ptelnet.Plo
-	-rm -f ./$(DEPDIR)/libopbox_la-uloop.Plo
-	-rm -f ./$(DEPDIR)/libopbox_la-usock.Plo
-	-rm -f ./$(DEPDIR)/libopbox_la-utils.Plo
-	-rm -f ./$(DEPDIR)/libopbox_la-vty.Plo
+		-rm -f ./$(DEPDIR)/libtimer_la-timer_service.Plo
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
@@ -732,7 +696,7 @@ ps: ps-am
 ps-am:
 
 uninstall-am: uninstall-libLTLIBRARIES \
-	uninstall-libopbox_la_includeHEADERS
+	uninstall-libtimer_la_includeHEADERS uninstall-libtimeretcDATA
 
 .MAKE: install-am install-strip
 
@@ -744,18 +708,17 @@ uninstall-am: uninstall-libLTLIBRARIES \
 	install-data-am install-dvi install-dvi-am install-exec \
 	install-exec-am install-html install-html-am install-info \
 	install-info-am install-libLTLIBRARIES \
-	install-libopbox_la_includeHEADERS install-man install-pdf \
-	install-pdf-am install-ps install-ps-am install-strip \
-	installcheck installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags tags-am uninstall uninstall-am uninstall-libLTLIBRARIES \
-	uninstall-libopbox_la_includeHEADERS
+	install-libtimer_la_includeHEADERS install-libtimeretcDATA \
+	install-man install-pdf install-pdf-am install-ps \
+	install-ps-am install-strip installcheck installcheck-am \
+	installdirs maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-compile mostlyclean-generic \
+	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-am uninstall \
+	uninstall-am uninstall-libLTLIBRARIES \
+	uninstall-libtimer_la_includeHEADERS uninstall-libtimeretcDATA
 
 .PRECIOUS: Makefile
 
-#libdir=$(prefix)/lib/opbox
-#lib=libopbox.la
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

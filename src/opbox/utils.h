@@ -282,4 +282,6 @@ int utf8_to_unicode (char *inbuf, size_t *inlen, char *outbuf, size_t *outlen);
 
 int unicode_to_utf8 (char *inbuf, size_t *inlen, char *outbuf, size_t *outlen);
 
+int is_leap_year(int year);
+
 #endif

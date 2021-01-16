@@ -168,7 +168,7 @@ static  void u9300_atcmd_timeout(evutil_socket_t fd , short what, void *arg)
 	struct _u9300_struct *u = self;
 	struct _4g_cmd *item = NULL;
 
-	if (!u->current)
+	if (!u->current || list_empty(&u->list))
 		return;
 	log_warn("cmd current is timeout, release it :%s\n", u->current->at);
 	while(!list_empty(&u->list)) {

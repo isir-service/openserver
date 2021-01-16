@@ -12,6 +12,8 @@
 #include "event.h"
 #include "base/opsql.h"
 #include "config.h"
+#include "base/opsql.h"
+#include "timer_service.h"
 
 struct _opserver_struct_ {
 	void *log;
@@ -20,6 +22,7 @@ struct _opserver_struct_ {
 	void *mgr;
 	void *_4g;
 	void *sql;
+	void *timer_service;
 	struct event_base *base;
 };
 
@@ -39,6 +42,8 @@ void opserver_exit(struct _opserver_struct_ *_op)
 	if (_op)
 		return ;
 
+	printf("opserver_exit\n");
+	timer_service_exit(_op->timer_service);
 	oplog_exit(_op->_4g);
 	opmgr_exit(_op->mgr);
 	opsql_exit(_op->sql);
@@ -56,6 +61,11 @@ int main(int argc, char*argv[])
 
 	signal(SIGUSR1, signal_handle);
 	signal(SIGPIPE, SIG_IGN);
+
+	//xsetenv("LOGNAME", pas->pw_name);
+	//xsetenv("USER", pas->pw_name);
+	//xsetenv("HOME", pas->pw_dir);
+	//xsetenv("SHELL", shell);
 
 	_op = calloc(1, sizeof(struct _opserver_struct_));
 	if (!_op) {
@@ -103,7 +113,12 @@ int main(int argc, char*argv[])
 		printf("opserver op4g failed\n");
 		goto exit;
 	}
-
+	
+	_op->timer_service = timer_service_init();
+	if (!_op->timer_service) {
+		printf("opserver timer_service_init failed\n");
+		goto exit;
+	}
 	_op->base = event_base_new();
 	if (!_op->base) {
 		printf ("%s %d opserver event_base_new failed\n",__FILE__,__LINE__);
