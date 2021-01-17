@@ -20,5 +20,7 @@ src/module/Makefile
 src/module/opmgr/Makefile
 src/module/op4g/Makefile
 src/module/timer_service/Makefile
-src/Makefile])
+src/Makefile
+src/tools/Makefile
+])
 AC_OUTPUT([Makefile])

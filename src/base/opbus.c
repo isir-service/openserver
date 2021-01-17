@@ -7,6 +7,7 @@
 #include <signal.h>
 
 #include "opbus_type.h"
+
 #include "opbus.h"
 #include "iniparser.h"
 #include "opbox/usock.h"
@@ -14,14 +15,6 @@
 #include "event.h"
 #include "config.h"
 #include "opbox/list.h"
-
-#define _BUS_BUF_REQ_SIZE 4096
-#define _BUS_BUF_RECV_SIZE 4096
-#define _BUS_BUF_RESPONSE_SIZE 4096
-#define _BUS_WAIT_MS 7000
-
-#define BUS_SERVER "opbus:bus_ip"
-#define BUS_PORT "opbus:bus_port"
 
 struct _bus_client {
 	struct list_head list;
@@ -51,14 +44,6 @@ struct _bus_thread_
 	pthread_attr_t thread_attr;
 	pthread_mutex_t lock;
 	pthread_mutexattr_t attr;
-};
-
-struct _bus_req_head{
-	unsigned int type;
-};
-
-struct _bus_response_head{
-	unsigned int type;
 };
 
 struct _bus_job_ {
@@ -542,7 +527,7 @@ int _opbus_send(unsigned int type, unsigned char *req, int size, unsigned char *
 
 	free(str);
 
-	return 0;
+	return count;
 
 failed:
 	if (fd)

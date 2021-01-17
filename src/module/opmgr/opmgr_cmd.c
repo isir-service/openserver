@@ -17,7 +17,7 @@ static int cmd_mgr_cpu_usage(int argc, const char **argv, struct cmd_element *el
 	for(i = 0; i <= cpu_usage->cpu_num;i++) {
 		opcli_out(vty,"%-6s    %-6.2f      %-6.2f      %-7.2f      %-7.2f      %-6.2f      %-6.2f\r\n",
 				cpu_usage->usage[i].cpu_name, cpu_usage->usage[i].user,cpu_usage->usage[i].nice, cpu_usage->usage[i].system,
-				cpu_usage->usage[i].iowait, cpu_usage->usage[i].steal, cpu_usage->usage[i]);
+				cpu_usage->usage[i].iowait, cpu_usage->usage[i].steal, cpu_usage->usage[i].cpu_use);
 	}
 
 	return 0;

@@ -8,5 +8,6 @@ void op4g_exit(void *_4g);
 
 void op4g_send_message(char *phone_num, char *message);
 
+
 #endif
 

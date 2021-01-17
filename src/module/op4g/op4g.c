@@ -6,6 +6,9 @@
 
 #include "op4g.h"
 #include "base/oplog.h"
+#include "base/opbus.h"
+#include "base/opbus_type.h"
+
 #include "u9300.h"
 #include "iniparser.h"
 #include "config.h"
@@ -13,6 +16,7 @@
 
 #include "opbox/utils.h"
 #include "_4g_pdu.h"
+#include "op4g_bus.h"
 
 #define _4G_DEV "op4G:dev"
 #define _4G_CENTER_MESSAGE "op4G:message_centor"
@@ -71,7 +75,7 @@ struct _op4g_struct {
 	char center_message[64];
 };
 
-struct _op4g_struct *self = NULL;
+static struct _op4g_struct *self = NULL;
 
 static struct _4g_module_support * op4g_get_vid_pid(int *vendor_id, int *produce_id)
 {
@@ -159,6 +163,11 @@ exit:
 	return NULL;
 }
 
+void op4g_bus_register (void)
+{
+	opbus_register(opbus_op4g_send_quotes, _4g_send_quotes);
+	return;
+}
 void *op4g_init(void)
 {
 	struct _op4g_struct *_4g = NULL;
@@ -254,22 +263,14 @@ void *op4g_init(void)
 		goto exit;
 	}
 
+	op4g_bus_register();
+
 	module_param.base = _4g->base;
 	module_param.thread_id = _4g->thread.thread_id;
 	if (_4g->module->init(_4g->uart.fd, _4g->center_message, &module_param) < 0) {
 		log_error("op4g: module init failed\n");
 		goto exit;
 	}
-
-#ifdef _4G_TEST
-	char buf_test[1024];
-	int count = 0;
-	int ret_test = 0;
-	ret_test =  message_ucs2_combi_mesage("+8613010112500", "18519127396", "上山打老虎a", buf_test, 1024, &count);
-	print_HEX((unsigned char*)buf_test, ret_test);
-	printf("count=%d\n", count);
-
-#endif
 
 	return _4g;
 
@@ -281,12 +282,12 @@ exit:
 void op4g_send_message(char *phone_num, char *message)
 {
 	log_debug("[%s]send message\n",phone_num);
-
 	struct _op4g_struct *_4g = self;
 	struct _4g_iface_handle iface;
 	memset(&iface, 0, sizeof(iface));
 	iface.req[0] = phone_num;
 	iface.req[1] = message;
+
 	_4g->module->iface(_4g->uart.fd, _4G_EVENT_SEND_MESSAGE, &iface);
 	return;
 }

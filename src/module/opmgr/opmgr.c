@@ -109,7 +109,7 @@ static int _get_cpu_info_by_file(struct cpu_info_usage *cpu_usage, int cpu_num, 
 
 	buf_size = sizeof(struct proc_cpu_info) * cpu_num + 1;
 
-	if (2*buf_size > 2048) {
+	if (2*buf_size > 4096) {
 		log_warn("buf_size too long [%d]\n", buf_size*2);
 		return -1;
 	}
@@ -126,7 +126,6 @@ static int _get_cpu_info_by_file(struct cpu_info_usage *cpu_usage, int cpu_num, 
 				cpu_after[i].softirq+cpu_after[i].steal+cpu_after[i].guest) - 
 				(cpu_pre[i].user+cpu_pre[i].nice+cpu_pre[i].system+cpu_pre[i].idle+cpu_pre[i].iowait+cpu_pre[i].irq+cpu_pre[i].softirq+
 				cpu_pre[i].steal+cpu_pre[i].guest))*1.0;
-
 		strlcpy(cpu_usage[i].cpu_name, cpu_pre[i].cpu_name, sizeof(cpu_usage[i].cpu_name));
 		cpu_usage[i].user = (cpu_after[i].user - cpu_pre[i].user)/total *100.0;
 		cpu_usage[i].nice = (cpu_after[i].nice - cpu_pre[i].nice)/total *100.0;
@@ -145,7 +144,7 @@ static int _get_cpu_info_by_file(struct cpu_info_usage *cpu_usage, int cpu_num, 
 static void _mgr_cpu_usage_period(evutil_socket_t fd , short what, void *arg)
 {
 	int cpu_num = 0;
-	cpu_num = get_nprocs();
+	cpu_num = self->_cpu_info.cpu_num;
 
 	_get_cpu_info_by_file(arg ,cpu_num, 500);
 	
@@ -153,12 +152,29 @@ static void _mgr_cpu_usage_period(evutil_socket_t fd , short what, void *arg)
 	return;
 }
 
+int format_cpu_usage1(unsigned int type,unsigned char *response,int res_size)
+{
+	struct cpu_info *cpu_usage = NULL;
+	int i = 0;
+	cpu_usage = (struct cpu_info *)response;
+	printf("name      %%user       %%nice       %%system      %%iowait      %%steal      %%usage\n");
+
+	for(i = 0; i <= cpu_usage->cpu_num;i++) {
+		printf("%-6s    %-6.2f      %-6.2f      %-7.2f      %-7.2f      %-6.2f      %-6.2f\n",
+				cpu_usage->usage[i].cpu_name, cpu_usage->usage[i].user,cpu_usage->usage[i].nice, cpu_usage->usage[i].system,
+				cpu_usage->usage[i].iowait, cpu_usage->usage[i].steal, cpu_usage->usage[i].cpu_use);
+	}
+
+	return 0;
+
+}
+
+
 int bus_get_cpu_usage(unsigned char *req, int req_size, unsigned char *response, int res_size)
 {
 	int src_size;
 	int ret = 0;
-	src_size = sizeof(self->_cpu_info.cpu_num)+1+self->_cpu_info.cpu_num* sizeof(struct cpu_info_usage);
-
+	src_size = sizeof(struct cpu_info);
 	if (src_size > res_size)
 		log_warn("cpu usage, message truncate\n");
 	
@@ -194,11 +210,8 @@ void *opmgr_init(void)
 	mgr->_cpu_info.cpu_num = get_nprocs();
 
 	log_info("cpu num:%d\n", mgr->_cpu_info.cpu_num);
-	mgr->_cpu_info.usage = calloc(1, 1+mgr->_cpu_info.cpu_num* sizeof(struct cpu_info_usage));
-	if (!mgr->_cpu_info.usage) {
-		log_error("calloc failed[%d]\n", errno);
-		goto exit;
-	}
+
+	mgr->_cpu_info.cpu_num = mgr->_cpu_info.cpu_num > MAX_CPU_CORE?MAX_CPU_CORE:mgr->_cpu_info.cpu_num;
 
 	_get_cpu_info_by_file(mgr->_cpu_info.usage , mgr->_cpu_info.cpu_num, 500);
 

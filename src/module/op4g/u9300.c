@@ -340,6 +340,8 @@ static int u9300_send_message(char *phone, char *message)
 	#define SET_MESSGASE_SEND_SIZE 64
 	int count = 0;
 
+	log_debug("u9300 try send message,phone:%s, message=%s\n", phone, message);
+
 	char *at_cmd = calloc(1, SET_MESSGASE_SEND_SIZE); /* phone null */
 	if (!at_cmd) {
 		log_warn("calloc[errno]\n", errno);
@@ -348,18 +350,15 @@ static int u9300_send_message(char *phone, char *message)
 
 	pthread_mutex_lock(&u->lock);
 	if (!list_empty(&u->list)) {
-		
 		log_debug("u9300_send_message, list is not empty, wait\n");
 		pthread_cond_wait(&u->cont, &u->lock);
 	}
 
 	log_debug("u9300_send_message, list is empty, wait over\n");
-	
 
 	u->short_message_size =  message_ucs2_combi_mesage(u->center_message, phone, message, u->short_message, sizeof(u->short_message), &count);
 	snprintf(at_cmd, SET_MESSGASE_SEND_SIZE, "AT+CMGS=%02d\r", count);
 	u9300_set_at_cmd(_4G_MESSAGE_SEND, at_cmd, 0);
-
 	u9300_add_cmd(_4G_MESSAGE_SEND);
 	pthread_mutex_unlock(&u->lock);
 	u9300_write_cmd();
@@ -368,6 +367,7 @@ static int u9300_send_message(char *phone, char *message)
 
 int u9300_interface(int fd, unsigned int event_type, struct _4g_iface_handle *iface)
 {
+
 	switch (event_type){
 		case _4G_EVENT_SEND_MESSAGE:
 			return u9300_send_message(iface->req[0], iface->req[1]);

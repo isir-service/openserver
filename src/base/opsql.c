@@ -155,6 +155,7 @@ void *opsql_alloc(void)
 
 	pthread_mutex_lock(&_sql->lock);
 
+	
 	rcode = SQLAllocHandle(SQL_HANDLE_STMT, _sql->hdbc,&stmt);
 	if (rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
 		printf ("%s %d SQLAllocHandle failed\n",__FUNCTION__,__LINE__);
@@ -162,16 +163,20 @@ void *opsql_alloc(void)
 		goto failed;
 	}
 
-	//SQLSetStmtAttr(stmt,SQL_ATTR_CURSOR_SCROLLABLE,SQL_NONSCROLLABLE,SQL_NTS);
 	SQLSetStmtAttr(stmt,SQL_ATTR_CURSOR_SCROLLABLE,(SQLPOINTER)SQL_SCROLLABLE,SQL_NTS);
 
 	pthread_mutex_unlock(&_sql->lock);
-
 	return stmt;
 failed:
 	if (stmt)
 		free(stmt);
 	return NULL;
+}
+
+void opsql_free(void *handle)
+{
+	SQLFreeHandle(SQL_HANDLE_STMT, handle);
+	return;
 }
 
 int opsql_bind_col(void *handle, int col, int type, void* param, int param_size)
@@ -210,40 +215,6 @@ int opsql_query(void *handle,char *sql)
 	return row_count;
 failed:
 	return -1;
-}
-
-int opsql_query_table_row(void *handle,char *table)
-{
-	SQLRETURN rcode = 0;
-	SQLLEN res = SQL_NTS;
-	int row_num = 0;
-
-	char sql[OPSQL_LEN];
-	snprintf (sql, OPSQL_LEN, "select count(*) from %s", table);
-
-	rcode = SQLExecDirect(handle, (SQLCHAR*)sql, SQL_NTS);
-	if(rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
-		printf("%s %d SQLExecDirect [%s] failed!\n", __FUNCTION__, __LINE__, sql);
-		goto failed;
-	}
-
-	rcode = SQLFetch(handle);
-	if(rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
-		printf("%s %d opsql_fetch failed!\n", __FUNCTION__, __LINE__);
-		goto failed;
-	}
-
-	rcode = SQLGetData(handle, 1, OPSQL_INTEGER, &row_num, sizeof(row_num), &res);	
-
-	if(rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
-		printf("%s %d SQLGetData failed!\n", __FUNCTION__, __LINE__);
-		goto failed;
-	}
-
-	return row_num;
-failed:
-	return -1;
-
 }
 
 int opsql_fetch(void *handle)

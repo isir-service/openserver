@@ -132,7 +132,7 @@ am__installdirs = "$(DESTDIR)$(libdir)" \
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libop4g_la_DEPENDENCIES =
 am_libop4g_la_OBJECTS = libop4g_la-op4g.lo libop4g_la-u9300.lo \
-	libop4g_la-_4g_pdu.lo
+	libop4g_la-_4g_pdu.lo libop4g_la-op4g_bus.lo
 libop4g_la_OBJECTS = $(am_libop4g_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -158,6 +158,7 @@ depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/libop4g_la-_4g_pdu.Plo \
 	./$(DEPDIR)/libop4g_la-op4g.Plo \
+	./$(DEPDIR)/libop4g_la-op4g_bus.Plo \
 	./$(DEPDIR)/libop4g_la-u9300.Plo
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
@@ -326,9 +327,9 @@ top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS = foreign
 lib_LTLIBRARIES = libop4g.la
-libop4g_la_SOURCES = op4g.c u9300.c _4g_pdu.c
+libop4g_la_SOURCES = op4g.c u9300.c _4g_pdu.c op4g_bus.c
 libop4g_la_includedir = $(prefix)/include/module
-libop4g_la_include_HEADERS = op4g.h op4g_handle.h
+libop4g_la_include_HEADERS = op4g.h
 libop4g_la_CFLAGS = -I$(top_srcdir)/src -I$(prefix)/include -W -Wall \
 	-Wchar-subscripts -Wcomment -Wformat -Wimplicit \
 	-Wmissing-braces -Wno-error=unused-result -Wparentheses \
@@ -417,6 +418,7 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libop4g_la-_4g_pdu.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libop4g_la-op4g.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libop4g_la-op4g_bus.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libop4g_la-u9300.Plo@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
@@ -469,6 +471,13 @@ libop4g_la-_4g_pdu.lo: _4g_pdu.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='_4g_pdu.c' object='libop4g_la-_4g_pdu.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libop4g_la_CFLAGS) $(CFLAGS) -c -o libop4g_la-_4g_pdu.lo `test -f '_4g_pdu.c' || echo '$(srcdir)/'`_4g_pdu.c
+
+libop4g_la-op4g_bus.lo: op4g_bus.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libop4g_la_CFLAGS) $(CFLAGS) -MT libop4g_la-op4g_bus.lo -MD -MP -MF $(DEPDIR)/libop4g_la-op4g_bus.Tpo -c -o libop4g_la-op4g_bus.lo `test -f 'op4g_bus.c' || echo '$(srcdir)/'`op4g_bus.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libop4g_la-op4g_bus.Tpo $(DEPDIR)/libop4g_la-op4g_bus.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='op4g_bus.c' object='libop4g_la-op4g_bus.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libop4g_la_CFLAGS) $(CFLAGS) -c -o libop4g_la-op4g_bus.lo `test -f 'op4g_bus.c' || echo '$(srcdir)/'`op4g_bus.c
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -627,6 +636,7 @@ clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
 distclean: distclean-am
 		-rm -f ./$(DEPDIR)/libop4g_la-_4g_pdu.Plo
 	-rm -f ./$(DEPDIR)/libop4g_la-op4g.Plo
+	-rm -f ./$(DEPDIR)/libop4g_la-op4g_bus.Plo
 	-rm -f ./$(DEPDIR)/libop4g_la-u9300.Plo
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
@@ -675,6 +685,7 @@ installcheck-am:
 maintainer-clean: maintainer-clean-am
 		-rm -f ./$(DEPDIR)/libop4g_la-_4g_pdu.Plo
 	-rm -f ./$(DEPDIR)/libop4g_la-op4g.Plo
+	-rm -f ./$(DEPDIR)/libop4g_la-op4g_bus.Plo
 	-rm -f ./$(DEPDIR)/libop4g_la-u9300.Plo
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic

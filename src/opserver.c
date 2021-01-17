@@ -14,6 +14,10 @@
 #include "config.h"
 #include "base/opsql.h"
 #include "timer_service.h"
+#include "iniparser.h"
+
+#define OPSERVER_PATH "env:path"
+#define OPSERVER_LIB "env:lib"
 
 struct _opserver_struct_ {
 	void *log;
@@ -55,17 +59,54 @@ void opserver_exit(struct _opserver_struct_ *_op)
 	return;
 }
 
+int opserver_env_set(void)
+{
+	dictionary *dict;
+	const char *str;
+	char buf[2048] = {};
+	dict = iniparser_load(OPSERVER_CONF);
+	if (!dict) {
+		printf ("%s %d iniparser_load faild[%s]\n",__FILE__,__LINE__, OPSERVER_CONF);
+		goto out;
+	}
+
+	if(!(str = iniparser_getstring(dict,OPSERVER_PATH,NULL))) {
+		printf ("%s %d iniparser_getstring faild[%s]\n",__FILE__,__LINE__, OPSERVER_PATH);
+		iniparser_freedict(dict);
+		goto out;
+	}
+
+	snprintf(buf, sizeof(buf), "%s:%s", getenv("PATH"), str);
+	
+	printf ("path=%s\n", buf);
+	setenv("PATH", buf, 1);
+
+	if(!(str = iniparser_getstring(dict,OPSERVER_LIB,NULL))) {
+		printf ("%s %d iniparser_getstring faild[%s]\n",__FILE__,__LINE__, OPSERVER_LIB);
+		iniparser_freedict(dict);
+		goto out;
+	}
+	snprintf(buf, sizeof(buf), "%s:%s", getenv("LD_LIBRARY_PATH"), str);
+	printf ("lib=%s\n", buf);
+
+	setenv("LD_LIBRARY_PATH", buf, 1);
+	
+	return 0;
+out:
+	return -1;
+}
+
 int main(int argc, char*argv[])
 {
+	daemon(1,0);
 	struct _opserver_struct_ *_op = NULL;
-
 	signal(SIGUSR1, signal_handle);
 	signal(SIGPIPE, SIG_IGN);
-
-	//xsetenv("LOGNAME", pas->pw_name);
-	//xsetenv("USER", pas->pw_name);
-	//xsetenv("HOME", pas->pw_dir);
-	//xsetenv("SHELL", shell);
+	srand(time(NULL));
+	if (opserver_env_set() < 0) {
+		printf("opserver env set failed\n");
+		goto exit;
+	}
 
 	_op = calloc(1, sizeof(struct _opserver_struct_));
 	if (!_op) {

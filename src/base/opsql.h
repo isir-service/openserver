@@ -23,12 +23,11 @@ void *opsql_init(char *conf_path);
 void opsql_exit(void *_sql);
 
 void *opsql_alloc(void);
+void opsql_free(void *handle);
 
 int opsql_bind_col(void *handle, int col, int type, void* param, int param_size);
 
 int opsql_query(void *handle,char *sql);
-
-int opsql_query_table_row(void *handle,char *table);
 
 int opsql_fetch(void *handle);
 

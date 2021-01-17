@@ -9,6 +9,7 @@ opserver_LDFLAGS+=-L$(top_builddir)/src/module/timer_service/.libs
 opserver_LDFLAGS+=-L$(prefix)/lib
 
 opserver_LDADD = -lopbox -liniparser -lbase -levent -lopmgr -lop4g -ltimer
+CFLAGS="-g"
 opserver_CFLAGS = -I$(top_srcdir)/src/module/opmgr
 opserver_CFLAGS += -I$(top_srcdir)/src/module/op4g
 opserver_CFLAGS += -I$(top_srcdir)/src/module/timer_service
