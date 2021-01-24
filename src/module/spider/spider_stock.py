@@ -34,6 +34,7 @@ class stock_store():
            print(code)
            url = 'http://quotes.money.163.com/service/chddata.html?code=0%s'%(code)+\
                     '&start='+start+'&end='+end+'&fields=TCLOSE;HIGH;LOW;TOPEN;LCLOSE;CHG;PCHG;TURNOVER;VOTURNOVER;VATURNOVER;TCAP;MCAP'
+           print(url)
            path = self.tmp_file_path+'%s'%code+'.csv'
            urllib.request.urlretrieve(url, path)
            f = codecs.open(path, 'r+', 'gbk')
@@ -61,7 +62,7 @@ if __name__ == '__main__':
 
     stock = stock_store()
     stock.get_stock_code()
-    time_ask = time.strftime("%Y-%m-%d", time.localtime()) 
+    time_ask = time.strftime("%Y%m%d", time.localtime()) 
     stock.get_stock_info(time_ask, time_ask)
     
 
