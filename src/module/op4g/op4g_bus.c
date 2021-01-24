@@ -25,7 +25,7 @@ int _4g_send_quotes(unsigned char *req, int req_size, unsigned char *response, i
 
 
 	count = opsql_query(handle, "select quotations,name from quotes;");
-	if (!count) {
+	if (count <= 0) {
 		log_warn("opsql_query failed\n");
 		goto out;
 	}
@@ -38,7 +38,7 @@ int _4g_send_quotes(unsigned char *req, int req_size, unsigned char *response, i
 	index = rand()%count+1;
 	log_debug("fetch index:%d,count=%d\n",index, count);
 	if(opsql_fetch_scroll(handle, index) < 0) {
-		log_warn("opsql_query failed[%d]\n", index);
+		log_warn("opsql_fetch_scroll failed[%d]\n", index);
 		goto out;
 	}
 

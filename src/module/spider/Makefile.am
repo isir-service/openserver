@@ -8,6 +8,7 @@ libspider_la_includedir=$(prefix)/include/module
 libspider_la_include_HEADERS=spider.h
 
 libspider_la_CFLAGS  = -I$(top_srcdir)/src
+libspider_la_CFLAGS += -I$(top_srcdir)/src/module/op4g
 libspider_la_CFLAGS += -I$(prefix)/include
 libspider_la_CFLAGS += -W -Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wmissing-braces -Wno-error=unused-result -Wparentheses -Wswitch -Wno-unused-parameter  -Wfloat-equal -Wsign-compare -Wpointer-arith -Winline -Werror  -rdynamic -std=gnu99
 

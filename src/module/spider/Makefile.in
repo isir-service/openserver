@@ -328,7 +328,8 @@ lib_LTLIBRARIES = libspider.la
 libspider_la_SOURCES = spider.c
 libspider_la_includedir = $(prefix)/include/module
 libspider_la_include_HEADERS = spider.h
-libspider_la_CFLAGS = -I$(top_srcdir)/src -I$(prefix)/include -W -Wall \
+libspider_la_CFLAGS = -I$(top_srcdir)/src \
+	-I$(top_srcdir)/src/module/op4g -I$(prefix)/include -W -Wall \
 	-Wchar-subscripts -Wcomment -Wformat -Wimplicit \
 	-Wmissing-braces -Wno-error=unused-result -Wparentheses \
 	-Wswitch -Wno-unused-parameter -Wfloat-equal -Wsign-compare \

@@ -18,14 +18,15 @@ struct _bus_response_head{
 
 enum {
 	opbus_test = 0,
-	/*             opmgr                     */
+	/*****************opmgr************************/
 	opbus_opmgr_get_cpu_usage,
-	/*             opmgr end                    */
 
 	/*****************op4g************************/
 	opbus_op4g_send_quotes,
 	
-	/*****************op4gend************************/
+	/*****************spider************************/
+	opbus_spider_check_stock,
+	
 	opbus_max,
 };
 

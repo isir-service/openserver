@@ -203,6 +203,7 @@ struct _pbus_struct {
 struct _pbus_struct pbus_map [opbus_max] = {
 	[opbus_opmgr_get_cpu_usage] = {.help = "get_cpu_usage", .cb = pbus_send_busd, .format_cb = format_cpu_usage},
 	[opbus_op4g_send_quotes] = {.help = "send_quotes", .cb = pbus_send_busd},
+	[opbus_spider_check_stock] = {.help = "check_stock", .cb = pbus_send_busd},
 };
 
 static char *pbus_string = "h";

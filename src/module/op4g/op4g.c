@@ -294,6 +294,18 @@ void op4g_send_message(char *phone_num, char *message)
 	return;
 }
 
+void op4g_send_message_ex(char *phone_num, const char *fmt, ...)
+{
+	va_list args;
+	char message[1024] = {};
+	
+	va_start(args, fmt);
+	vsnprintf((char*)message, sizeof(message), fmt, args);
+	va_end(args);
+	op4g_send_message(phone_num, message);
+	return;
+}
+
 void op4g_exit(void *_4g)
 {
 	

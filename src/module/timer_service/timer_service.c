@@ -14,7 +14,7 @@
 #include "iniparser.h"
 #include "config.h"
 
-#define MAXLINES       256
+#define MAXLINES       65535
 #define _TIMER_SERVICE_CRON "timer_service:path"
 
 #define SENDMAIL       "sendmail"
