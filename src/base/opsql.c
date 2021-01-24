@@ -87,17 +87,12 @@ void *opsql_init(char *conf_path)
 		goto exit;
 	}
 
+
 	rcode = SQLConnect(_sql->hdbc, (SQLCHAR *)"isir", SQL_NTS,
 		(SQLCHAR *)"isir", SQL_NTS, (SQLCHAR *)"isir", SQL_NTS);
 
 	if (rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
 		printf ("%s %d SQLConnect failed\n",__FILE__,__LINE__);
-		goto exit;
-	}
-
-	rcode = SQLAllocHandle(SQL_HANDLE_STMT, _sql->hdbc,&_sql->stmt);
-	if (rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
-		printf ("%s %d SQLAllocHandle failed\n",__FILE__,__LINE__);
 		goto exit;
 	}
 
@@ -110,28 +105,7 @@ void *opsql_init(char *conf_path)
 		printf ("%s %d pthread_mutex_init faild\n",__FILE__,__LINE__);
 		goto exit;
 	}
-
-#if 0
-	// *) 执行具体的sql
-	rcode = SQLExecDirect(stmt, (SQLCHAR*)"select * from tb_student", SQL_NTS);
-	assert(!(rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO));
- 
-	// *) 绑定和获取具体的数据项
-	SQLINTEGER res = SQL_NTS;
-	SQLCHAR name[128];
-	SQLINTEGER age;
-	SQLBindCol(stmt, 2, SQL_C_CHAR, name, sizeof(name), &res);
-	SQLBindCol(stmt, 3, SQL_C_SLONG, &age, sizeof(age), &res);
- 
-	while ((rcode=SQLFetch(stmt))!=SQL_NO_DATA_FOUND) {
-		if( rcode == SQL_ERROR) {
-			printf("sql error!\n");
-		} else {
-			printf("name:%s, age:%ld\n",name, age);
-		}
-	}
- 
-#endif
+	
 	return _sql;
 exit:
 	opsql_exit(_sql);
@@ -146,7 +120,7 @@ void *opsql_alloc(void)
 	SQLHSTMT stmt = NULL;
 	struct _opsql_struct *_sql = self;
 	SQLRETURN rcode = 0;
-
+	SQLINTEGER status = SQL_CD_TRUE;
 	stmt = calloc(1, sizeof(SQLHSTMT));
 	if (!stmt) {
 		printf ("%s %d calloc failed\n",__FUNCTION__,__LINE__);
@@ -154,7 +128,28 @@ void *opsql_alloc(void)
 	}
 
 	pthread_mutex_lock(&_sql->lock);
+	rcode = SQLGetConnectAttr(_sql->hdbc, SQL_ATTR_CONNECTION_DEAD, &status, 0, 0);
 
+	if (rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
+		printf ("%s %d SQLGetConnectAttr failed\n",__FILE__,__LINE__);
+		
+		pthread_mutex_unlock(&_sql->lock);
+		goto failed;
+	}
+
+	if (status == SQL_CD_TRUE) {
+		printf ("%s %d sql disconnect failed, try reconnect\n",__FUNCTION__,__LINE__);
+		SQLDisconnect(_sql->hdbc);
+		rcode = SQLConnect(_sql->hdbc, (SQLCHAR *)"isir", SQL_NTS,
+			(SQLCHAR *)"isir", SQL_NTS, (SQLCHAR *)"isir", SQL_NTS);
+
+		if (rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
+			printf ("%s %d SQLConnect failed\n",__FILE__,__LINE__);
+			pthread_mutex_unlock(&_sql->lock);
+			goto failed;
+		}
+
+	}
 	
 	rcode = SQLAllocHandle(SQL_HANDLE_STMT, _sql->hdbc,&stmt);
 	if (rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {

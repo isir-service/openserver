@@ -5,9 +5,9 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <pthread.h>
 
 #include "opbus_type.h"
-
 #include "opbus.h"
 #include "iniparser.h"
 #include "opbox/usock.h"
@@ -64,6 +64,8 @@ struct _opbus_struct {
 	struct event_base *base;
 	struct event *ev;
 	struct _bus_job_ job;
+	struct event *tm;
+	unsigned int bus_type;
 };
 
 static struct _opbus_struct *self = NULL;
@@ -82,6 +84,7 @@ static void opbus_job_thread(evutil_socket_t fd,short what,void* arg)
 	struct _bus_response_head *response_head = NULL;
 	client = (struct _bus_client *)arg;
 	int len = 0;
+	struct timeval tv;
 
 	ret = read(fd, client->buf_recv, _BUS_BUF_REQ_SIZE);
 	if (ret < 0) {
@@ -118,8 +121,15 @@ static void opbus_job_thread(evutil_socket_t fd,short what,void* arg)
 		goto out;
 	}
 
+	tv.tv_sec = _BUS_WAIT_MS/1000;
+	tv.tv_usec = 0;
+	event_add(self->tm, &tv);
+	pthread_kill(self->thread.thread_id, SIGUSR1);
+	self->bus_type = req_head->type;
 	len = self->job.cb[req_head->type](client->buf_recv+sizeof(*req_head), ret-sizeof(*req_head),
 			self->job.buf_response+sizeof(*response_head), _BUS_BUF_RESPONSE_SIZE-sizeof(*response_head));
+
+	event_del(self->tm);
 	response_head = (struct _bus_response_head *)self->job.buf_response;
 	response_head->type = htonl(req_head->type);
 	if (len < 0) {
@@ -218,6 +228,12 @@ exit:
 	return NULL;
 }
 
+static  void opbus_timeout(evutil_socket_t fd , short what, void *arg)
+{
+	printf ("%s %d opbus_timeout[bus_type = %u]\n",__FILE__,__LINE__, self->bus_type);
+	return;
+}
+
 void *opbus_init(void)
 {
 	struct _opbus_struct *bus = NULL;
@@ -263,6 +279,7 @@ void *opbus_init(void)
 	printf("opbus server:%s, port:%d\n", bus->sock.ip, bus->sock.port);
 
 	INIT_LIST_HEAD(&bus->job.job_thread.list);
+
 
 	if(pthread_mutexattr_init(&bus->job.req_attr)) {
 		printf ("%s %d opbus pthread_mutexattr_init faild\n",__FILE__,__LINE__);
@@ -325,6 +342,12 @@ void *opbus_init(void)
 
 	if(pthread_attr_init(&bus->thread.thread_attr)) {
 		printf ("%s %d opbus pthread_attr_init faild\n",__FILE__,__LINE__);
+		goto exit;
+	}
+
+	bus->tm = evtimer_new(bus->base, opbus_timeout, &bus->bus_type);
+	if (!bus->tm) {
+		printf ("%s %d evtimer_newfaild\n",__FILE__,__LINE__);
 		goto exit;
 	}
 

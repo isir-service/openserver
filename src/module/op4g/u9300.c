@@ -9,12 +9,14 @@
 #include "event.h"
 #include "u9300.h"
 #include "base/oplog.h"
+#include "base/opbus_type.h"
 #include "opbox/list.h"
 #include "opbox/utils.h"
 #include "_4g_pdu.h"
 
 struct _4g_timer {
 	struct event *at_cmd;
+	struct event *at_no_response;
 };
 
 struct _u9300_struct {
@@ -45,6 +47,9 @@ static int u9300_cmd_message_content(struct _4g_cmd *cmd, unsigned char *resp, i
 
 struct _4g_cmd u9300_cmd [_4G_CMD_MAX] = {
 	[_4G_CMD_AT_TEST] = {.at = "AT\r", .at_cmd_cb = NULL},
+	[_4G_CMD_AT_CFUN_OFF] = {.at = "AT+CFUN=0\r", .at_cmd_cb = NULL},
+	[_4G_CMD_AT_CFUN_ON] = {.at = "AT+CFUN=1\r", .at_cmd_cb = NULL},
+
 	[_4G_CMD_VENDOR_NAME] = {.at = "AT+CGMI\r", .at_cmd_cb = u9300_cmd_vendor_name},
 	[_4G_CMD_MODULE_TYPE] = {.at = "AT+CGMM\r", .at_cmd_cb = u9300_cmd_module_type},
 	[_4G_CMD_MODULE_IMEI] = {.at = "AT+CGSN\r", .at_cmd_cb = NULL},
@@ -109,6 +114,7 @@ static int u9300_write_cmd()
 	struct _4g_cmd *item = NULL;
 	int ret = 0;
 	int size = 0;
+	 struct timeval tv;
 	pthread_mutex_lock(&self->lock);
 	if (list_empty(&self->list))
 		goto out;
@@ -124,6 +130,10 @@ static int u9300_write_cmd()
 		goto out;
 	}
 
+	tv.tv_sec = _4G_WAIT_NO_RESPONSE_MS/1000;
+	tv.tv_usec = 0;
+	event_add(self->timer.at_no_response, &tv);
+	pthread_kill(self->param.thread_id, SIGUSR1);
 out:
 	pthread_mutex_unlock(&self->lock);
 	return 0;
@@ -184,6 +194,30 @@ static  void u9300_atcmd_timeout(evutil_socket_t fd , short what, void *arg)
 	return;
 }
 
+static  void u9300_atcmd_no_respobse(evutil_socket_t fd , short what, void *arg)
+{
+	struct _u9300_struct *u = self;
+	int ret = 0;
+	int size = 0;
+
+	if (!u->current || list_empty(&u->list))
+		return;
+
+	log_debug("atcmd_no_respobse, try send again [cmd=%s]\n", u->current->at);
+
+	size = u->current->at_size?u->current->at_size:(int)strlen(u->current->at);
+
+	ret = write(u->fd, u->current->at, size);
+	if (ret < 0) {
+		log_warn("write failed [cmd=%s][errno]\n", u->current->at, errno);
+		return;
+	}
+	
+	return;
+
+}
+
+
 int u9300_init(int fd, char*center_message, struct _4g_module_init * param)
 {
 	struct _u9300_struct *u = NULL;
@@ -231,6 +265,12 @@ int u9300_init(int fd, char*center_message, struct _4g_module_init * param)
 		goto exit;
 	}
 
+	u->timer.at_no_response = evtimer_new(u->param.base, u9300_atcmd_no_respobse, NULL);
+	if (!u->timer.at_cmd) {
+		log_error (" evtimer_newfaild\n");
+		goto exit;
+	}
+
 	len = sizeof(u9300_cmd)/sizeof(u9300_cmd[0]);
 
 	for (i = 0; i < len; i++)
@@ -238,14 +278,12 @@ int u9300_init(int fd, char*center_message, struct _4g_module_init * param)
 
 
 	pthread_mutex_lock(&u->lock);
-	
-	u9300_add_cmd(_4G_CMD_AT_TEST);
+	//u9300_add_cmd(_4G_CMD_AT_TEST);
 	u9300_add_cmd(_4G_CMD_VENDOR_NAME);
 	u9300_add_cmd(_4G_CMD_MODULE_TYPE);
 	u9300_add_cmd(_4G_CMD_MODULE_IMEI);
 	u9300_add_cmd(_4G_MESSAGE_SET_PDU);
 	u9300_add_cmd(_4G_MESSAGE_SET_ENCODE);
-	
 	pthread_mutex_unlock(&u->lock);
 
 	u9300_write_cmd();
@@ -281,6 +319,8 @@ int u9300_uart_handle(int fd, unsigned int event_type, struct _4g_uart_handle *h
 	if (list_empty(&u->list) || !u->current)
 		goto NONE;
 
+	event_del(u->timer.at_no_response);
+
 	log_debug("u9300 resp: %s\n", handle->resp);
 
 	if (!u9300_is_at_cmd_ok(u->current, handle->resp,handle->resp_size))
@@ -292,7 +332,7 @@ int u9300_uart_handle(int fd, unsigned int event_type, struct _4g_uart_handle *h
 
 	if (ret < 0) {
 		log_warn("add timer wait timeout for cmd:%s\n",u->current->at);
-		tv.tv_sec = 7;
+		tv.tv_sec = _4G_WAIT_RESPONSE_ERROR/1000;
 		tv.tv_usec = 0;
 		event_add(u->timer.at_cmd, &tv);
 		pthread_kill(u->param.thread_id, SIGUSR1);
@@ -321,6 +361,10 @@ int u9300_uart_handle(int fd, unsigned int event_type, struct _4g_uart_handle *h
 		goto NONE;
 	}
 
+	tv.tv_sec = 7;
+	tv.tv_usec = 0;
+	event_add(u->timer.at_no_response, &tv);
+
 	pthread_mutex_unlock(&u->lock);
 	return _4G_EVENT_NEXT;
 NONE:
@@ -339,6 +383,13 @@ static int u9300_send_message(char *phone, char *message)
 	struct _u9300_struct *u = self;
 	#define SET_MESSGASE_SEND_SIZE 64
 	int count = 0;
+	struct timeval now;
+	struct timespec abstime;
+	int ret = 0;
+	
+	gettimeofday(&now, NULL);
+	abstime.tv_sec = now.tv_sec + _BUS_WAIT_MS/1000;
+	abstime.tv_nsec = now.tv_usec * 1000;
 
 	log_debug("u9300 try send message,phone:%s, message=%s\n", phone, message);
 
@@ -351,7 +402,13 @@ static int u9300_send_message(char *phone, char *message)
 	pthread_mutex_lock(&u->lock);
 	if (!list_empty(&u->list)) {
 		log_debug("u9300_send_message, list is not empty, wait\n");
-		pthread_cond_wait(&u->cont, &u->lock);
+		ret = pthread_cond_timedwait(&u->cont, &u->lock, &abstime);
+		if (ret == ETIMEDOUT) {
+			pthread_mutex_unlock(&u->lock);
+			free(at_cmd);
+			log_warn("u9300 wait send message failed\n");
+			goto out;
+		}
 	}
 
 	log_debug("u9300_send_message, list is empty, wait over\n");
@@ -362,6 +419,7 @@ static int u9300_send_message(char *phone, char *message)
 	u9300_add_cmd(_4G_MESSAGE_SEND);
 	pthread_mutex_unlock(&u->lock);
 	u9300_write_cmd();
+out:
 	return 0;
 }
 

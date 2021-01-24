@@ -176,7 +176,7 @@ int bus_get_cpu_usage(unsigned char *req, int req_size, unsigned char *response,
 	int ret = 0;
 	src_size = sizeof(struct cpu_info);
 	if (src_size > res_size)
-		log_warn("cpu usage, message truncate\n");
+		log_warn("cpu usage, message truncate[src_size=%d, res_size=%d]\n", src_size, res_size);
 	
 	ret = memlcpy(response,res_size, &self->_cpu_info, src_size);
 	return ret;

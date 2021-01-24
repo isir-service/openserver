@@ -48,6 +48,7 @@ int pbus_env_set(void)
 		goto out;
 	}
 	snprintf(buf, sizeof(buf), "%s:%s", getenv("LD_LIBRARY_PATH"), str);
+	iniparser_freedict(dict);
 
 	setenv("LD_LIBRARY_PATH", buf, 1);
 	

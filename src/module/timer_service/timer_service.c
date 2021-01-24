@@ -320,11 +320,10 @@ static void load_crontab(const char *fileName)
 
 			n = config_read(parser, tokens, 6, 1, "# \t", PARSE_NORMAL | PARSE_KEEP_COPY);
 			if (!n) {
-				log_warn("config_read[%s] failed\n", fileName);
 				break;
 			}
 
-			log_debug("user:%s entry:%s", fileName, parser->data);
+			log_debug("user:%s entry:%s\n", fileName, parser->data);
 
 			/* check if line is setting MAILTO= */
 			if (is_prefixed_with(tokens[0], "MAILTO=")) {
@@ -401,6 +400,8 @@ static void load_crontab(const char *fileName)
 			line->cl_shell = shell?strdup(shell):NULL;
 			/* copy command */
 			line->cl_cmd = strdup(tokens[5]);
+			
+			log_debug("user:%s entry:%s,cmd=%s\n", fileName, parser->data, line->cl_cmd);
 			pline = &line->cl_next;
 //bb_error_msg("M[%s]F[%s][%s][%s][%s][%s][%s]", mailTo, tokens[0], tokens[1], tokens[2], tokens[3], tokens[4], tokens[5]);
 		}
@@ -507,19 +508,15 @@ static void flag_starting_jobs(time_t t1, time_t t2)
 
 		ptm = localtime(&t);
 		for (file = service->g.cron_files; file; file = file->cf_next) {
-			log_debug("file %s\n", file->cf_username);
 			if (file->cf_deleted)
 				continue;
 			for (line = file->cf_lines; line; line = line->cl_next) {
-				log_debug(" line %s\n", line->cl_cmd);
 				if (line->cl_Mins[ptm->tm_min]
 				 && line->cl_Hrs[ptm->tm_hour]
 				 && (line->cl_Days[ptm->tm_mday] || line->cl_Dow[ptm->tm_wday])
 				 && line->cl_Mons[ptm->tm_mon]
 				) {
 					if (line->cl_pid > 0) {
-						log_debug("user %s: process already running: %s",
-							file->cf_username, line->cl_cmd);
 					} else if (line->cl_pid == 0) {
 						line->cl_pid = -1;
 						file->cf_wants_starting = 1;

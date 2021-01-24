@@ -122,6 +122,8 @@ static void op4g_job(evutil_socket_t fd,short what,void* arg)
 	}
 	self->buf.index += ret;
 	self->buf.bf[self->buf.index] = 0;
+	
+	log_debug("4g response: %s\n", self->buf.bf);
 	module = (struct _4g_module_support *)arg;
 	if (!module) {
 		log_warn("module is unvalid\n");

@@ -15,6 +15,7 @@
 #include "base/opsql.h"
 #include "timer_service.h"
 #include "iniparser.h"
+#include "spider.h"
 
 #define OPSERVER_PATH "env:path"
 #define OPSERVER_LIB "env:lib"
@@ -27,6 +28,7 @@ struct _opserver_struct_ {
 	void *_4g;
 	void *sql;
 	void *timer_service;
+	void *spider;
 	struct event_base *base;
 };
 
@@ -54,7 +56,7 @@ void opserver_exit(struct _opserver_struct_ *_op)
 	opcli_exit(_op->cli);
 	opcli_exit(_op->bus);
 	oplog_exit(_op->log);
-
+	spider_exit(_op->spider);
 	free(_op);
 	return;
 }
@@ -86,7 +88,10 @@ int opserver_env_set(void)
 		iniparser_freedict(dict);
 		goto out;
 	}
+	
 	snprintf(buf, sizeof(buf), "%s:%s", getenv("LD_LIBRARY_PATH"), str);
+	iniparser_freedict(dict);
+
 	printf ("lib=%s\n", buf);
 
 	setenv("LD_LIBRARY_PATH", buf, 1);
@@ -160,6 +165,13 @@ int main(int argc, char*argv[])
 		printf("opserver timer_service_init failed\n");
 		goto exit;
 	}
+	
+	_op->spider = spider_init();
+	if (!_op->spider) {
+		printf("opserver spider init failed\n");
+		goto exit;
+	}
+
 	_op->base = event_base_new();
 	if (!_op->base) {
 		printf ("%s %d opserver event_base_new failed\n",__FILE__,__LINE__);

@@ -11872,7 +11872,7 @@ CC=$lt_save_CC
 $as_echo "#define OPSERVER_CONF \"/home/opserver/etc/opserver.conf\"" >>confdefs.h
 
 # Checks for library functions.
-ac_config_files="$ac_config_files src/base/Makefile src/opbox/Makefile src/module/Makefile src/module/opmgr/Makefile src/module/op4g/Makefile src/module/timer_service/Makefile src/Makefile src/tools/Makefile"
+ac_config_files="$ac_config_files src/base/Makefile src/opbox/Makefile src/module/Makefile src/module/opmgr/Makefile src/module/op4g/Makefile src/module/timer_service/Makefile src/module/spider/Makefile src/Makefile src/tools/Makefile"
 
 ac_config_files="$ac_config_files Makefile"
 
@@ -12893,6 +12893,7 @@ do
     "src/module/opmgr/Makefile") CONFIG_FILES="$CONFIG_FILES src/module/opmgr/Makefile" ;;
     "src/module/op4g/Makefile") CONFIG_FILES="$CONFIG_FILES src/module/op4g/Makefile" ;;
     "src/module/timer_service/Makefile") CONFIG_FILES="$CONFIG_FILES src/module/timer_service/Makefile" ;;
+    "src/module/spider/Makefile") CONFIG_FILES="$CONFIG_FILES src/module/spider/Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
     "src/tools/Makefile") CONFIG_FILES="$CONFIG_FILES src/tools/Makefile" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;

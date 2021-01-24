@@ -7,6 +7,8 @@
 #include "opbox/list.h"
 #define _4G_IFACE_REQ_NUM 10
 #define _4G_MESSAGE_SIZE 1024
+#define _4G_WAIT_NO_RESPONSE_MS 7000
+#define _4G_WAIT_RESPONSE_ERROR 7000
 enum {
 	_4G_EVENT_NONE,
 	_4G_EVENT_READ,
@@ -21,6 +23,8 @@ enum {
 
 enum {
 	_4G_CMD_AT_TEST,
+	_4G_CMD_AT_CFUN_OFF,
+	_4G_CMD_AT_CFUN_ON,
 	_4G_CMD_VENDOR_NAME,
 	_4G_CMD_MODULE_TYPE,
 	_4G_CMD_MODULE_IMEI,
