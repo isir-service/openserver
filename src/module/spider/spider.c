@@ -32,6 +32,7 @@ struct _spider_monitor {
 	int stock_code;
 	double buy_price;
 	double sale_price;
+	int send_type; /*0 is buy 1 is sale*/
 };
 
 static struct _spider_struct *self = NULL;
@@ -74,14 +75,14 @@ int spider_check_stock(unsigned char *req, int req_size, unsigned char *response
 		}
 
 		snprintf(sql, sizeof(sql),"select closing_price from stock_info where stock_code=%d order by sdate;", item->stock_code);
+		log_debug("sql:%s\n",sql);
 		count = opsql_query(handle, sql);
 		if (count <= 0) {
 			pthread_mutex_unlock(&spider->lock);
 			log_warn("opsql_query failed\n");
-			goto out;
+			continue;
 		}
 
-		log_debug("sql:%s\n",sql);
 		log_debug("count=%d\n", count);
 		opsql_bind_col(handle, 1, OPSQL_DOUBLE, &closing_price, sizeof(closing_price));
 		if(opsql_fetch_scroll(handle, count) < 0) {
@@ -90,11 +91,15 @@ int spider_check_stock(unsigned char *req, int req_size, unsigned char *response
 			goto out;
 		}
 		log_debug("stock_code=%d,buy_price=%lf, sale_price=%lf, closing_price=%lf\n", item->stock_code, item->buy_price, item->sale_price, closing_price);
-		if (item->buy_price >= closing_price)
+		if (item->buy_price >= closing_price && !item->send_type) {
 			op4g_send_message_ex("18519127396", "购买股票: %d， 上一交易日收盘价:%lf 【露国宠儿】", item->stock_code, closing_price);
+			item->send_type = 1;
+		}
 
-		if (item->sale_price <= closing_price)
+		if (item->sale_price <= closing_price && item->send_type) {
 			op4g_send_message_ex("18519127396", "出售股票: %d， 上一交易日收盘价:%lf 【露国宠儿】", item->stock_code, closing_price);
+			item->send_type = 0;
+		}
 
 		opsql_free(handle);
 		handle = NULL;

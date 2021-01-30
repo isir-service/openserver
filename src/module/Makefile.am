@@ -1,2 +1,2 @@
-SUBDIRS = opmgr op4g timer_service spider
+SUBDIRS = opmgr op4g timer_service spider webserver
 

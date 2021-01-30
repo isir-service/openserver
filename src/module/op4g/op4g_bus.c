@@ -23,14 +23,13 @@ int _4g_send_quotes(unsigned char *req, int req_size, unsigned char *response, i
 		goto out;
 	}
 
+	log_debug("sql:%s\n","select quotations,name from quotes;");
 
 	count = opsql_query(handle, "select quotations,name from quotes;");
 	if (count <= 0) {
 		log_warn("opsql_query failed\n");
 		goto out;
 	}
-	
-	log_debug("sql:%s\n","select quotations,name from quotes;");
 
 	opsql_bind_col(handle, 1, OPSQL_CHAR, quota, sizeof(quota));
 	opsql_bind_col(handle, 2, OPSQL_CHAR, nm, sizeof(nm));

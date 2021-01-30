@@ -29,11 +29,13 @@ class stock_store():
               self.code_list.append(stock_code)
         except:
            print ("get stock info failed")
-    def get_stock_info(self, start, end):
+    def get_stock_info(self, start, end, compare):
         for code in self.code_list:
            url = 'http://quotes.money.163.com/service/chddata.html?code=0%s'%(code)+\
                     '&start='+start+'&end='+end+'&fields=TCLOSE;HIGH;LOW;TOPEN;LCLOSE;CHG;PCHG;TURNOVER;VOTURNOVER;VATURNOVER;TCAP;MCAP'
            path = self.tmp_file_path+'%s'%code+'.csv'
+           print(start)
+           print(url)
            urllib.request.urlretrieve(url, path)
            f = codecs.open(path, 'r+', 'gbk')
            reader = csv.reader(f)
@@ -46,6 +48,8 @@ class stock_store():
                 if row[i] is None or row[i] == "None":
                     row[i]='0'
                 i = i+1
+             if compare == row[0]:
+                continue
              sql = "insert into stock_info (sdate,stock_code,name,closing_price,highest,lowest_price,opening,before_closing,"\
              "rise_fall_forehead,applies,turnover_rate,volume,clinch_deal_amount,total_market_value,current_market) values"\
              "('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s');"\
@@ -58,10 +62,19 @@ class stock_store():
 
 if __name__ == '__main__':
 
+
     stock = stock_store()
     stock.get_stock_code()
+    sql = "select sdate from stock_info order by sdate desc limit 1;"
+    stock.cursor.execute(sql)
+    row = stock.cursor.fetchone()
+    sdate1 = row[0]
+    sdate = sdate1.split('-');
+    t_start = ""
+    for item in sdate:
+        t_start = t_start+item
     time_ask = time.strftime("%Y%m%d", time.localtime()) 
-    stock.get_stock_info(time_ask, time_ask)
+    stock.get_stock_info(t_start, time_ask, sdate1)
     
 
 

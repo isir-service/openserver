@@ -326,13 +326,15 @@ opserver_LDFLAGS = -L$(top_builddir)/src/opbox/.libs \
 	-L$(top_builddir)/src/module/opmgr/.libs \
 	-L$(top_builddir)/src/module/op4g/.libs \
 	-L$(top_builddir)/src/module/timer_service/.libs \
-	-L$(top_builddir)/src/module/spider/.libs -L$(prefix)/lib
-opserver_LDADD = -lopbox -liniparser -lbase -levent -lopmgr -lop4g -ltimer -lspider
+	-L$(top_builddir)/src/module/spider/.libs \
+	-L$(top_builddir)/src/module/webserver/.libs -L$(prefix)/lib
+opserver_LDADD = -lopbox -liniparser -lbase -levent -lopmgr -lop4g -ltimer -lspider -lwebserver -ldl -lcrypt -lpcre -lssl -lcrypto -ldl -lpthread -lz
 opserver_CFLAGS = -I$(top_srcdir)/src/module/opmgr \
 	-I$(top_srcdir)/src/module/op4g \
 	-I$(top_srcdir)/src/module/timer_service \
-	-I$(top_srcdir)/src/module/spider -I$(prefix)/include -W -Wall \
-	-Wchar-subscripts -Wcomment -Wformat -Wimplicit \
+	-I$(top_srcdir)/src/module/spider \
+	-I$(top_srcdir)/src/module/webserver -I$(prefix)/include -W \
+	-Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit \
 	-Wmissing-braces -Wparentheses -Wswitch -Wno-unused-parameter \
 	-Wfloat-equal -Wsign-compare -Wpointer-arith -Winline -Werror \
 	-rdynamic -g

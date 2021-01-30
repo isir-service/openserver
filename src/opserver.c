@@ -16,6 +16,7 @@
 #include "timer_service.h"
 #include "iniparser.h"
 #include "spider.h"
+#include "webserver.h"
 
 #define OPSERVER_PATH "env:path"
 #define OPSERVER_LIB "env:lib"
@@ -29,6 +30,7 @@ struct _opserver_struct_ {
 	void *sql;
 	void *timer_service;
 	void *spider;
+	void *web;
 	struct event_base *base;
 };
 
@@ -57,6 +59,7 @@ void opserver_exit(struct _opserver_struct_ *_op)
 	opcli_exit(_op->bus);
 	oplog_exit(_op->log);
 	spider_exit(_op->spider);
+	webserver_exit(_op->web);
 	free(_op);
 	return;
 }
@@ -171,6 +174,12 @@ int main(int argc, char*argv[])
 		printf("opserver spider init failed\n");
 		goto exit;
 	}
+	
+	//_op->web = webserver_init();
+	//if (!_op->web) {
+		//printf("opserver webserver init failed\n");
+		//goto exit;
+	//}
 
 	_op->base = event_base_new();
 	if (!_op->base) {
