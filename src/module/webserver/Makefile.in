@@ -129,6 +129,7 @@ am__uninstall_files_from_dir = { \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
 am__installdirs = "$(DESTDIR)$(libdir)" \
+	"$(DESTDIR)$(libwebserver1etcdir)" \
 	"$(DESTDIR)$(libwebserveretcdir)" \
 	"$(DESTDIR)$(libwebserver_la_includedir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
@@ -431,7 +432,7 @@ am__can_run_installinfo = \
     n|no|NO) false;; \
     *) (install-info --version) >/dev/null 2>&1;; \
   esac
-DATA = $(libwebserveretc_DATA)
+DATA = $(libwebserver1etc_DATA) $(libwebserveretc_DATA)
 HEADERS = $(libwebserver_la_include_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP)
 # Read a list of newline-separated strings from the standard input,
@@ -716,7 +717,11 @@ libwebserver_la_LDFLAGS = -L$(top_builddir)/src/opbox/.libs \
 	-L$(top_builddir)/src/base/.libs -L$(prefix)/lib
 libwebserver_la_LIBADD = -lpthread -levent -lbase
 libwebserveretcdir = $(prefix)/etc/webserver
-libwebserveretc_DATA = webserver.conf mime.types
+libwebserveretc_DATA = webserver.conf 
+libwebserver1etcdir = $(prefix)/etc/webserver/conf
+libwebserver1etc_DATA = conf/fastcgi.conf conf/fastcgi_params  conf/koi-utf  conf/koi-win  conf/mime.types \
+	conf/nginx.conf  conf/scgi_params  conf/uwsgi_params  conf/win-utf conf/server.key conf/server.crt
+
 all: all-am
 
 .SUFFIXES:
@@ -2159,6 +2164,27 @@ clean-libtool:
 	-rm -rf http/.libs http/_libs
 	-rm -rf http/modules/.libs http/modules/_libs
 	-rm -rf os/unix/.libs os/unix/_libs
+install-libwebserver1etcDATA: $(libwebserver1etc_DATA)
+	@$(NORMAL_INSTALL)
+	@list='$(libwebserver1etc_DATA)'; test -n "$(libwebserver1etcdir)" || list=; \
+	if test -n "$$list"; then \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(libwebserver1etcdir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(libwebserver1etcdir)" || exit 1; \
+	fi; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(libwebserver1etcdir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(libwebserver1etcdir)" || exit $$?; \
+	done
+
+uninstall-libwebserver1etcDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(libwebserver1etc_DATA)'; test -n "$(libwebserver1etcdir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	dir='$(DESTDIR)$(libwebserver1etcdir)'; $(am__uninstall_files_from_dir)
 install-libwebserveretcDATA: $(libwebserveretc_DATA)
 	@$(NORMAL_INSTALL)
 	@list='$(libwebserveretc_DATA)'; test -n "$(libwebserveretcdir)" || list=; \
@@ -2291,7 +2317,7 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(LTLIBRARIES) $(DATA) $(HEADERS)
 installdirs:
-	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libwebserveretcdir)" "$(DESTDIR)$(libwebserver_la_includedir)"; do \
+	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libwebserver1etcdir)" "$(DESTDIR)$(libwebserveretcdir)" "$(DESTDIR)$(libwebserver_la_includedir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -2482,7 +2508,8 @@ info: info-am
 
 info-am:
 
-install-data-am: install-libwebserver_la_includeHEADERS \
+install-data-am: install-libwebserver1etcDATA \
+	install-libwebserver_la_includeHEADERS \
 	install-libwebserveretcDATA
 
 install-dvi: install-dvi-am
@@ -2652,7 +2679,7 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-libLTLIBRARIES \
+uninstall-am: uninstall-libLTLIBRARIES uninstall-libwebserver1etcDATA \
 	uninstall-libwebserver_la_includeHEADERS \
 	uninstall-libwebserveretcDATA
 
@@ -2666,6 +2693,7 @@ uninstall-am: uninstall-libLTLIBRARIES \
 	install-data-am install-dvi install-dvi-am install-exec \
 	install-exec-am install-html install-html-am install-info \
 	install-info-am install-libLTLIBRARIES \
+	install-libwebserver1etcDATA \
 	install-libwebserver_la_includeHEADERS \
 	install-libwebserveretcDATA install-man install-pdf \
 	install-pdf-am install-ps install-ps-am install-strip \
@@ -2673,6 +2701,7 @@ uninstall-am: uninstall-libLTLIBRARIES \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
 	tags tags-am uninstall uninstall-am uninstall-libLTLIBRARIES \
+	uninstall-libwebserver1etcDATA \
 	uninstall-libwebserver_la_includeHEADERS \
 	uninstall-libwebserveretcDATA
 

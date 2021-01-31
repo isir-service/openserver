@@ -499,11 +499,11 @@
 
 
 #ifndef NGX_USER
-#define NGX_USER  "nobody"
+#define NGX_USER  "isir"
 #endif
 
 
 #ifndef NGX_GROUP
-#define NGX_GROUP  "nogroup"
+#define NGX_GROUP  "isir"
 #endif
 

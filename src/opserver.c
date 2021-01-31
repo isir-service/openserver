@@ -104,21 +104,40 @@ out:
 	return -1;
 }
 
+static void server_init(void)
+{
+	return;
+}
+
+static int run_server(struct event_base *base)
+{
+	if(event_base_loop(base, EVLOOP_NO_EXIT_ON_EMPTY) < 0) {
+		printf ("%s %d opserver failed\n",__FILE__,__LINE__);
+		return -1;
+	}
+
+	return 0;
+}
+
 int main(int argc, char*argv[])
 {
-	daemon(1,0);
 	struct _opserver_struct_ *_op = NULL;
 	signal(SIGUSR1, signal_handle);
 	signal(SIGPIPE, SIG_IGN);
 	srand(time(NULL));
-	if (opserver_env_set() < 0) {
-		printf("opserver env set failed\n");
-		goto exit;
-	}
 
 	_op = calloc(1, sizeof(struct _opserver_struct_));
 	if (!_op) {
 		printf("opserver calloc failed\n");
+		goto exit;
+	}
+
+	self = _op;
+	server_init();
+
+	daemon(1,0);
+	if (opserver_env_set() < 0) {
+		printf("opserver env set failed\n");
 		goto exit;
 	}
 
@@ -175,24 +194,20 @@ int main(int argc, char*argv[])
 		goto exit;
 	}
 	
-	//_op->web = webserver_init();
-	//if (!_op->web) {
-		//printf("opserver webserver init failed\n");
-		//goto exit;
-	//}
+	_op->web = webserver_init();
+	if (!_op->web) {
+		printf("opserver webserver init failed\n");
+		goto exit;
+	}
 
 	_op->base = event_base_new();
 	if (!_op->base) {
 		printf ("%s %d opserver event_base_new failed\n",__FILE__,__LINE__);
 		goto exit;
 	}
-	
-	self = _op;
 
-	if(event_base_loop(_op->base, EVLOOP_NO_EXIT_ON_EMPTY) < 0) {
-		printf ("%s %d opserver failed\n",__FILE__,__LINE__);
+	if (run_server(_op->base) < 0)
 		goto exit;
-	}
 
 	return 0;
 exit:

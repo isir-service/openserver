@@ -139,11 +139,16 @@ libwebserver_la_CFLAGS += -I$(top_srcdir)/src/module/webserver/os/unix
 libwebserver_la_CFLAGS += -I$(top_srcdir)/src/module/webserver/http
 libwebserver_la_CFLAGS += -I$(top_srcdir)/src/module/webserver/http/modules
 libwebserver_la_CFLAGS += -I$(prefix)/include
-libwebserver_la_CFLAGS += -g -W -Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wmissing-braces -Wno-error=unused-result -Wparentheses -Wswitch -Wno-unused-parameter  -Wfloat-equal -Wsign-compare -Wpointer-arith -Winline -Werror  -rdynamic -std=gnu99
+libwebserver_la_CFLAGS += -g -W -Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wmissing-braces \
+	-Wno-error=unused-result -Wparentheses -Wswitch -Wno-unused-parameter  -Wfloat-equal -Wsign-compare -Wpointer-arith -Winline -Werror  -rdynamic -std=gnu99
 libwebserver_la_LDFLAGS = -L$(top_builddir)/src/opbox/.libs
 libwebserver_la_LDFLAGS += -L$(top_builddir)/src/base/.libs
 libwebserver_la_LDFLAGS += -L$(prefix)/lib
 libwebserver_la_LIBADD = -lpthread -levent -lbase
 
 libwebserveretcdir = $(prefix)/etc/webserver
-libwebserveretc_DATA=webserver.conf mime.types
+libwebserveretc_DATA=webserver.conf 
+
+libwebserver1etcdir = $(prefix)/etc/webserver/conf
+libwebserver1etc_DATA=conf/fastcgi.conf conf/fastcgi_params  conf/koi-utf  conf/koi-win  conf/mime.types \
+	conf/nginx.conf  conf/scgi_params  conf/uwsgi_params  conf/win-utf conf/server.key conf/server.crt

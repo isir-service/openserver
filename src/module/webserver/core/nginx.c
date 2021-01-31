@@ -9,6 +9,11 @@
 #include <ngx_core.h>
 #include <nginx.h>
 
+#include "iniparser.h"
+#include "base/oplog.h"
+#include "opbox/utils.h"
+
+#define WEBSERVER_CONF "webserver:path"
 
 static void ngx_show_version_info(void);
 static ngx_int_t ngx_add_inherited_sockets(ngx_cycle_t *cycle);
@@ -192,7 +197,7 @@ static char        *ngx_signal;
 static char **ngx_os_environ;
 
 
-int nginx_main(int argc, char *const *argv)
+int nginx_main(int argc, char **argv, char *opserver_conf)
 {
     ngx_buf_t        *b;
     ngx_log_t        *log;
@@ -200,6 +205,27 @@ int nginx_main(int argc, char *const *argv)
     ngx_cycle_t      *cycle, init_cycle;
     ngx_conf_dump_t  *cd;
     ngx_core_conf_t  *ccf;
+	const char *str = NULL;
+	dictionary *dict = NULL;
+	static char web_conf[128] = {};
+	static char web_conf_file[246] = {};
+
+	dict = iniparser_load(opserver_conf);
+	if (!dict) {
+		log_error ("iniparser_load faild[%s]\n", opserver_conf);
+		return 0;
+	}
+
+	if(!(str = iniparser_getstring(dict,WEBSERVER_CONF,NULL))) {
+		log_error ("iniparser_getstring faild[%s]\n", WEBSERVER_CONF);
+		return 0;
+	}
+
+	strlcpy(web_conf, str, sizeof(web_conf));
+	snprintf(web_conf_file, sizeof(web_conf_file), "%s/%s", web_conf, "webserver.conf");
+	iniparser_freedict(dict);
+	ngx_prefix = (u_char*)web_conf;
+	ngx_conf_file = (u_char*)web_conf_file;
 
     ngx_debug_init();
 

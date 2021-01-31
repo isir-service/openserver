@@ -1,31 +1,62 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "webserver.h"
 #include "nginx.h"
+#include "base/oplog.h"
+#include "config.h"
+#include "opbox/utils.h"
+
+struct _webserver_struct {
+	int nginx_pid;
+};
+
+static struct _webserver_struct *self = NULL;
+void nginx_main_start(char *opserver_conf_path)
+{
+	int argc = 1;
+	char argv_buf[64];
+	char **argv = calloc(1, sizeof(char*));
+	if (!argv) {
+		log_error("calloc failed[%d]\n", errno);
+		return;
+	}
+	strlcpy(argv_buf, "nginx", sizeof(argv_buf));
+	argv[0] = argv_buf;
+
+	nginx_main(argc, argv, OPSERVER_CONF);
+}
 
 void *webserver_init(void)
 {
-	int ac;
-	static char **av;
-	static char buf[6][40];
-	av=(char **)calloc(5, sizeof(char*));
-	snprintf(buf[0],40,"nginx");
-	snprintf(buf[1],40,"-p");
-	snprintf(buf[2],40,"/home/opserver/etc/webserver/");
-	snprintf(buf[3],40,"-c");
-	snprintf(buf[4],40,"webserver.conf");
-	ac = 5;
-	av[0] = buf[0];
-	av[1] = buf[1];
-	av[2] = buf[2];
-	av[3] = buf[3];
-	av[4] = buf[4];
+	struct _webserver_struct *web = NULL;
+	int pid = 0;
 
-	printf("webserver_init\n");
-	nginx_main(ac, av);
-	printf("webserver_init over\n");
+	web = calloc(1, sizeof(*web));
+	if (!web) {
+		log_error("calloc failed[%d]\n", errno);
+		goto exit;
+	}
 
+	self = web;
+
+	pid = fork();
+	if (pid < 0) {
+		log_error("fork failed[%d]\n", errno);
+		goto exit;
+	}
+
+	if (!pid)
+		nginx_main_start(OPSERVER_CONF);
+
+	web->nginx_pid = pid;
+	return web;
+
+exit:
+	webserver_exit(web);
 	return NULL;
 }
 
