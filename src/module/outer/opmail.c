@@ -1,5 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <pthread.h>
+#include <stdarg.h>
 
 #include "opmail.h"
 #include "base/oplog.h"
@@ -10,7 +12,11 @@
 
 struct opmail_info
 {
+	pthread_mutex_t lock;
+	pthread_mutexattr_t attr;
 	char smtp_auth_code[256];
+	char message[65536];
+	char content[60000];
 };
 
 static struct opmail_info *self = NULL;
@@ -50,6 +56,16 @@ void *opmail_init(void)
 		goto out;
 	}
 
+	if(pthread_mutexattr_init(&mail->attr)) {
+		log_error ("pthread_mutexattr_init faild\n");
+		goto out;
+	}
+
+	if(pthread_mutex_init(&mail->lock, &mail->attr)) {
+		log_error ("pthread_mutex_init faild\n");
+		goto out;
+	}
+
 	log_debug("%s=%s\n", TAB_VALUE_STMP_KEY,value);
 	strlcpy(mail->smtp_auth_code, value, sizeof(mail->smtp_auth_code));
 	opsql_free(handle);
@@ -59,6 +75,7 @@ out:
 	opmail_exit(mail);
 	return NULL;
 }
+
 void opmail_exit(void *mail)
 {
 	if (!mail)
@@ -69,13 +86,36 @@ void opmail_exit(void *mail)
 
 void opmail_send_message(char *to, char *theme, char *content)
 {
-	if (!to)
+	if (!to || !self)
 		return;
 
+	pthread_mutex_lock(&self->lock);
+	/*sendEmail -xu isirtel@163.com -t isirtel@sina.com -u "sendmain test" -m "test body" -s smtp.163.com -f isirtel@163.com -xp xxxxxxxxx  -o message-charset=utf-8*/
+	snprintf(self->message, sizeof(self->message), 
+			"sendEmail -o message-charset=utf-8 -xu isirtel@163.com -t %s -u \"%s\" -m \"%s\" -s smtp.163.com -f isirtel@163.com -xp %s",
+			to,theme, content, self->smtp_auth_code);
+	log_debug("sendemail:%s\n", self->message);
+	system(self->message);
+	pthread_mutex_unlock(&self->lock);
 	return;
 }
 void opmail_send_message_ex(char *to, char *theme, const char *fmt, ...)
 {
+	va_list args;
+
+	if (!to || !self)
+		return;
+	va_start(args, fmt);
+	pthread_mutex_lock(&self->lock);
+
+	vsnprintf((char*)self->content, sizeof(self->content), fmt, args);
+	va_end(args);
+	snprintf(self->message, sizeof(self->message), 
+			"sendEmail -o message-charset=utf-8 -xu isirtel@163.com -t %s -u \"%s\" -m \"%s\" -s smtp.163.com -f isirtel@163.com -xp %s",
+			to,theme, self->content, self->smtp_auth_code);
+	log_debug("sendemail:%s\n", self->message);
+	system(self->message);
+	pthread_mutex_unlock(&self->lock);
 	return;
 }
 
