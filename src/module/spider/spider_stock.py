@@ -48,12 +48,12 @@ class stock_store():
                 if row[i] is None or row[i] == "None":
                     row[i]='0'
                 i = i+1
-             if compare == row[0]:
-                continue
              sql = "insert into stock_info (sdate,stock_code,name,closing_price,highest,lowest_price,opening,before_closing,"\
              "rise_fall_forehead,applies,turnover_rate,volume,clinch_deal_amount,total_market_value,current_market) values"\
              "('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s');"\
              %(row[0],row[1][1:],row[2],row[3],row[4],row[5],row[6],row[7],row[8],row[9],row[10],row[11],row[12],row[13],row[14])
+             
+             print(sql)
              self.cursor.execute(sql)
            f.close()
            os.remove(path) 

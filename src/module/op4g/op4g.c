@@ -290,6 +290,10 @@ void op4g_send_message(char *phone_num, char *message)
 	iface.req[0] = phone_num;
 	iface.req[1] = message;
 
+	if (!self) {
+		log_warn("4g module should init first\n");
+		return;
+	}
 	_4g->module->iface(_4g->uart.fd, _4G_EVENT_SEND_MESSAGE, &iface);
 	return;
 }
@@ -308,7 +312,7 @@ void op4g_send_message_ex(char *phone_num, const char *fmt, ...)
 
 void op4g_exit(void *_4g)
 {
-	
+	self= NULL;
 	return;
 }
 

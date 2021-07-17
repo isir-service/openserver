@@ -22,7 +22,7 @@
 #define NGINX_VAR          "NGINX"
 #define NGX_OLDPID_EXT     ".oldbin"
 
-int nginx_main(int argc, char **argv, char *opserver_conf);
+int nginx_main(int argc, char **argv);
 
 
 #endif /* _NGINX_H_INCLUDED_ */

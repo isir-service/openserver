@@ -4,6 +4,8 @@
 #include <signal.h>
 
 #include "opbox/usock.h"
+#include "opbox/utils.h"
+
 #include "base/oplog.h"
 #include "base/opbus.h"
 #include "base/opcli.h"
@@ -17,6 +19,7 @@
 #include "iniparser.h"
 #include "spider.h"
 #include "webserver.h"
+#include "opmail.h"
 
 #define OPSERVER_PATH "env:path"
 #define OPSERVER_LIB "env:lib"
@@ -31,6 +34,7 @@ struct _opserver_struct_ {
 	void *timer_service;
 	void *spider;
 	void *web;
+	void *mail;
 	struct event_base *base;
 };
 
@@ -60,6 +64,7 @@ void opserver_exit(struct _opserver_struct_ *_op)
 	oplog_exit(_op->log);
 	spider_exit(_op->spider);
 	webserver_exit(_op->web);
+	opmail_exit(_op->mail);
 	free(_op);
 	return;
 }
@@ -125,7 +130,7 @@ int main(int argc, char*argv[])
 	signal(SIGUSR1, signal_handle);
 	signal(SIGPIPE, SIG_IGN);
 	srand(time(NULL));
-
+	signal_segvdump();
 	_op = calloc(1, sizeof(struct _opserver_struct_));
 	if (!_op) {
 		printf("opserver calloc failed\n");
@@ -176,10 +181,16 @@ int main(int argc, char*argv[])
 		goto exit;
 	}
 
+	_op->mail = opmail_init();
+	if (!_op->mail) {
+		printf("opserver opmail init failed\n");
+		goto exit;
+	}
+
 	_op->_4g = op4g_init();
 	if (!_op->_4g) {
 		printf("opserver op4g failed\n");
-		goto exit;
+		//goto exit;
 	}
 	
 	_op->timer_service = timer_service_init();
