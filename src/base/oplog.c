@@ -15,6 +15,7 @@
 #include "opbox/utils.h"
 #include "event.h"
 #include "opbox/list.h"
+#include "opmem.h"
 
 #define LOG_COLOR_NONE "\033[m"
 #define LOG_COLOR_BLACK "\033[0;30m"
@@ -151,13 +152,13 @@ static void oplog_job(evutil_socket_t fd,short what,void* arg)
 		goto out;
 	}
 	
-	str = calloc(1,ret+1);
+	str = op_calloc(1,ret+1);
 	if (!str) {
 		printf ("%s %d oplog_job calloc failed[%d]\n",__FILE__,__LINE__,errno);
 		goto out;
 	}
 
-	item = calloc(1, sizeof(*item));
+	item = op_calloc(1, sizeof(*item));
 	if (!item) {
 		printf ("%s %d oplog_job calloc failed[%d]\n",__FILE__,__LINE__,errno);
 		goto out;
@@ -172,8 +173,8 @@ static void oplog_job(evutil_socket_t fd,short what,void* arg)
 	pthread_mutex_lock(&_op->recv.lock);
 	if (_op->recv.vector_num > LOG_RECV_LIST_SIZE) {
 		printf ("%s %d oplog_job vctor is full\n",__FILE__,__LINE__);
-		free(str);
-		free(item);
+		op_free(str);
+		op_free(item);
 		pthread_mutex_unlock(&_op->recv.lock);
 		goto out;
 	}
@@ -351,11 +352,11 @@ static void *oplog_disk (void *arg)
 
 		list_del_init(&item->list);
 		if (item->log.buf) {
-			free(item->log.buf);
+			op_free(item->log.buf);
 			item->log.buf = NULL;
 		}
 
-		free(item);
+		op_free(item);
 		_recv->vector_num--;
 next:
 		pthread_mutex_unlock(&_recv->lock);

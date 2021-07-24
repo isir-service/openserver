@@ -16,6 +16,7 @@
 #include "base/opbus_type.h"
 #include "opmgr_cmd.h"
 #include "opmgr_bus.h"
+#include "base/opmem.h"
 
 struct proc_cpu_info {
 	char cpu_name[64];
@@ -182,9 +183,22 @@ int bus_get_cpu_usage(unsigned char *req, int req_size, unsigned char *response,
 	return ret;
 }
 
+int bus_get_mem_pool_infrmation(unsigned char *req, int req_size, unsigned char *response, int res_size)
+{
+	int src_size = 0;
+	src_size = op_mem_information((char*)response, res_size);
+
+	if (src_size > res_size)
+		log_warn("mem pool, message truncate[src_size=%d, res_size=%d]\n", src_size, res_size);
+
+	return src_size;
+}
+
+
 static void _mgr_bus_register(void)
 {
 	opbus_register(opbus_opmgr_get_cpu_usage, bus_get_cpu_usage);
+	opbus_register(opbus_opmgr_show_mem_poll, bus_get_mem_pool_infrmation);
 	return;
 }
 

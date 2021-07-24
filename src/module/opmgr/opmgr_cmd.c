@@ -23,8 +23,20 @@ static int cmd_mgr_cpu_usage(int argc, const char **argv, struct cmd_element *el
 	return 0;
 }
 
+static int cmd_mem_pool_information(int argc, const char **argv, struct cmd_element *ele, struct _vty * vty)
+{
+	char buf[2048] = {};
+
+	opbus_send_sync(opbus_opmgr_show_mem_poll, NULL, 0, (unsigned char*)buf, sizeof(buf));
+	
+	opcli_out(vty ,"%s\r\n", buf);
+	return 0;
+}
+
+
 struct cmd_in_node opmgr_cmd [] = {
 	{.cmd = "show cpu usage", .help="show\n cpu\n usage\n", .cb = cmd_mgr_cpu_usage},
+	{.cmd = "show memory pool information", .help="show\n memory \n pool\n information\n", .cb = cmd_mem_pool_information},
 };
 
 void opmgr_cmd_init(void)

@@ -21,6 +21,7 @@ src/module/Makefile
 src/module/opmgr/Makefile
 src/module/op4g/Makefile
 src/module/outer/Makefile
+src/module/opdpdk/Makefile
 src/module/timer_service/Makefile
 src/module/spider/Makefile
 src/module/webserver/Makefile

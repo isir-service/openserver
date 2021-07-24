@@ -291,6 +291,7 @@ static void contract(struct op_hash_st *lh)
     np = lh->b[lh->p + lh->pmax - 1];
     lh->b[lh->p + lh->pmax - 1] = NULL; /* 24/07-92 - eay - weird but :-( */
     if (lh->p == 0) {
+		
         n = (struct op_hash_node_st **)realloc(lh->b,
                                            (unsigned int)(sizeof(struct op_hash_node_st *)
                                                           * lh->pmax));

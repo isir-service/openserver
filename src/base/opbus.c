@@ -15,12 +15,13 @@
 #include "event.h"
 #include "config.h"
 #include "opbox/list.h"
+#include "opmem.h"
 
 struct _bus_client {
 	struct list_head list;
 	int fd;
 	struct event *ev;
-	unsigned char buf_recv[_BUS_BUF_RECV_SIZE];
+	unsigned char buf_recv[_BUS_BUF_REQ_SIZE];
 };
 
 struct _bus_socket {
@@ -76,6 +77,19 @@ static void opbus_ntohl_head(struct _bus_req_head *head)
 	return;
 }
 
+static void opbus_free_client(struct _bus_client *client)
+{
+	if (!client)
+		return;
+	close(client->fd);
+	pthread_mutex_lock(&self->job.job_thread.lock);
+	list_del(&client->list);
+	pthread_mutex_unlock(&self->job.job_thread.lock);
+	event_free(client->ev);
+	op_free(client);
+	return;
+}
+
 static void opbus_job_thread(evutil_socket_t fd,short what,void* arg)
 {
 	int ret = 0;
@@ -93,23 +107,20 @@ static void opbus_job_thread(evutil_socket_t fd,short what,void* arg)
 	}
 	
 	if (what == EV_READ && !ret) {
-			close(client->fd);
-			pthread_mutex_lock(&self->job.job_thread.lock);
-			list_del(&client->list);
-			pthread_mutex_unlock(&self->job.job_thread.lock);
-			event_free(client->ev);
-			free(client);
+			opbus_free_client(client);
 			goto out;
 	}
 
 	if (ret < (int)sizeof(struct _bus_req_head)) {
 		printf ("%s %d read len less[%d]\n",__FILE__,__LINE__, ret);
+		opbus_free_client(client);
 		goto out;
 	}
 
 	req_head = (struct _bus_req_head *)client->buf_recv;
 	opbus_ntohl_head(req_head);
 	if (req_head->type >= opbus_max) {
+		opbus_free_client(client);
 		printf ("%s %d head type [%d] failed\n",__FILE__,__LINE__, req_head->type);
 		goto out;
 	}
@@ -118,6 +129,7 @@ static void opbus_job_thread(evutil_socket_t fd,short what,void* arg)
 	if (!self->job.cb[req_head->type]) {
 		printf ("%s %d cb [%d] failed\n",__FILE__,__LINE__, req_head->type);
 		pthread_mutex_unlock(&self->job.response_lock);
+		opbus_free_client(client);
 		goto out;
 	}
 
@@ -173,7 +185,7 @@ static void opbus_job(evutil_socket_t fd,short what,void* arg)
 		goto out;
 	}
 
-	client = calloc(1, sizeof(*client));
+	client = op_calloc(1, sizeof(*client));
 	if (!client) {
 		close(client_fd);
 		printf ("%s %d calloc failed[%d]\n",__FILE__,__LINE__, errno);
@@ -184,7 +196,7 @@ static void opbus_job(evutil_socket_t fd,short what,void* arg)
 	client->ev = event_new(bus->job.job_thread.base, client->fd, EV_READ|EV_PERSIST, opbus_job_thread, client);
 	if (!client->ev) {
 		close(client_fd);
-		free(client);
+		op_free(client);
 		printf ("%s %d event_new failed[%d]\n",__FILE__,__LINE__, errno);
 		goto out;
 	}
@@ -200,7 +212,8 @@ static void opbus_job(evutil_socket_t fd,short what,void* arg)
 		pthread_mutex_lock(&bus->job.job_thread.lock);
 		list_del(&client->list);
 		pthread_mutex_unlock(&bus->job.job_thread.lock);
-		free(client);
+		event_free(client->ev);
+		op_free(client);
 		printf ("%s %d opbus event_add faild[%d]\n",__FILE__,__LINE__, errno);
 		goto out;
 	}
@@ -516,7 +529,7 @@ int _opbus_send(unsigned int type, unsigned char *req, int size, unsigned char *
 		goto failed;
 	}
 
-	str = calloc(1, _BUS_BUF_RESPONSE_SIZE);
+	str = op_calloc(1, _BUS_BUF_RESPONSE_SIZE);
 	if (!str) {
 		printf ("%s %d _opbus_send calloc failed[type=%u][%d]\n",__FILE__,__LINE__, type, errno);
 		goto failed;
@@ -524,14 +537,14 @@ int _opbus_send(unsigned int type, unsigned char *req, int size, unsigned char *
 
 	ret = read(fd,str, _BUS_BUF_RESPONSE_SIZE);
 	if (ret < 0) {
-		free(str);
+		op_free(str);
 		printf ("%s %d _opbus_send read failed[type=%u][%d]\n",__FILE__,__LINE__, type, errno);
 		goto failed;
 	}
 
 	if (ret < (int)sizeof(*response_head)) {
 		printf ("%s %d ret too short[%d]\n",__FILE__,__LINE__, ret);
-		free(str);
+		op_free(str);
 		goto failed;
 	}
 
@@ -548,7 +561,7 @@ int _opbus_send(unsigned int type, unsigned char *req, int size, unsigned char *
 
 	close(fd);
 
-	free(str);
+	op_free(str);
 
 	return count;
 

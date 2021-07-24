@@ -133,7 +133,7 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libbase_ladir)" \
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libbase_la_DEPENDENCIES =
 am_libbase_la_OBJECTS = libbase_la-oplog.lo libbase_la-opbus.lo \
-	libbase_la-opcli.lo libbase_la-opsql.lo
+	libbase_la-opcli.lo libbase_la-opsql.lo libbase_la-opmem.lo
 libbase_la_OBJECTS = $(am_libbase_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -160,6 +160,7 @@ am__maybe_remake_depfiles = depfiles
 am__depfiles_remade = ./$(DEPDIR)/libbase_la-opbus.Plo \
 	./$(DEPDIR)/libbase_la-opcli.Plo \
 	./$(DEPDIR)/libbase_la-oplog.Plo \
+	./$(DEPDIR)/libbase_la-opmem.Plo \
 	./$(DEPDIR)/libbase_la-opsql.Plo
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
@@ -329,9 +330,9 @@ top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS = foreign
 lib_LTLIBRARIES = libbase.la
-libbase_la_SOURCES = oplog.c opbus.c opcli.c opsql.c
+libbase_la_SOURCES = oplog.c opbus.c opcli.c opsql.c opmem.c
 libbase_la_includedir = $(prefix)/include/base
-libbase_la_include_HEADERS = oplog.h opbus.h opcli.h opbus_type.h opsql.h sql_name.h
+libbase_la_include_HEADERS = oplog.h opbus.h opcli.h opbus_type.h opsql.h sql_name.h opmem.h
 libbase_la_CFLAGS = -I$(top_srcdir)/src -I$(prefix)/include -W -Wall \
 	-Wchar-subscripts -Wcomment -Wformat -Wimplicit \
 	-Wmissing-braces -Wparentheses -Wswitch -Wno-unused-parameter \
@@ -422,6 +423,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbase_la-opbus.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbase_la-opcli.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbase_la-oplog.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbase_la-opmem.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbase_la-opsql.Plo@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
@@ -481,6 +483,13 @@ libbase_la-opsql.lo: opsql.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='opsql.c' object='libbase_la-opsql.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libbase_la_CFLAGS) $(CFLAGS) -c -o libbase_la-opsql.lo `test -f 'opsql.c' || echo '$(srcdir)/'`opsql.c
+
+libbase_la-opmem.lo: opmem.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libbase_la_CFLAGS) $(CFLAGS) -MT libbase_la-opmem.lo -MD -MP -MF $(DEPDIR)/libbase_la-opmem.Tpo -c -o libbase_la-opmem.lo `test -f 'opmem.c' || echo '$(srcdir)/'`opmem.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libbase_la-opmem.Tpo $(DEPDIR)/libbase_la-opmem.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='opmem.c' object='libbase_la-opmem.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libbase_la_CFLAGS) $(CFLAGS) -c -o libbase_la-opmem.lo `test -f 'opmem.c' || echo '$(srcdir)/'`opmem.c
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -661,6 +670,7 @@ distclean: distclean-am
 		-rm -f ./$(DEPDIR)/libbase_la-opbus.Plo
 	-rm -f ./$(DEPDIR)/libbase_la-opcli.Plo
 	-rm -f ./$(DEPDIR)/libbase_la-oplog.Plo
+	-rm -f ./$(DEPDIR)/libbase_la-opmem.Plo
 	-rm -f ./$(DEPDIR)/libbase_la-opsql.Plo
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
@@ -711,6 +721,7 @@ maintainer-clean: maintainer-clean-am
 		-rm -f ./$(DEPDIR)/libbase_la-opbus.Plo
 	-rm -f ./$(DEPDIR)/libbase_la-opcli.Plo
 	-rm -f ./$(DEPDIR)/libbase_la-oplog.Plo
+	-rm -f ./$(DEPDIR)/libbase_la-opmem.Plo
 	-rm -f ./$(DEPDIR)/libbase_la-opsql.Plo
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic

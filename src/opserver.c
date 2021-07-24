@@ -20,6 +20,7 @@
 #include "spider.h"
 #include "webserver.h"
 #include "opmail.h"
+#include "base/opmem.h"
 
 #define OPSERVER_PATH "env:path"
 #define OPSERVER_LIB "env:lib"
@@ -35,6 +36,7 @@ struct _opserver_struct_ {
 	void *spider;
 	void *web;
 	void *mail;
+	void *mem;
 	struct event_base *base;
 };
 
@@ -65,6 +67,7 @@ void opserver_exit(struct _opserver_struct_ *_op)
 	spider_exit(_op->spider);
 	webserver_exit(_op->web);
 	opmail_exit(_op->mail);
+	opmem_exit(_op->mem);
 	free(_op);
 	return;
 }
@@ -143,6 +146,12 @@ int main(int argc, char*argv[])
 	daemon(1,0);
 	if (opserver_env_set() < 0) {
 		printf("opserver env set failed\n");
+		goto exit;
+	}
+
+	_op->mem = opmem_init();
+	if (!_op->mem) {
+		printf("opserver opmem failed\n");
 		goto exit;
 	}
 
