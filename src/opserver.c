@@ -2,10 +2,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <signal.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include "opbox/usock.h"
 #include "opbox/utils.h"
-
 #include "base/oplog.h"
 #include "base/opbus.h"
 #include "base/opcli.h"
@@ -20,10 +21,19 @@
 #include "spider.h"
 #include "webserver.h"
 #include "opmail.h"
+#include "opdpdk.h"
+
 #include "base/opmem.h"
+#include "opbox/list.h"
 
 #define OPSERVER_PATH "env:path"
 #define OPSERVER_LIB "env:lib"
+#define OPSERVER_UID "env:uid"
+
+struct _op_child_process {
+	struct list_head list;
+	pid_t pid;
+};
 
 struct _opserver_struct_ {
 	void *log;
@@ -37,13 +47,63 @@ struct _opserver_struct_ {
 	void *web;
 	void *mail;
 	void *mem;
+	struct list_head process_list;
 	struct event_base *base;
+	struct event *process_watchd;
 };
 
 struct _opserver_struct_ *self = NULL;
 
-int opserver_init(void)
+static void opserver_process_watchd(evutil_socket_t fd , short what, void *arg)
 {
+	struct _opserver_struct_ *server = (struct _opserver_struct_ *)arg;
+	struct _op_child_process *p_node;
+	struct _op_child_process *p_node_tmp;
+	char buf[512] = {};
+	struct timeval tv;
+
+	if (!server)
+		goto out;
+
+	if (list_empty(&server->process_list))
+		goto out;
+
+	list_for_each_entry_safe(p_node, p_node_tmp,&server->process_list, list) {
+		snprintf(buf, sizeof(buf),"/proc/%u/exe", (unsigned int)p_node->pid);
+		
+		if (!access(buf, F_OK))
+			continue;
+		log_warn("wait opserver child process: %u\n", (unsigned int)p_node->pid);
+		waitpid(p_node->pid, NULL, 0);
+		list_del_init(&p_node->list);
+		op_free(p_node);
+	}
+
+out:
+	tv.tv_sec = 1;
+	tv.tv_usec = 0;
+	event_add(server->process_watchd, &tv);
+	return;
+}
+
+int opserver_init(struct _opserver_struct_ *server)
+{
+
+	struct timeval tv;
+
+	if (!server)
+		return -1;
+
+	INIT_LIST_HEAD(&server->process_list);
+	server->process_watchd = evtimer_new(server->base, opserver_process_watchd, server);
+	if (!server->process_watchd) {
+		log_warn("process watchd failed\n");
+		return 0;
+	}
+
+	tv.tv_sec = 1;
+	tv.tv_usec = 0;
+	event_add(server->process_watchd, &tv);
 	return 0;
 }
 
@@ -66,7 +126,7 @@ void opserver_exit(struct _opserver_struct_ *_op)
 	oplog_exit(_op->log);
 	spider_exit(_op->spider);
 	webserver_exit(_op->web);
-	opmail_exit(_op->mail);
+	opmail_exit(_op->mail);;
 	opmem_exit(_op->mem);
 	free(_op);
 	return;
@@ -114,11 +174,34 @@ out:
 
 static void server_init(void)
 {
+	dictionary *dict;
+	int uid = -1;
+	dict = iniparser_load(OPSERVER_CONF);
+	if (!dict) {
+		printf ("%s %d iniparser_load faild[%s]\n",__FILE__,__LINE__, OPSERVER_CONF);
+		goto out;
+	}
+
+	uid = iniparser_getint(dict,OPSERVER_UID,-1);
+	iniparser_freedict(dict);
+	if (uid <= 0) {
+		printf ("%s %d uid get faild[%d]\n",__FILE__,__LINE__, uid);
+		exit (0);
+	}
+
+	if (setuid(uid) < 0) {
+		printf ("%s %d setuid failed[%d][%d]\n",__FILE__,__LINE__, uid, errno);
+		exit(0);
+	}
+
+	
+out:
 	return;
 }
 
 static int run_server(struct event_base *base)
 {
+	printf("run server\n");
 	if(event_base_loop(base, EVLOOP_NO_EXIT_ON_EMPTY) < 0) {
 		printf ("%s %d opserver failed\n",__FILE__,__LINE__);
 		return -1;
@@ -129,7 +212,25 @@ static int run_server(struct event_base *base)
 
 int main(int argc, char*argv[])
 {
+	
+	pid_t pid = 0;
 	struct _opserver_struct_ *_op = NULL;
+	struct _op_child_process *p_node = NULL;
+
+	daemon(1,0);
+
+	pid = fork();
+	if (pid < 0)
+		return 0;
+	else if (!pid) {
+		opdpdk_init();
+		printf("opdpdk exit\n");
+		exit(0);
+	}
+
+	server_init();
+
+
 	signal(SIGUSR1, signal_handle);
 	signal(SIGPIPE, SIG_IGN);
 	srand(time(NULL));
@@ -140,10 +241,6 @@ int main(int argc, char*argv[])
 		goto exit;
 	}
 
-	self = _op;
-	server_init();
-
-	daemon(1,0);
 	if (opserver_env_set() < 0) {
 		printf("opserver env set failed\n");
 		goto exit;
@@ -161,6 +258,7 @@ int main(int argc, char*argv[])
 		goto exit;
 	}
 
+	log_debug("opdpdk pid :%u\n", (unsigned int)pid);
 	_op->bus = opbus_init();
 	if (!_op->bus) {
 		printf("opserver opbus failed\n");
@@ -225,6 +323,18 @@ int main(int argc, char*argv[])
 		printf ("%s %d opserver event_base_new failed\n",__FILE__,__LINE__);
 		goto exit;
 	}
+
+	opserver_init(_op);
+	p_node = op_calloc(1, sizeof(*p_node));
+	if (!p_node) {
+		log_error("process child node alloc failed\n");
+		goto exit;
+	}
+
+	p_node->pid = pid;
+	INIT_LIST_HEAD(&p_node->list);
+	list_add_tail(&p_node->list, &_op->process_list);
+	self = _op;
 
 	if (run_server(_op->base) < 0)
 		goto exit;

@@ -125,6 +125,8 @@ struct _oplog_struct_
 };
 
 static struct _oplog_struct_ *self;
+static struct _log_send_ log_send_ex;
+
 
 static void oplog_job(evutil_socket_t fd,short what,void* arg)
 {
@@ -218,7 +220,7 @@ static int _oplog_check_disk(void)
 	snprintf(buf_format, sizeof(buf_format), "%s/%d-%02d-%02d", self->prog.root_path,
 			self->prog.tm.tm_year+1900, self->prog.tm.tm_mon+1, self->prog.tm.tm_mday);
 
-	if (access(buf_format, F_OK) < 0 || !self->prog.fd) {
+	if (access(buf_format, F_OK) < 0 || self->prog.fd <= 0) {
 
 		if (self->prog.fd)
 			close(self->prog.fd);
@@ -339,6 +341,7 @@ static void *oplog_disk (void *arg)
 
 		if ((log_fd = _oplog_check_disk()) < 0) {
 			printf ("%s %d _oplog_check_disk failed[%x]\n",__FILE__,__LINE__, (unsigned int)pthread_self());
+			sleep(1);
 			goto next;
 		}
 
@@ -365,6 +368,75 @@ next:
 exit:
 	printf ("%s %d oplog_disk exit[%x]\n",__FILE__,__LINE__, (unsigned int)pthread_self());
 	return NULL;
+}
+
+static int oplog_init_ex(void)
+{
+	dictionary *dict = NULL;
+	const char *ip = NULL;
+	unsigned int u_ip = 0;
+	int str_int = 0;
+	unsigned short port = 0;
+	struct sockaddr_in in;
+
+	dict = iniparser_load(OPSERVER_CONF);
+	if (!dict) {
+		printf ("%s %d iniparser_load faild[%s]\n",__FILE__,__LINE__, OPSERVER_CONF);
+		goto exit;
+	}
+
+	if(!(ip = iniparser_getstring(dict,LOG_SERVER,NULL))) {
+		printf ("%s %d iniparser_getstring faild[%s]\n",__FILE__,__LINE__, LOG_SERVER);
+		iniparser_freedict(dict);
+		goto exit;
+	}
+
+	if ((str_int =iniparser_getint(dict,LOG_PORT,-1))< 0) {
+		printf ("%s %d iniparser_getint faild[%s]\n",__FILE__,__LINE__, LOG_PORT);
+		iniparser_freedict(dict);
+		goto exit;
+	}
+
+	port = str_int;
+
+	u_ip = ntohl(inet_addr(ip));
+	iniparser_freedict(dict);
+
+	log_send_ex.send_fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if(log_send_ex.send_fd < 0) {
+		printf ("%s %d socket faild[%d]\n",__FILE__,__LINE__, errno);
+		goto exit;
+	}
+	log_send_ex.send_addr.sin_family = AF_INET;
+	log_send_ex.send_addr.sin_addr.s_addr = htonl(u_ip);
+	log_send_ex.send_addr.sin_port = htons(port);
+
+	memset(&in, 0, sizeof(in));
+	in.sin_family = AF_INET;
+	in.sin_addr.s_addr = htonl(u_ip);
+	if(bind(log_send_ex.send_fd, (struct sockaddr *) &in, sizeof(in)) < 0) {
+		printf ("%s %d bind faild[%d]\n",__FILE__,__LINE__, errno);
+		close(log_send_ex.send_fd);
+		goto exit;
+	}
+
+	if(pthread_mutexattr_init(&log_send_ex.attr)) {
+		close(log_send_ex.send_fd);
+		printf ("%s %d oplog pthread_mutexattr_init faild\n",__FILE__,__LINE__);
+		goto exit;
+	}
+
+	if(pthread_mutex_init(&log_send_ex.lock, &log_send_ex.attr)) {
+		close(log_send_ex.send_fd);
+		pthread_mutexattr_destroy(&log_send_ex.attr);
+		printf ("%s %d oplog pthread_mutex_init faild\n",__FILE__,__LINE__);
+		goto exit;
+	}
+
+	printf("init ok\n");
+	return 0;
+exit:
+	return -1;
 }
 
 void *oplog_init(void)
@@ -431,6 +503,7 @@ void *oplog_init(void)
 	_op->send.send_addr.sin_family = AF_INET;
 	_op->send.send_addr.sin_addr.s_addr = htonl(_op->sock.ip);
 	_op->send.send_addr.sin_port = htons(_op->sock.port);
+
 	memset(&in, 0, sizeof(in));
 	in.sin_family = AF_INET;
 	in.sin_addr.s_addr = htonl(_op->sock.ip);
@@ -438,7 +511,7 @@ void *oplog_init(void)
 		printf ("%s %d bind faild[%d]\n",__FILE__,__LINE__, errno);
 		goto exit;
 	}
-	
+
 	if(pthread_mutexattr_init(&_op->send.attr)) {
 		printf ("%s %d oplog pthread_mutexattr_init faild\n",__FILE__,__LINE__);
 		goto exit;
@@ -597,11 +670,20 @@ static void log_write(unsigned char *buf, unsigned int size)
 	return;
 }
 
+static void log_write_ex(unsigned char *buf, unsigned int size)
+{
+	sendto(log_send_ex.send_fd, buf, size, 0, (struct sockaddr *)&log_send_ex.send_addr, sizeof(log_send_ex.send_addr));
+	return;
+}
+
 void oplog_print(int log_type, char *file, const char *function, int line, int level, const char *fmt, ...)
 {
 	va_list args;
 	size_t size = 0;
 	struct _log_send_header *head =NULL;
+
+	if (!self)
+		return;
 
 	va_start(args, fmt);
 	pthread_mutex_lock(&self->send.lock);
@@ -618,4 +700,37 @@ void oplog_print(int log_type, char *file, const char *function, int line, int l
 
 	return;
 }
+
+void oplog_print_ex(int log_type, char *file, const char *function, int line, int level, const char *fmt, ...)
+{
+	static int oplog_ex_init = 0;
+	
+	va_list args;
+	size_t size = 0;
+	struct _log_send_header *head =NULL;
+	
+	if (!oplog_ex_init) {
+		if (oplog_init_ex() < 0) {
+			printf ("%s %d oplog_init_ex init failed\n",__FILE__,__LINE__);
+			return;
+		}
+
+		oplog_ex_init = 1;
+	}
+
+	va_start(args, fmt);
+	pthread_mutex_lock(&log_send_ex.lock);
+	head = (struct _log_send_header *)log_send_ex.buf_send;
+	strlcpy(head->file, file, sizeof(head->file));
+	strlcpy(head->function, function, sizeof(head->function));
+	head->line = htonl(line);
+	head->level = htonl(level);
+	head->type = htonl(log_type);
+	size = vsnprintf((char*)(log_send_ex.buf_send+sizeof(*head)), LOG_SEND_BUF_SIZE-sizeof(*head), fmt, args);
+	log_write_ex(log_send_ex.buf_send,size+sizeof(*head));
+	pthread_mutex_unlock(&log_send_ex.lock);
+	va_end(args);
+	return;
+}
+
 

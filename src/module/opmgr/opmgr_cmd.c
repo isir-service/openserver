@@ -3,13 +3,13 @@
 #include "base/opcli.h"
 #include "base/opbus.h"
 #include "base/opbus_type.h"
-
+#include "base/opmem.h"
 static int cmd_mgr_cpu_usage(int argc, const char **argv, struct cmd_element *ele, struct _vty * vty)
 {
 	char buf[2048] = {};
 	struct cpu_info *cpu_usage = NULL;
 	int i = 0;
-	opbus_send_sync(opbus_opmgr_get_cpu_usage, NULL, 0, (unsigned char*)buf, sizeof(buf));
+	opbus_send_sync(opbus_opmgr_get_cpu_usage, NULL, 0, (unsigned char*)buf, sizeof(buf)-1);
 	cpu_usage = (struct cpu_info *)buf;
 	
 	opcli_out(vty ,"name      %%user       %%nice       %%system      %%iowait      %%steal      %%usage\r\n");
@@ -25,9 +25,9 @@ static int cmd_mgr_cpu_usage(int argc, const char **argv, struct cmd_element *el
 
 static int cmd_mem_pool_information(int argc, const char **argv, struct cmd_element *ele, struct _vty * vty)
 {
-	char buf[2048] = {};
+	char buf[4096] = {};
 
-	opbus_send_sync(opbus_opmgr_show_mem_poll, NULL, 0, (unsigned char*)buf, sizeof(buf));
+	opbus_send_sync(opbus_opmgr_show_mem_poll, NULL, 0, (unsigned char*)buf, sizeof(buf)-1);
 	
 	opcli_out(vty ,"%s\r\n", buf);
 	return 0;

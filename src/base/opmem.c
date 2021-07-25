@@ -36,6 +36,8 @@ struct mem_alloc_ele {
 	struct list_head *list;
 	unsigned int can_used_num;
 	unsigned int all_num;
+	unsigned long long op_malloc_num;
+	unsigned long long op_free_num;
 };
 
 static struct mem_alloc_ele op_mem_ele[OP_MEM_ELE_MAX] = {
@@ -54,7 +56,7 @@ static struct mem_alloc_ele op_mem_ele[OP_MEM_ELE_MAX] = {
 	[op_MEM_ELE_SYS] = {.name="system",.size=0, .num=0},
 };
 
-struct op_mem_info *self = NULL;
+static struct op_mem_info *self = NULL;
 
 struct op_mem_statistic {
 	unsigned long long pool_alloc;
@@ -101,7 +103,7 @@ unsigned long op_mem_hash (const void *node)
 
 	struct op_mem_node *p_node = (struct op_mem_node *)node;
 
-	hash = ((unsigned long long)p_node->ptr & 0xffffffff);
+	hash = (((unsigned long long)p_node->ptr) & 0xffffffff);
 	return hash;
 }
 
@@ -200,6 +202,9 @@ void *op_malloc(size_t size)
 	struct mem_alloc_ele *ele = NULL;
 	int i = 0;
 
+	if (!self)
+		return NULL;
+
 	if (size > OP_MEM_MAX_SIZE) {
 		ptr = malloc(size);
 		if (!ptr)
@@ -267,7 +272,7 @@ void *op_malloc(size_t size)
 	self->statistic.pool_alloc_noused -= mem_node->size;
 	self->statistic.pool_alloc_used += mem_node->size;
 	pthread_mutex_unlock(&self->lock);
-	
+	ele->op_malloc_num++;
 	return mem_node->ptr;
 }
 
@@ -287,8 +292,11 @@ void *op_realloc(void *ptr, size_t size)
 	struct op_mem_node mem_node;
 	struct op_mem_node *p_node = NULL;
 	void * ptr_out = NULL;
-	mem_node.ptr = ptr;
 	
+	if (!self)
+		return NULL;
+	
+	mem_node.ptr = ptr;
 	pthread_mutex_lock(&self->lock);
 	p_node = op_hash_retrieve(self->hash, &mem_node);
 	if (!p_node) {
@@ -312,6 +320,10 @@ void op_free(void *ptr)
 	struct op_mem_node mem_node;
 	struct mem_alloc_ele * ele;
 	struct op_mem_node *p_node = NULL;
+
+	if (!self)
+		return;
+
 	mem_node.ptr = ptr;
 	pthread_mutex_lock(&self->lock);
 	p_node = op_hash_retrieve(self->hash, &mem_node);
@@ -337,6 +349,7 @@ void op_free(void *ptr)
 	ele->can_used_num++;
 	self->statistic.pool_alloc_noused += p_node->size;
 	self->statistic.pool_alloc_used -= p_node->size;
+	ele->op_free_num++;
 
 out:
 	pthread_mutex_unlock(&self->lock);
@@ -359,7 +372,7 @@ int op_mem_information (char *buf, int size)
 	unsigned int ele_size = 0;
 	unsigned int used_num = 0;
 
-	if (!buf || size <= 0)
+	if (!buf || size <= 0 || !self)
 		return 0;
 
 	index = 0;
@@ -377,8 +390,9 @@ int op_mem_information (char *buf, int size)
 
 		ele_size = (unsigned int)op_mem_ele[i].size;
 		used_num = op_mem_ele[i].can_used_num;
-		ret = snprintf(buf+index, size -index, "[%10s] ele size(B): %10u, all_num: %10d, can_used_num: %10d, total size: %uB = %.2lfkB=%.2lfMB\r\n", 
-				op_mem_ele[i].name, ele_size, op_mem_ele[i].all_num , used_num, ele_size*used_num, ele_size*used_num/1204.0, ele_size*used_num/1024.0/1024.0);
+		ret = snprintf(buf+index, size -index, "[%10s] ele size(B): %10u, all_num: %10d, can_used_num: %10d, total size: %10uB = %10.2lfkB=%10.2lfMB, op_malloc_num : %10llu, op_free_num:%10llu\r\n", 
+				op_mem_ele[i].name, ele_size, op_mem_ele[i].all_num , used_num, ele_size*used_num, ele_size*used_num/1204.0, ele_size*used_num/1024.0/1024.0,
+				op_mem_ele[i].op_malloc_num, op_mem_ele[i].op_free_num);
 
 		if (ret < 0)
 			return index;
