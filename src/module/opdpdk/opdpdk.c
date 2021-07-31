@@ -50,6 +50,7 @@ void *opdpdk_init(void)
 	dictionary *dict;
 	const char *str;
 
+	sleep(3);
 	opmem_init();
 	log_debug_ex("opdpdk init\n");
 	dpdk = op_calloc(1, sizeof(struct opdpdk_info));

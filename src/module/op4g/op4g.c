@@ -6,8 +6,6 @@
 
 #include "op4g.h"
 #include "base/oplog.h"
-#include "base/opbus.h"
-#include "base/opbus_type.h"
 
 #include "u9300.h"
 #include "iniparser.h"
@@ -167,7 +165,7 @@ exit:
 
 void op4g_bus_register (void)
 {
-	opbus_register(opbus_op4g_send_quotes, _4g_send_quotes);
+	//opbus_register(opbus_op4g_send_quotes, _4g_send_quotes);
 	return;
 }
 void *op4g_init(void)

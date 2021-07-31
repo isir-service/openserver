@@ -11873,7 +11873,7 @@ $as_echo "#define OPSERVER_CONF \"/home/opserver/etc/opserver.conf\"" >>confdefs
 
 CFLAGS=""
 # Checks for library functions.
-ac_config_files="$ac_config_files src/base/Makefile src/opbox/Makefile src/module/Makefile src/module/opmgr/Makefile src/module/op4g/Makefile src/module/outer/Makefile src/module/opdpdk/Makefile src/module/timer_service/Makefile src/module/spider/Makefile src/module/webserver/Makefile src/Makefile src/tools/Makefile"
+ac_config_files="$ac_config_files src/base/Makefile src/opbox/Makefile src/module/Makefile src/module/opmgr/Makefile src/module/op4g/Makefile src/module/outer/Makefile src/module/opdpdk/Makefile src/module/timer_service/Makefile src/module/spider/Makefile src/module/webserver/Makefile src/Makefile"
 
 ac_config_files="$ac_config_files Makefile"
 
@@ -12899,7 +12899,6 @@ do
     "src/module/spider/Makefile") CONFIG_FILES="$CONFIG_FILES src/module/spider/Makefile" ;;
     "src/module/webserver/Makefile") CONFIG_FILES="$CONFIG_FILES src/module/webserver/Makefile" ;;
     "src/Makefile") CONFIG_FILES="$CONFIG_FILES src/Makefile" ;;
-    "src/tools/Makefile") CONFIG_FILES="$CONFIG_FILES src/tools/Makefile" ;;
     "Makefile") CONFIG_FILES="$CONFIG_FILES Makefile" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;

@@ -8,7 +8,6 @@
 #include "opbox/usock.h"
 #include "opbox/utils.h"
 #include "base/oplog.h"
-#include "base/opbus.h"
 #include "base/opcli.h"
 #include "opmgr.h"
 #include "op4g.h"
@@ -37,7 +36,6 @@ struct _op_child_process {
 
 struct _opserver_struct_ {
 	void *log;
-	void *bus;
 	void *cli;
 	void *mgr;
 	void *_4g;
@@ -116,13 +114,12 @@ void opserver_exit(struct _opserver_struct_ *_op)
 	if (_op)
 		return ;
 
-	printf("opserver_exit\n");
+	log_debug("opserver_exit\n");
 	timer_service_exit(_op->timer_service);
 	oplog_exit(_op->_4g);
 	opmgr_exit(_op->mgr);
 	opsql_exit(_op->sql);
 	opcli_exit(_op->cli);
-	opcli_exit(_op->bus);
 	oplog_exit(_op->log);
 	spider_exit(_op->spider);
 	webserver_exit(_op->web);
@@ -172,13 +169,13 @@ out:
 	return -1;
 }
 
-static void server_init(void)
+static void server_init(struct _opserver_struct_ *_op)
 {
 	dictionary *dict;
 	int uid = -1;
 	dict = iniparser_load(OPSERVER_CONF);
 	if (!dict) {
-		printf ("%s %d iniparser_load faild[%s]\n",__FILE__,__LINE__, OPSERVER_CONF);
+		log_error ("iniparser_load faild[%s]\n", OPSERVER_CONF);
 		goto out;
 	}
 
@@ -194,16 +191,38 @@ static void server_init(void)
 		exit(0);
 	}
 
-	
+	if (!(_op->log = oplog_init()))
+		log_error("oplog init\n");
+	if (!(_op->cli = opcli_init()))
+		log_error("opcli init\n");
+	if (!(_op->sql = opsql_init(OPSERVER_CONF)))
+		log_error("opsql init\n\n");
+
+	if (!(_op->mgr = opmgr_init()))
+		log_error("opmgr init\n");
+	if (!(_op->mail = opmail_init()))
+		log_error("opmail init\n");
+	if (!(_op->_4g = op4g_init()))
+		log_error("op4g init\n");
+
+	if (!(_op->timer_service = timer_service_init()))
+		log_error("timer service init\n");
+
+	if (!(_op->spider = spider_init()))
+		log_error("spider init\n");
+
+	if (!(_op->web = webserver_init()))
+		log_error("web init\n");
+
 out:
 	return;
 }
 
 static int run_server(struct event_base *base)
 {
-	printf("run server\n");
+	log_debug("run server\n");
 	if(event_base_loop(base, EVLOOP_NO_EXIT_ON_EMPTY) < 0) {
-		printf ("%s %d opserver failed\n",__FILE__,__LINE__);
+		log_error ("opserver failed\n");
 		return -1;
 	}
 
@@ -216,20 +235,15 @@ int main(int argc, char*argv[])
 	pid_t pid = 0;
 	struct _opserver_struct_ *_op = NULL;
 	struct _op_child_process *p_node = NULL;
-
 	daemon(1,0);
-
 	pid = fork();
 	if (pid < 0)
 		return 0;
 	else if (!pid) {
 		opdpdk_init();
-		printf("opdpdk exit\n");
+		log_error("opdpdk exit\n");
 		exit(0);
 	}
-
-	server_init();
-
 
 	signal(SIGUSR1, signal_handle);
 	signal(SIGPIPE, SIG_IGN);
@@ -246,81 +260,14 @@ int main(int argc, char*argv[])
 		goto exit;
 	}
 
-	_op->mem = opmem_init();
-	if (!_op->mem) {
-		printf("opserver opmem failed\n");
-		goto exit;
-	}
+	if(!(_op->mem = opmem_init()))
+		log_error("opmem init\n");
 
-	_op->log = oplog_init();
-	if (!_op->log) {
-		printf("opserver oplog failed\n");
-		goto exit;
-	}
-
-	log_debug("opdpdk pid :%u\n", (unsigned int)pid);
-	_op->bus = opbus_init();
-	if (!_op->bus) {
-		printf("opserver opbus failed\n");
-		goto exit;
-	}
-
-	_op->cli = opcli_init();
-	if (!_op->cli) {
-		printf("opserver opcli failed\n");
-		goto exit;
-	}
-
-	log_debug("test log\n");
-	log_info("test log\n");
-	log_warn("test log\n");
-	log_error("test log\n");
-
-	_op->sql = opsql_init(OPSERVER_CONF);
-	if (!_op->sql) {
-		printf("opserver opsql failed\n");
-		goto exit;
-	}
-
-	_op->mgr = opmgr_init();
-	if (!_op->mgr) {
-		printf("opserver opmgr failed\n");
-		goto exit;
-	}
-
-	_op->mail = opmail_init();
-	if (!_op->mail) {
-		printf("opserver opmail init failed\n");
-		goto exit;
-	}
-
-	_op->_4g = op4g_init();
-	if (!_op->_4g) {
-		printf("opserver op4g failed\n");
-		//goto exit;
-	}
-	
-	_op->timer_service = timer_service_init();
-	if (!_op->timer_service) {
-		printf("opserver timer_service_init failed\n");
-		goto exit;
-	}
-	
-	_op->spider = spider_init();
-	if (!_op->spider) {
-		printf("opserver spider init failed\n");
-		goto exit;
-	}
-	
-	_op->web = webserver_init();
-	if (!_op->web) {
-		printf("opserver webserver init failed\n");
-		goto exit;
-	}
+	server_init(_op);
 
 	_op->base = event_base_new();
 	if (!_op->base) {
-		printf ("%s %d opserver event_base_new failed\n",__FILE__,__LINE__);
+		log_error("opserver event_base_new failed\n");
 		goto exit;
 	}
 

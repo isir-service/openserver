@@ -26,6 +26,5 @@ src/module/timer_service/Makefile
 src/module/spider/Makefile
 src/module/webserver/Makefile
 src/Makefile
-src/tools/Makefile
 ])
 AC_OUTPUT([Makefile])

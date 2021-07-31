@@ -14,6 +14,7 @@
 #include "opbox/list.h"
 #include "opbox/ptelnet.h"
 #include "opbox/hash.h"
+#include "oplog.h"
 
 static struct _opcli_struct *self = NULL;
 
@@ -170,20 +171,20 @@ static int install_default_cmd(unsigned int node_type)
 static void *opcli_routine (void *arg)
 {
 	if(event_base_loop(arg, EVLOOP_NO_EXIT_ON_EMPTY) < 0) {
-		printf ("%s %d opcli_routine failed\n",__FILE__,__LINE__);
+		log_error ("opcli_routine failed\n");
 		pthread_detach(pthread_self());
 		pthread_exit(NULL);
 		goto exit;
 	}
 
 exit:
-	printf ("%s %d opcli_routine exit\n",__FILE__,__LINE__);
+	log_debug ("opcli_routine exit\n");
 	return NULL;
 }
 
 static void opcli_client_free(struct _cli_client *client)
 {
-	printf ("%s %d client free[%d]\n",__FILE__,__LINE__, client->fd);
+	log_debug ("client free,fd=%d\n", client->fd);
 	close(client->fd);
 	pthread_mutex_lock(&self->job.lock);
 	list_del(&client->list);
@@ -201,13 +202,13 @@ static void opcli_job_thread(evutil_socket_t fd,short what,void* arg)
 
 	ret = read(fd, client->buf.buf_recv, _CLI_BUF_REQ_SIZE);
 	if (ret < 0) {
-		printf ("%s %d read faild[%d]\n",__FILE__,__LINE__, errno);
+		log_warn ("read faild, errno=%d\n",errno);
 		goto out;
 	}
 	
 	if (what == EV_READ && !ret) {
-			opcli_client_free(client);
-			goto out;
+		opcli_client_free(client);
+		goto out;
 	}
 
 	pthread_mutex_lock(&self->node.lock);

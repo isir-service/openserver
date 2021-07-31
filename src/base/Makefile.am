@@ -1,9 +1,9 @@
 ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS=foreign
 lib_LTLIBRARIES=libbase.la
-libbase_la_SOURCES=oplog.c opbus.c opcli.c opsql.c opmem.c
+libbase_la_SOURCES=oplog.c oprpc.c opcli.c opsql.c opmem.c
 libbase_la_includedir=$(prefix)/include/base
-libbase_la_include_HEADERS=oplog.h opbus.h opcli.h opbus_type.h opsql.h sql_name.h opmem.h
+libbase_la_include_HEADERS=oplog.h oprpc.h opcli.h opsql.h sql_name.h opmem.h
 
 libbase_la_CFLAGS = -I$(top_srcdir)/src
 

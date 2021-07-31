@@ -7,8 +7,6 @@
 #include "spider.h"
 #include "event.h"
 #include "base/oplog.h"
-#include "base/opbus_type.h"
-#include "base/opbus.h"
 #include "opbox/list.h"
 #include "base/opsql.h"
 #include "op4g.h"
@@ -195,7 +193,7 @@ out:
 
 void spider_bus_register(void)
 {
-	opbus_register(opbus_spider_check_stock, spider_check_stock);
+	//opbus_register(opbus_spider_check_stock, spider_check_stock);
 	return;
 }
 

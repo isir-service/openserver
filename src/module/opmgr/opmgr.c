@@ -9,11 +9,9 @@
 #include "opmgr.h"
 #include "opbox/usock.h"
 #include "base/oplog.h"
-#include "base/opbus.h"
 #include "base/opcli.h"
 #include "opbox/utils.h"
 #include "event.h"
-#include "base/opbus_type.h"
 #include "opmgr_cmd.h"
 #include "opmgr_bus.h"
 #include "base/opmem.h"
@@ -197,8 +195,8 @@ int bus_get_mem_pool_infrmation(unsigned char *req, int req_size, unsigned char 
 
 static void _mgr_bus_register(void)
 {
-	opbus_register(opbus_opmgr_get_cpu_usage, bus_get_cpu_usage);
-	opbus_register(opbus_opmgr_show_mem_poll, bus_get_mem_pool_infrmation);
+	//opbus_register(opbus_opmgr_get_cpu_usage, bus_get_cpu_usage);
+	//opbus_register(opbus_opmgr_show_mem_poll, bus_get_mem_pool_infrmation);
 	return;
 }
 
