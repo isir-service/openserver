@@ -89,17 +89,73 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
+bin_PROGRAMS = opdpdk$(EXEEXT)
 subdir = src/module/opdpdk
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
-DIST_COMMON = $(srcdir)/Makefile.am $(libopdpdk_la_include_HEADERS) \
+DIST_COMMON = $(srcdir)/Makefile.am $(opdpdk_include_HEADERS) \
 	$(am__DIST_COMMON)
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
+am__installdirs = "$(DESTDIR)$(bindir)" \
+	"$(DESTDIR)$(opdpdk_includedir)"
+PROGRAMS = $(bin_PROGRAMS)
+am_opdpdk_OBJECTS = opdpdk-opdpdk.$(OBJEXT)
+opdpdk_OBJECTS = $(am_opdpdk_OBJECTS)
+opdpdk_DEPENDENCIES =
+AM_V_lt = $(am__v_lt_@AM_V@)
+am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
+am__v_lt_0 = --silent
+am__v_lt_1 = 
+opdpdk_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(opdpdk_CFLAGS) $(CFLAGS) \
+	$(opdpdk_LDFLAGS) $(LDFLAGS) -o $@
+AM_V_P = $(am__v_P_@AM_V@)
+am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
+am__v_P_0 = false
+am__v_P_1 = :
+AM_V_GEN = $(am__v_GEN_@AM_V@)
+am__v_GEN_ = $(am__v_GEN_@AM_DEFAULT_V@)
+am__v_GEN_0 = @echo "  GEN     " $@;
+am__v_GEN_1 = 
+AM_V_at = $(am__v_at_@AM_V@)
+am__v_at_ = $(am__v_at_@AM_DEFAULT_V@)
+am__v_at_0 = @
+am__v_at_1 = 
+DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
+depcomp = $(SHELL) $(top_srcdir)/depcomp
+am__maybe_remake_depfiles = depfiles
+am__depfiles_remade = ./$(DEPDIR)/opdpdk-opdpdk.Po
+am__mv = mv -f
+COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
+	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+LTCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) \
+	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+	$(AM_CFLAGS) $(CFLAGS)
+AM_V_CC = $(am__v_CC_@AM_V@)
+am__v_CC_ = $(am__v_CC_@AM_DEFAULT_V@)
+am__v_CC_0 = @echo "  CC      " $@;
+am__v_CC_1 = 
+CCLD = $(CC)
+LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(AM_LDFLAGS) $(LDFLAGS) -o $@
+AM_V_CCLD = $(am__v_CCLD_@AM_V@)
+am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
+am__v_CCLD_0 = @echo "  CCLD    " $@;
+am__v_CCLD_1 = 
+SOURCES = $(opdpdk_SOURCES)
+DIST_SOURCES = $(opdpdk_SOURCES)
+am__can_run_installinfo = \
+  case $$AM_UPDATE_INFO_DIR in \
+    n|no|NO) false;; \
+    *) (install-info --version) >/dev/null 2>&1;; \
+  esac
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
     $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
@@ -127,62 +183,7 @@ am__uninstall_files_from_dir = { \
     || { echo " ( cd '$$dir' && rm -f" $$files ")"; \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
-am__installdirs = "$(DESTDIR)$(libdir)" \
-	"$(DESTDIR)$(libopdpdk_la_includedir)"
-LTLIBRARIES = $(lib_LTLIBRARIES)
-libopdpdk_la_DEPENDENCIES =
-am_libopdpdk_la_OBJECTS = libopdpdk_la-opdpdk.lo
-libopdpdk_la_OBJECTS = $(am_libopdpdk_la_OBJECTS)
-AM_V_lt = $(am__v_lt_@AM_V@)
-am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
-am__v_lt_0 = --silent
-am__v_lt_1 = 
-libopdpdk_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(libopdpdk_la_CFLAGS) \
-	$(CFLAGS) $(libopdpdk_la_LDFLAGS) $(LDFLAGS) -o $@
-AM_V_P = $(am__v_P_@AM_V@)
-am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
-am__v_P_0 = false
-am__v_P_1 = :
-AM_V_GEN = $(am__v_GEN_@AM_V@)
-am__v_GEN_ = $(am__v_GEN_@AM_DEFAULT_V@)
-am__v_GEN_0 = @echo "  GEN     " $@;
-am__v_GEN_1 = 
-AM_V_at = $(am__v_at_@AM_V@)
-am__v_at_ = $(am__v_at_@AM_DEFAULT_V@)
-am__v_at_0 = @
-am__v_at_1 = 
-DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
-depcomp = $(SHELL) $(top_srcdir)/depcomp
-am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/libopdpdk_la-opdpdk.Plo
-am__mv = mv -f
-COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
-	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
-LTCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) \
-	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
-	$(AM_CFLAGS) $(CFLAGS)
-AM_V_CC = $(am__v_CC_@AM_V@)
-am__v_CC_ = $(am__v_CC_@AM_DEFAULT_V@)
-am__v_CC_0 = @echo "  CC      " $@;
-am__v_CC_1 = 
-CCLD = $(CC)
-LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
-	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
-	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-AM_V_CCLD = $(am__v_CCLD_@AM_V@)
-am__v_CCLD_ = $(am__v_CCLD_@AM_DEFAULT_V@)
-am__v_CCLD_0 = @echo "  CCLD    " $@;
-am__v_CCLD_1 = 
-SOURCES = $(libopdpdk_la_SOURCES)
-DIST_SOURCES = $(libopdpdk_la_SOURCES)
-am__can_run_installinfo = \
-  case $$AM_UPDATE_INFO_DIR in \
-    n|no|NO) false;; \
-    *) (install-info --version) >/dev/null 2>&1;; \
-  esac
-HEADERS = $(libopdpdk_la_include_HEADERS)
+HEADERS = $(opdpdk_include_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP)
 # Read a list of newline-separated strings from the standard input,
 # and print each of them once, without duplicates.  Input order is
@@ -320,21 +321,18 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS = foreign
-lib_LTLIBRARIES = libopdpdk.la
-libopdpdk_la_SOURCES = opdpdk.c
-libopdpdk_la_includedir = $(prefix)/include/module
-libopdpdk_la_include_HEADERS = opdpdk.h
-libopdpdk_la_CFLAGS = -I$(top_srcdir)/src -I$(prefix)/include \
-	-I$(prefix)/include/libpcap -W -Wall -Wchar-subscripts \
-	-Wcomment -Wformat -Wimplicit -Wmissing-braces \
-	-Wno-error=unused-result -Wparentheses -Wswitch \
-	-Wno-unused-parameter -Wfloat-equal -Wsign-compare \
+opdpdk_SOURCES = opdpdk.c
+opdpdk_LDFLAGS = -L$(prefix)/lib -L$(top_builddir)/src/base/.libs
+opdpdk_LDADD = -liniparser -lpcap -lpthread -lbase -lopbox
+opdpdk_includedir = $(prefix)/include/module/opdpdk
+opdpdk_include_HEADERS = 
+opdpdk_CFLAGS = -I$(top_srcdir)/src/module/base/ -I$(prefix)/include \
+	-I$(prefix)/include/libpcap -g -DWITH_BROKER -W -Wall \
+	-Wchar-subscripts -Wcomment -Wformat -Wimplicit \
+	-Wmissing-braces -Wno-error=unused-result -Wparentheses \
+	-Wswitch -Wno-unused-parameter -Wfloat-equal -Wsign-compare \
 	-Wpointer-arith -Winline -Werror -rdynamic -std=gnu99
-libopdpdk_la_LDFLAGS = -L$(top_builddir)/src/opbox/.libs \
-	-L$(top_builddir)/src/base/.libs -L$(prefix)/lib
-libopdpdk_la_LIBADD = -lpthread -levent -lbase -lpcap
 all: all-am
 
 .SUFFIXES:
@@ -368,44 +366,59 @@ $(top_srcdir)/configure:  $(am__configure_deps)
 $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
-
-install-libLTLIBRARIES: $(lib_LTLIBRARIES)
+install-binPROGRAMS: $(bin_PROGRAMS)
 	@$(NORMAL_INSTALL)
-	@list='$(lib_LTLIBRARIES)'; test -n "$(libdir)" || list=; \
-	list2=; for p in $$list; do \
-	  if test -f $$p; then \
-	    list2="$$list2 $$p"; \
-	  else :; fi; \
-	done; \
-	test -z "$$list2" || { \
-	  echo " $(MKDIR_P) '$(DESTDIR)$(libdir)'"; \
-	  $(MKDIR_P) "$(DESTDIR)$(libdir)" || exit 1; \
-	  echo " $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$list2 '$(DESTDIR)$(libdir)'"; \
-	  $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(INSTALL) $(INSTALL_STRIP_FLAG) $$list2 "$(DESTDIR)$(libdir)"; \
-	}
+	@list='$(bin_PROGRAMS)'; test -n "$(bindir)" || list=; \
+	if test -n "$$list"; then \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(bindir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(bindir)" || exit 1; \
+	fi; \
+	for p in $$list; do echo "$$p $$p"; done | \
+	sed 's/$(EXEEXT)$$//' | \
+	while read p p1; do if test -f $$p \
+	 || test -f $$p1 \
+	  ; then echo "$$p"; echo "$$p"; else :; fi; \
+	done | \
+	sed -e 'p;s,.*/,,;n;h' \
+	    -e 's|.*|.|' \
+	    -e 'p;x;s,.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/' | \
+	sed 'N;N;N;s,\n, ,g' | \
+	$(AWK) 'BEGIN { files["."] = ""; dirs["."] = 1 } \
+	  { d=$$3; if (dirs[d] != 1) { print "d", d; dirs[d] = 1 } \
+	    if ($$2 == $$4) files[d] = files[d] " " $$1; \
+	    else { print "f", $$3 "/" $$4, $$1; } } \
+	  END { for (d in files) print "f", d, files[d] }' | \
+	while read type dir files; do \
+	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
+	    test -z "$$files" || { \
+	    echo " $(INSTALL_PROGRAM_ENV) $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(bindir)$$dir'"; \
+	    $(INSTALL_PROGRAM_ENV) $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(bindir)$$dir" || exit $$?; \
+	    } \
+	; done
 
-uninstall-libLTLIBRARIES:
+uninstall-binPROGRAMS:
 	@$(NORMAL_UNINSTALL)
-	@list='$(lib_LTLIBRARIES)'; test -n "$(libdir)" || list=; \
-	for p in $$list; do \
-	  $(am__strip_dir) \
-	  echo " $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall rm -f '$(DESTDIR)$(libdir)/$$f'"; \
-	  $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall rm -f "$(DESTDIR)$(libdir)/$$f"; \
-	done
+	@list='$(bin_PROGRAMS)'; test -n "$(bindir)" || list=; \
+	files=`for p in $$list; do echo "$$p"; done | \
+	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
+	      -e 's/$$/$(EXEEXT)/' \
+	`; \
+	test -n "$$list" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(bindir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(bindir)" && rm -f $$files
 
-clean-libLTLIBRARIES:
-	-test -z "$(lib_LTLIBRARIES)" || rm -f $(lib_LTLIBRARIES)
-	@list='$(lib_LTLIBRARIES)'; \
-	locs=`for p in $$list; do echo $$p; done | \
-	      sed 's|^[^/]*$$|.|; s|/[^/]*$$||; s|$$|/so_locations|' | \
-	      sort -u`; \
-	test -z "$$locs" || { \
-	  echo rm -f $${locs}; \
-	  rm -f $${locs}; \
-	}
+clean-binPROGRAMS:
+	@list='$(bin_PROGRAMS)'; test -n "$$list" || exit 0; \
+	echo " rm -f" $$list; \
+	rm -f $$list || exit $$?; \
+	test -n "$(EXEEXT)" || exit 0; \
+	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
+	echo " rm -f" $$list; \
+	rm -f $$list
 
-libopdpdk.la: $(libopdpdk_la_OBJECTS) $(libopdpdk_la_DEPENDENCIES) $(EXTRA_libopdpdk_la_DEPENDENCIES) 
-	$(AM_V_CCLD)$(libopdpdk_la_LINK) -rpath $(libdir) $(libopdpdk_la_OBJECTS) $(libopdpdk_la_LIBADD) $(LIBS)
+opdpdk$(EXEEXT): $(opdpdk_OBJECTS) $(opdpdk_DEPENDENCIES) $(EXTRA_opdpdk_DEPENDENCIES) 
+	@rm -f opdpdk$(EXEEXT)
+	$(AM_V_CCLD)$(opdpdk_LINK) $(opdpdk_OBJECTS) $(opdpdk_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -413,7 +426,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopdpdk_la-opdpdk.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/opdpdk-opdpdk.Po@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
 	@$(MKDIR_P) $(@D)
@@ -445,39 +458,46 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LTCOMPILE) -c -o $@ $<
 
-libopdpdk_la-opdpdk.lo: opdpdk.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopdpdk_la_CFLAGS) $(CFLAGS) -MT libopdpdk_la-opdpdk.lo -MD -MP -MF $(DEPDIR)/libopdpdk_la-opdpdk.Tpo -c -o libopdpdk_la-opdpdk.lo `test -f 'opdpdk.c' || echo '$(srcdir)/'`opdpdk.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libopdpdk_la-opdpdk.Tpo $(DEPDIR)/libopdpdk_la-opdpdk.Plo
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='opdpdk.c' object='libopdpdk_la-opdpdk.lo' libtool=yes @AMDEPBACKSLASH@
+opdpdk-opdpdk.o: opdpdk.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(opdpdk_CFLAGS) $(CFLAGS) -MT opdpdk-opdpdk.o -MD -MP -MF $(DEPDIR)/opdpdk-opdpdk.Tpo -c -o opdpdk-opdpdk.o `test -f 'opdpdk.c' || echo '$(srcdir)/'`opdpdk.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/opdpdk-opdpdk.Tpo $(DEPDIR)/opdpdk-opdpdk.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='opdpdk.c' object='opdpdk-opdpdk.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopdpdk_la_CFLAGS) $(CFLAGS) -c -o libopdpdk_la-opdpdk.lo `test -f 'opdpdk.c' || echo '$(srcdir)/'`opdpdk.c
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(opdpdk_CFLAGS) $(CFLAGS) -c -o opdpdk-opdpdk.o `test -f 'opdpdk.c' || echo '$(srcdir)/'`opdpdk.c
+
+opdpdk-opdpdk.obj: opdpdk.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(opdpdk_CFLAGS) $(CFLAGS) -MT opdpdk-opdpdk.obj -MD -MP -MF $(DEPDIR)/opdpdk-opdpdk.Tpo -c -o opdpdk-opdpdk.obj `if test -f 'opdpdk.c'; then $(CYGPATH_W) 'opdpdk.c'; else $(CYGPATH_W) '$(srcdir)/opdpdk.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/opdpdk-opdpdk.Tpo $(DEPDIR)/opdpdk-opdpdk.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='opdpdk.c' object='opdpdk-opdpdk.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(opdpdk_CFLAGS) $(CFLAGS) -c -o opdpdk-opdpdk.obj `if test -f 'opdpdk.c'; then $(CYGPATH_W) 'opdpdk.c'; else $(CYGPATH_W) '$(srcdir)/opdpdk.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
 
 clean-libtool:
 	-rm -rf .libs _libs
-install-libopdpdk_la_includeHEADERS: $(libopdpdk_la_include_HEADERS)
+install-opdpdk_includeHEADERS: $(opdpdk_include_HEADERS)
 	@$(NORMAL_INSTALL)
-	@list='$(libopdpdk_la_include_HEADERS)'; test -n "$(libopdpdk_la_includedir)" || list=; \
+	@list='$(opdpdk_include_HEADERS)'; test -n "$(opdpdk_includedir)" || list=; \
 	if test -n "$$list"; then \
-	  echo " $(MKDIR_P) '$(DESTDIR)$(libopdpdk_la_includedir)'"; \
-	  $(MKDIR_P) "$(DESTDIR)$(libopdpdk_la_includedir)" || exit 1; \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(opdpdk_includedir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(opdpdk_includedir)" || exit 1; \
 	fi; \
 	for p in $$list; do \
 	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
 	  echo "$$d$$p"; \
 	done | $(am__base_list) | \
 	while read files; do \
-	  echo " $(INSTALL_HEADER) $$files '$(DESTDIR)$(libopdpdk_la_includedir)'"; \
-	  $(INSTALL_HEADER) $$files "$(DESTDIR)$(libopdpdk_la_includedir)" || exit $$?; \
+	  echo " $(INSTALL_HEADER) $$files '$(DESTDIR)$(opdpdk_includedir)'"; \
+	  $(INSTALL_HEADER) $$files "$(DESTDIR)$(opdpdk_includedir)" || exit $$?; \
 	done
 
-uninstall-libopdpdk_la_includeHEADERS:
+uninstall-opdpdk_includeHEADERS:
 	@$(NORMAL_UNINSTALL)
-	@list='$(libopdpdk_la_include_HEADERS)'; test -n "$(libopdpdk_la_includedir)" || list=; \
+	@list='$(opdpdk_include_HEADERS)'; test -n "$(opdpdk_includedir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
-	dir='$(DESTDIR)$(libopdpdk_la_includedir)'; $(am__uninstall_files_from_dir)
+	dir='$(DESTDIR)$(opdpdk_includedir)'; $(am__uninstall_files_from_dir)
 
 ID: $(am__tagged_files)
 	$(am__define_uniq_tagged_files); mkid -fID $$unique
@@ -566,9 +586,9 @@ distdir-am: $(DISTFILES)
 	done
 check-am: all-am
 check: check-am
-all-am: Makefile $(LTLIBRARIES) $(HEADERS)
+all-am: Makefile $(PROGRAMS) $(HEADERS)
 installdirs:
-	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libopdpdk_la_includedir)"; do \
+	for dir in "$(DESTDIR)$(bindir)" "$(DESTDIR)$(opdpdk_includedir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -603,11 +623,10 @@ maintainer-clean-generic:
 	@echo "it deletes files that may require special tools to rebuild."
 clean: clean-am
 
-clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
-	mostlyclean-am
+clean-am: clean-binPROGRAMS clean-generic clean-libtool mostlyclean-am
 
 distclean: distclean-am
-		-rm -f ./$(DEPDIR)/libopdpdk_la-opdpdk.Plo
+		-rm -f ./$(DEPDIR)/opdpdk-opdpdk.Po
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-tags
@@ -624,13 +643,13 @@ info: info-am
 
 info-am:
 
-install-data-am: install-libopdpdk_la_includeHEADERS
+install-data-am: install-opdpdk_includeHEADERS
 
 install-dvi: install-dvi-am
 
 install-dvi-am:
 
-install-exec-am: install-libLTLIBRARIES
+install-exec-am: install-binPROGRAMS
 
 install-html: install-html-am
 
@@ -653,7 +672,7 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-		-rm -f ./$(DEPDIR)/libopdpdk_la-opdpdk.Plo
+		-rm -f ./$(DEPDIR)/opdpdk-opdpdk.Po
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
@@ -670,26 +689,25 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-libLTLIBRARIES \
-	uninstall-libopdpdk_la_includeHEADERS
+uninstall-am: uninstall-binPROGRAMS uninstall-opdpdk_includeHEADERS
 
 .MAKE: install-am install-strip
 
 .PHONY: CTAGS GTAGS TAGS all all-am am--depfiles check check-am clean \
-	clean-generic clean-libLTLIBRARIES clean-libtool cscopelist-am \
+	clean-binPROGRAMS clean-generic clean-libtool cscopelist-am \
 	ctags ctags-am distclean distclean-compile distclean-generic \
 	distclean-libtool distclean-tags distdir dvi dvi-am html \
-	html-am info info-am install install-am install-data \
-	install-data-am install-dvi install-dvi-am install-exec \
-	install-exec-am install-html install-html-am install-info \
-	install-info-am install-libLTLIBRARIES \
-	install-libopdpdk_la_includeHEADERS install-man install-pdf \
-	install-pdf-am install-ps install-ps-am install-strip \
-	installcheck installcheck-am installdirs maintainer-clean \
+	html-am info info-am install install-am install-binPROGRAMS \
+	install-data install-data-am install-dvi install-dvi-am \
+	install-exec install-exec-am install-html install-html-am \
+	install-info install-info-am install-man \
+	install-opdpdk_includeHEADERS install-pdf install-pdf-am \
+	install-ps install-ps-am install-strip installcheck \
+	installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags tags-am uninstall uninstall-am uninstall-libLTLIBRARIES \
-	uninstall-libopdpdk_la_includeHEADERS
+	tags tags-am uninstall uninstall-am uninstall-binPROGRAMS \
+	uninstall-opdpdk_includeHEADERS
 
 .PRECIOUS: Makefile
 

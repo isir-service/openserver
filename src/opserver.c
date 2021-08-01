@@ -18,10 +18,7 @@
 #include "timer_service.h"
 #include "iniparser.h"
 #include "spider.h"
-#include "webserver.h"
 #include "opmail.h"
-#include "opdpdk.h"
-
 #include "base/opmem.h"
 #include "opbox/list.h"
 #include "mqtt/mosquitto.h"
@@ -43,7 +40,6 @@ struct _opserver_struct_ {
 	void *sql;
 	void *timer_service;
 	void *spider;
-	void *web;
 	void *mail;
 	void *mem;
 	struct list_head process_list;
@@ -123,7 +119,6 @@ void opserver_exit(struct _opserver_struct_ *_op)
 	opcli_exit(_op->cli);
 	oplog_exit(_op->log);
 	spider_exit(_op->spider);
-	webserver_exit(_op->web);
 	opmail_exit(_op->mail);;
 	opmem_exit(_op->mem);
 	free(_op);
@@ -217,11 +212,6 @@ static void server_init(struct _opserver_struct_ *_op)
 	if (!(_op->spider = spider_init()))
 		log_error("spider init\n");
 
-	if (!(_op->web = webserver_init()))
-		log_error("web init\n");
-
-
-
 out:
 	return;
 }
@@ -239,20 +229,8 @@ static int run_server(struct event_base *base)
 
 int main(int argc, char*argv[])
 {
-	
-	pid_t pid = 0;
 	struct _opserver_struct_ *_op = NULL;
-	struct _op_child_process *p_node = NULL;
 	daemon(1,0);
-	pid = fork();
-	if (pid < 0)
-		return 0;
-	else if (!pid) {
-		opdpdk_init();
-		log_error("opdpdk exit\n");
-		exit(0);
-	}
-
 	signal(SIGUSR1, signal_handle);
 	signal(SIGPIPE, SIG_IGN);
 	srand(time(NULL));
@@ -280,15 +258,7 @@ int main(int argc, char*argv[])
 	}
 
 	opserver_init(_op);
-	p_node = op_calloc(1, sizeof(*p_node));
-	if (!p_node) {
-		log_error("process child node alloc failed\n");
-		goto exit;
-	}
 
-	p_node->pid = pid;
-	INIT_LIST_HEAD(&p_node->list);
-	list_add_tail(&p_node->list, &_op->process_list);
 	self = _op;
 
 	if (run_server(_op->base) < 0)

@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 #include "webserver.h"
 #include "nginx.h"
@@ -19,11 +20,6 @@
 #define WEBSERVER_CONF "webserver:path"
 #define WEBSERVER_CONF_PREFIX "webserver:prefix"
 
-struct _webserver_struct {
-	int nginx_pid;
-};
-
-static struct _webserver_struct *self = NULL;
 void nginx_main_start(char *opserver_conf_path)
 {
 #define WEBSERVER_ARGV_NUM 5
@@ -85,36 +81,12 @@ void nginx_main_start(char *opserver_conf_path)
 	return;
 }
 
-void *webserver_init(void)
+int main(int argc, char* argv[])
 {
-	struct _webserver_struct *web = NULL;
-	int pid = 0;
-
-	web = calloc(1, sizeof(*web));
-	if (!web) {
-		log_error("calloc failed[%d]\n", errno);
-		goto exit;
-	}
-
-	self = web;
-
-	pid = fork();
-	if (pid < 0) {
-		log_error("fork failed[%d]\n", errno);
-		goto exit;
-	}
-
-	if (!pid)
-		nginx_main_start(OPSERVER_CONF);
-
-	log_info("webserver fork pid[%d]\n", (int)pid);
-	web->nginx_pid = pid;
-	waitpid(-1,NULL,0);
-	return web;
-
-exit:
-	webserver_exit(web);
-	return NULL;
+	signal(SIGPIPE, SIG_IGN);
+	op_daemon();
+	nginx_main_start(OPSERVER_CONF);
+	return 0;
 }
 
 void webserver_exit(void *web)

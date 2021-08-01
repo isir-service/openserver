@@ -54,6 +54,7 @@ Contributors:
 #include "memory_mosq.h"
 #include "misc_mosq.h"
 #include "util_mosq.h"
+#include "mqtt.h"
 
 struct mosquitto_db db;
 
@@ -434,7 +435,7 @@ static int pid__write(void)
 	return MOSQ_ERR_SUCCESS;
 }
 
-int main(int argc, char *argv[])
+int mqtt_main(int argc, char *argv[])
 {
 	struct mosquitto__config config;
 #ifdef WITH_BRIDGE

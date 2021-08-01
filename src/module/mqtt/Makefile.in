@@ -150,7 +150,7 @@ am_mqtt_OBJECTS = mqtt-mosquitto.$(OBJEXT) \
 	lib/mqtt-utf8_mosq.$(OBJEXT) lib/mqtt-util_mosq.$(OBJEXT) \
 	lib/mqtt-util_topic.$(OBJEXT) mqtt-websockets.$(OBJEXT) \
 	mqtt-will_delay.$(OBJEXT) lib/mqtt-will_mosq.$(OBJEXT) \
-	mqtt-xtreport.$(OBJEXT)
+	mqtt-xtreport.$(OBJEXT) mqtt-mqtt.$(OBJEXT)
 mqtt_OBJECTS = $(am_mqtt_OBJECTS)
 mqtt_DEPENDENCIES =
 AM_V_lt = $(am__v_lt_@AM_V@)
@@ -188,9 +188,10 @@ am__depfiles_remade = ./$(DEPDIR)/mqtt-bridge.Po \
 	./$(DEPDIR)/mqtt-handle_unsubscribe.Po \
 	./$(DEPDIR)/mqtt-keepalive.Po ./$(DEPDIR)/mqtt-logging.Po \
 	./$(DEPDIR)/mqtt-loop.Po ./$(DEPDIR)/mqtt-memory_public.Po \
-	./$(DEPDIR)/mqtt-mosquitto.Po ./$(DEPDIR)/mqtt-mux.Po \
-	./$(DEPDIR)/mqtt-mux_epoll.Po ./$(DEPDIR)/mqtt-mux_poll.Po \
-	./$(DEPDIR)/mqtt-net.Po ./$(DEPDIR)/mqtt-password_mosq.Po \
+	./$(DEPDIR)/mqtt-mosquitto.Po ./$(DEPDIR)/mqtt-mqtt.Po \
+	./$(DEPDIR)/mqtt-mux.Po ./$(DEPDIR)/mqtt-mux_epoll.Po \
+	./$(DEPDIR)/mqtt-mux_poll.Po ./$(DEPDIR)/mqtt-net.Po \
+	./$(DEPDIR)/mqtt-password_mosq.Po \
 	./$(DEPDIR)/mqtt-persist_read.Po \
 	./$(DEPDIR)/mqtt-persist_read_v234.Po \
 	./$(DEPDIR)/mqtt-persist_read_v5.Po \
@@ -501,10 +502,12 @@ mqtt_SOURCES = mosquitto.c \
 		websockets.c \
 		will_delay.c \
 		lib/will_mosq.c \
-		xtreport.c 
+		xtreport.c \
+		mqtt.c
 
-mqtt_LDFLAGS = -L$(prefix)/lib -L$(top_builddir)/src/base/.libs
-mqtt_LDADD = -lpthread  -ldl -lbase
+mqtt_LDFLAGS = -L$(prefix)/lib -L$(top_builddir)/src/base/.libs \
+	-L$(top_builddir)/src/opbox/.libs
+mqtt_LDADD = -lpthread  -ldl -lbase -liniparser -lopbox
 A = $(top_srcdir)/src/module/mqtt/include
 mqtt_includedir = $(prefix)/include/module/mqtt
 mqtt_include_HEADERS = $(A)/mosquitto_broker.h $(A)/mosquitto.h $(A)/mosquitto_plugin.h  $(A)/mqtt_protocol.h
@@ -692,6 +695,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mqtt-loop.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mqtt-memory_public.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mqtt-mosquitto.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mqtt-mqtt.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mqtt-mux.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mqtt-mux_epoll.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mqtt-mux_poll.Po@am__quote@ # am--include-marker
@@ -1844,6 +1848,20 @@ mqtt-xtreport.obj: xtreport.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mqtt_CFLAGS) $(CFLAGS) -c -o mqtt-xtreport.obj `if test -f 'xtreport.c'; then $(CYGPATH_W) 'xtreport.c'; else $(CYGPATH_W) '$(srcdir)/xtreport.c'; fi`
 
+mqtt-mqtt.o: mqtt.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mqtt_CFLAGS) $(CFLAGS) -MT mqtt-mqtt.o -MD -MP -MF $(DEPDIR)/mqtt-mqtt.Tpo -c -o mqtt-mqtt.o `test -f 'mqtt.c' || echo '$(srcdir)/'`mqtt.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mqtt-mqtt.Tpo $(DEPDIR)/mqtt-mqtt.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mqtt.c' object='mqtt-mqtt.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mqtt_CFLAGS) $(CFLAGS) -c -o mqtt-mqtt.o `test -f 'mqtt.c' || echo '$(srcdir)/'`mqtt.c
+
+mqtt-mqtt.obj: mqtt.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mqtt_CFLAGS) $(CFLAGS) -MT mqtt-mqtt.obj -MD -MP -MF $(DEPDIR)/mqtt-mqtt.Tpo -c -o mqtt-mqtt.obj `if test -f 'mqtt.c'; then $(CYGPATH_W) 'mqtt.c'; else $(CYGPATH_W) '$(srcdir)/mqtt.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/mqtt-mqtt.Tpo $(DEPDIR)/mqtt-mqtt.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='mqtt.c' object='mqtt-mqtt.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mqtt_CFLAGS) $(CFLAGS) -c -o mqtt-mqtt.obj `if test -f 'mqtt.c'; then $(CYGPATH_W) 'mqtt.c'; else $(CYGPATH_W) '$(srcdir)/mqtt.c'; fi`
+
 mostlyclean-libtool:
 	-rm -f *.lo
 
@@ -2061,6 +2079,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/mqtt-loop.Po
 	-rm -f ./$(DEPDIR)/mqtt-memory_public.Po
 	-rm -f ./$(DEPDIR)/mqtt-mosquitto.Po
+	-rm -f ./$(DEPDIR)/mqtt-mqtt.Po
 	-rm -f ./$(DEPDIR)/mqtt-mux.Po
 	-rm -f ./$(DEPDIR)/mqtt-mux_epoll.Po
 	-rm -f ./$(DEPDIR)/mqtt-mux_poll.Po
@@ -2183,6 +2202,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/mqtt-loop.Po
 	-rm -f ./$(DEPDIR)/mqtt-memory_public.Po
 	-rm -f ./$(DEPDIR)/mqtt-mosquitto.Po
+	-rm -f ./$(DEPDIR)/mqtt-mqtt.Po
 	-rm -f ./$(DEPDIR)/mqtt-mux.Po
 	-rm -f ./$(DEPDIR)/mqtt-mux_epoll.Po
 	-rm -f ./$(DEPDIR)/mqtt-mux_poll.Po

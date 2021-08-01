@@ -1,9 +1,7 @@
-ACLOCAL_AMFLAGS = -I m4
-
 AUTOMAKE_OPTIONS=foreign
-lib_LTLIBRARIES=libwebserver.la
+bin_PROGRAMS=webserver
 
-libwebserver_la_SOURCES= webserver.c \
+webserver_SOURCES= webserver.c \
 core/nginx.c \
 core/ngx_log.c \
 core/ngx_palloc.c \
@@ -128,29 +126,29 @@ http/modules/ngx_http_upstream_keepalive_module.c \
 http/modules/ngx_http_upstream_zone_module.c \
 ngx_modules.c
 
-libwebserver_la_includedir=$(prefix)/include/module
-libwebserver_la_include_HEADERS=webserver.h
+webserver_includedir=$(prefix)/include/module
+webserver_include_HEADERS=
 
-libwebserver_la_CFLAGS  = -I$(top_srcdir)/src
-libwebserver_la_CFLAGS += -I$(top_srcdir)/src/module/webserver/core
-libwebserver_la_CFLAGS += -I$(top_srcdir)/src/module/webserver/event
-libwebserver_la_CFLAGS += -I$(top_srcdir)/src/module/webserver/event/modules
-libwebserver_la_CFLAGS += -I$(top_srcdir)/src/module/webserver/os/unix
-libwebserver_la_CFLAGS += -I$(top_srcdir)/src/module/webserver/http
-libwebserver_la_CFLAGS += -I$(top_srcdir)/src/module/webserver/http/modules
-libwebserver_la_CFLAGS += -I$(prefix)/include
-libwebserver_la_CFLAGS += -g -W -Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wmissing-braces \
+webserver_CFLAGS  = -I$(top_srcdir)/src
+webserver_CFLAGS += -I$(top_srcdir)/src/module/webserver/core
+webserver_CFLAGS += -I$(top_srcdir)/src/module/webserver/event
+webserver_CFLAGS += -I$(top_srcdir)/src/module/webserver/event/modules
+webserver_CFLAGS += -I$(top_srcdir)/src/module/webserver/os/unix
+webserver_CFLAGS += -I$(top_srcdir)/src/module/webserver/http
+webserver_CFLAGS += -I$(top_srcdir)/src/module/webserver/http/modules
+webserver_CFLAGS += -I$(prefix)/include
+webserver_CFLAGS += -g -W -Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wmissing-braces \
 	-Wno-error=unused-result -Wparentheses -Wswitch -Wno-unused-parameter  -Wfloat-equal -Wsign-compare -Wpointer-arith -Winline -Werror  -rdynamic -std=gnu99
-libwebserver_la_LDFLAGS = -L$(top_builddir)/src/opbox/.libs
-libwebserver_la_LDFLAGS += -L$(top_builddir)/src/base/.libs
-libwebserver_la_LDFLAGS += -L$(prefix)/lib
-libwebserver_la_LIBADD = -lpthread -levent -lbase
+webserver_LDFLAGS = -L$(top_builddir)/src/opbox/.libs
+webserver_LDFLAGS += -L$(top_builddir)/src/base/.libs
+webserver_LDFLAGS += -L$(prefix)/lib
+webserver_LDADD = -lpthread -levent -lbase -liniparser -lopbox -ldl -lcrypt -lpcre -lssl -lcrypto -lz
 
-libwebserveretcdir = $(prefix)/etc/webserver
-libwebserveretc_DATA=webserver.conf 
+webserveretcdir = $(prefix)/etc/webserver
+webserveretc_DATA=webserver.conf 
 
-libwebserver1etcdir = $(prefix)/etc/webserver/conf
-libwebserver1etc_DATA=conf/fastcgi.conf conf/fastcgi_params  conf/koi-utf  conf/koi-win  conf/mime.types \
+webserver1etcdir = $(prefix)/etc/webserver/conf
+webserver1etc_DATA=conf/fastcgi.conf conf/fastcgi_params  conf/koi-utf  conf/koi-win  conf/mime.types \
 	conf/nginx.conf  conf/scgi_params  conf/uwsgi_params  conf/win-utf conf/server.key conf/server.crt
-libwebserver2etcdir = $(prefix)/log/nginx
-libwebserver2etc_DATA=.log
+webserver2etcdir = $(prefix)/log/nginx
+webserver2etc_DATA=.log

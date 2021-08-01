@@ -43,14 +43,23 @@ static void opdpdk_packet_process(u_char *arg, const struct pcap_pkthdr* pkthdr,
 	return;
 }
 
-void *opdpdk_init(void)
+void opdpdk_exit(void *dpdk)
+{
+	log_debug_ex("opdpdk exit\n");
+
+	if (!dpdk)
+		return;
+
+	return;
+}
+
+int main(int argc, char* argv[])
 {
 	struct opdpdk_info *dpdk = NULL;
 	char errbuf[256];
 	dictionary *dict;
 	const char *str;
-
-	sleep(3);
+	op_daemon();
 	opmem_init();
 	log_debug_ex("opdpdk init\n");
 	dpdk = op_calloc(1, sizeof(struct opdpdk_info));
@@ -85,19 +94,10 @@ void *opdpdk_init(void)
 	self = dpdk;
 
 	pcap_loop(dpdk->pcap_handle, -1, opdpdk_packet_process, (u_char *)dpdk);
-
+	return 0;
 exit:
 	opdpdk_exit(dpdk);
-	return NULL;
-}
+	return -1;
 
-void opdpdk_exit(void *dpdk)
-{
-	log_debug_ex("opdpdk exit\n");
-
-	if (!dpdk)
-		return;
-
-	return;
 }
 

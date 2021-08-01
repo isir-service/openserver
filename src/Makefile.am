@@ -14,15 +14,13 @@ opserver_LDFLAGS+=-L$(top_builddir)/src/module/mqtt/.libs
 opserver_LDFLAGS+=-L$(top_builddir)/src/module/mqtt/lib/.libs
 opserver_LDFLAGS+=-L$(prefix)/lib
 
-opserver_LDADD = -lopbox -liniparser -lbase -levent -lopmgr -lop4g -ltimer -lspider -lwebserver -louter -lopdpdk -lpcap -lmqttbase -ldl -lcrypt -lpcre -lssl -lcrypto  -lpthread -lz
+opserver_LDADD = -lopbox -liniparser -lbase -levent -lopmgr -lop4g -ltimer -lspider -louter -lpcap -lmqttbase -ldl  -lpthread -lz
 CFLAGS="-g"
 opserver_CFLAGS = -I$(top_srcdir)/src/module/opmgr
 opserver_CFLAGS += -I$(top_srcdir)/src/module/op4g
 opserver_CFLAGS += -I$(top_srcdir)/src/module/timer_service
 opserver_CFLAGS += -I$(top_srcdir)/src/module/spider
-opserver_CFLAGS += -I$(top_srcdir)/src/module/webserver
 opserver_CFLAGS += -I$(top_srcdir)/src/module/outer
-opserver_CFLAGS += -I$(top_srcdir)/src/module/opdpdk
 opserver_CFLAGS += -I$(top_srcdir)/src/module/mqtt/include
 opserver_CFLAGS += -I$(prefix)/include
 opserver_CFLAGS += -I$(prefix)/include/module

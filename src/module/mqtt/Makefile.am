@@ -75,11 +75,13 @@ mqtt_SOURCES=mosquitto.c \
 		websockets.c \
 		will_delay.c \
 		lib/will_mosq.c \
-		xtreport.c 
+		xtreport.c \
+		mqtt.c
 
 mqtt_LDFLAGS = -L$(prefix)/lib 
 mqtt_LDFLAGS +=-L$(top_builddir)/src/base/.libs
-mqtt_LDADD = -lpthread  -ldl -lbase
+mqtt_LDFLAGS +=-L$(top_builddir)/src/opbox/.libs
+mqtt_LDADD = -lpthread  -ldl -lbase -liniparser -lopbox
 
 A=$(top_srcdir)/src/module/mqtt/include
 mqtt_includedir=$(prefix)/include/module/mqtt
