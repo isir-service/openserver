@@ -31,6 +31,7 @@ Contributors:
 #include "send_mosq.h"
 #include "socks_mosq.h"
 #include "util_mosq.h"
+#include "base/oplog.h"
 
 static char alphanum[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 
@@ -83,6 +84,7 @@ static int mosquitto__connect_init(struct mosquitto *mosq, const char *host, int
 
 int mosquitto_connect(struct mosquitto *mosq, const char *host, int port, int keepalive)
 {
+	log_debug_ex("mqtt connect : protol:%d\n", mosq->protocol);
 	return mosquitto_connect_bind(mosq, host, port, keepalive, NULL);
 }
 
@@ -111,12 +113,21 @@ int mosquitto_connect_bind_v5(struct mosquitto *mosq, const char *host, int port
 		mosq->connect_properties->client_generated = true;
 	}
 
+	log_debug_ex("mqtt connect init\n");
 	rc = mosquitto__connect_init(mosq, host, port, keepalive);
-	if(rc) return rc;
+	if(rc) {
+		log_warn_ex("mqtt connect init failed, rc= %d\n", rc);
+		return rc;
+	}
+
+	log_debug_ex("mqtt connect init success\n");
 
 	mosquitto__set_state(mosq, mosq_cs_new);
 
-	return mosquitto__reconnect(mosq, true);
+	rc = mosquitto__reconnect(mosq, true);
+	
+	log_debug_ex("mosquitto__reconnect, rc= %d\n", rc);
+	return rc;
 }
 
 
@@ -160,8 +171,13 @@ static int mosquitto__reconnect(struct mosquitto *mosq, bool blocking)
 	mosquitto_property local_property;
 	int rc;
 
+	log_debug_ex("mosquitto__reconnect begin, mqtt protol:%d\n", mosq->protocol);
+
 	if(!mosq) return MOSQ_ERR_INVAL;
-	if(!mosq->host) return MOSQ_ERR_INVAL;
+	if(!mosq->host){
+		log_warn_ex("mosquitto__reconnect,host is null\n");
+		return MOSQ_ERR_INVAL;
+	}
 
 	if(mosq->connect_properties){
 		if(mosq->protocol != mosq_p_mqtt5) return MOSQ_ERR_NOT_SUPPORTED;
@@ -198,10 +214,12 @@ static int mosquitto__reconnect(struct mosquitto *mosq, bool blocking)
 #ifdef WITH_SOCKS
 	if(mosq->socks5_host){
 		rc = net__socket_connect(mosq, mosq->socks5_host, mosq->socks5_port, mosq->bind_address, blocking);
+		log_debug_ex("mosq->socks5_host rc=%d\n", rc);
 	}else
 #endif
 	{
 		rc = net__socket_connect(mosq, mosq->host, mosq->port, mosq->bind_address, blocking);
+		log_debug_ex("!mosq->socks5_host rc=%d\n", rc);
 	}
 	if(rc>0){
 		mosquitto__set_state(mosq, mosq_cs_connect_pending);
@@ -215,9 +233,13 @@ static int mosquitto__reconnect(struct mosquitto *mosq, bool blocking)
 	}else
 #endif
 	{
+	
 		mosquitto__set_state(mosq, mosq_cs_connected);
+		
+		log_debug_ex("mosquitto__reconnect before connect mqtt protol:%d, sizeof mqtt=%d\n", mosq->protocol, sizeof(*mosq));
 		rc = send__connect(mosq, mosq->keepalive, mosq->clean_start, outgoing_properties);
 		if(rc){
+			log_warn_ex("send__connect failed rc=%d\n", rc);
 			packet__cleanup_all(mosq);
 			net__socket_close(mosq);
 			mosquitto__set_state(mosq, mosq_cs_new);

@@ -1,9 +1,6 @@
-ACLOCAL_AMFLAGS = -I m4
-
 AUTOMAKE_OPTIONS=foreign
-lib_LTLIBRARIES=libmqtt.la
-
-libmqtt_la_SOURCES=mosquitto.c \
+bin_PROGRAMS=mqtt
+mqtt_SOURCES=mosquitto.c \
 		lib/alias_mosq.c \
 		bridge.c \
 		bridge_topic.c \
@@ -78,24 +75,26 @@ libmqtt_la_SOURCES=mosquitto.c \
 		websockets.c \
 		will_delay.c \
 		lib/will_mosq.c \
-		xtreport.c \
-		mqtt.c
+		xtreport.c 
+
+mqtt_LDFLAGS = -L$(prefix)/lib 
+mqtt_LDFLAGS +=-L$(top_builddir)/src/base/.libs
+mqtt_LDADD = -lpthread  -ldl -lbase
 
 A=$(top_srcdir)/src/module/mqtt/include
-libmqtt_la_includedir=$(prefix)/include/module/mqtt
-libmqtt_la_include_HEADERS = mqtt.h $(A)/mosquitto_broker.h $(A)/mosquitto.h $(A)/mosquitto_plugin.h  $(A)/mqtt_protocol.h
+mqtt_includedir=$(prefix)/include/module/mqtt
+mqtt_include_HEADERS = $(A)/mosquitto_broker.h $(A)/mosquitto.h $(A)/mosquitto_plugin.h  $(A)/mqtt_protocol.h
 
-libmqtt_la_CFLAGS  = -I$(top_srcdir)/src/module/mqtt/include
-libmqtt_la_CFLAGS  += -I$(top_srcdir)/src/module/mqtt/lib
-libmqtt_la_CFLAGS  += -I$(top_srcdir)/src/module/mqtt
-libmqtt_la_CFLAGS += -I$(prefix)/include
-libmqtt_la_CFLAGS += -g -DWITH_BROKER -W -Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wmissing-braces \
+mqtt_CFLAGS  = -I$(top_srcdir)/src/module/mqtt/include
+mqtt_CFLAGS  += -I$(top_srcdir)/src/module/mqtt/lib
+mqtt_CFLAGS  += -I$(top_srcdir)/src/module/mqtt
+mqtt_CFLAGS += -I$(prefix)/include
+mqtt_CFLAGS += -g -DWITH_BROKER -W -Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wmissing-braces \
 	-Wno-error=unused-result -Wparentheses -Wswitch -Wno-unused-parameter  -Wfloat-equal -Wsign-compare -Wpointer-arith -Winline  -rdynamic -std=gnu99
-libmqtt_la_LDFLAGS = -L$(prefix)/lib
-libmqtt_la_LIBADD = -lpthread
 
-libmqttetcdir = $(prefix)/etc/mqtt
-libmqttetc_DATA=mqtt.conf 
-libmqtt1etcdir = $(prefix)/log/mqtt
-libmqtt1etc_DATA=.log
+
+mqttetcdir = $(prefix)/etc/mqtt
+mqttetc_DATA=mqtt.conf 
+mqtt1etcdir = $(prefix)/log/mqtt
+mqtt1etc_DATA=.log
 

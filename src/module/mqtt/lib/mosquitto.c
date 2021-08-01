@@ -39,6 +39,7 @@ Contributors:
 #include "net_mosq.h"
 #include "packet_mosq.h"
 #include "will_mosq.h"
+#include "base/oplog.h"
 
 static unsigned int init_refcount = 0;
 
@@ -134,6 +135,8 @@ struct mosquitto *mosquitto_new(const char *id, bool clean_start, void *userdata
 	}else{
 		errno = ENOMEM;
 	}
+	
+	log_debug_ex("mqtt protol:%d\n", mosq->protocol);
 	return mosq;
 }
 
@@ -153,6 +156,7 @@ int mosquitto_reinitialise(struct mosquitto *mosq, const char *id, bool clean_st
 	}else{
 		mosq->userdata = mosq;
 	}
+
 	mosq->protocol = mosq_p_mqtt311;
 	mosq->sock = INVALID_SOCKET;
 	mosq->keepalive = 60;

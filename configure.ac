@@ -27,6 +27,7 @@ src/module/timer_service/Makefile
 src/module/spider/Makefile
 src/module/webserver/Makefile
 src/module/mqtt/Makefile
+src/module/mqtt/lib/Makefile
 src/Makefile
 ])
 AC_OUTPUT([Makefile])

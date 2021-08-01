@@ -24,7 +24,7 @@
 
 #include "base/opmem.h"
 #include "opbox/list.h"
-#include "mqtt.h"
+#include "mqtt/mosquitto.h"
 
 #define OPSERVER_PATH "env:path"
 #define OPSERVER_LIB "env:lib"
@@ -46,7 +46,6 @@ struct _opserver_struct_ {
 	void *web;
 	void *mail;
 	void *mem;
-	void *mqtt;
 	struct list_head process_list;
 	struct event_base *base;
 	struct event *process_watchd;
@@ -127,7 +126,6 @@ void opserver_exit(struct _opserver_struct_ *_op)
 	webserver_exit(_op->web);
 	opmail_exit(_op->mail);;
 	opmem_exit(_op->mem);
-	opmem_exit(_op->mqtt);
 	free(_op);
 	return;
 }
@@ -194,17 +192,22 @@ static void server_init(struct _opserver_struct_ *_op)
 		exit(0);
 	}
 
+	mosquitto_lib_init();
 	if (!(_op->log = oplog_init()))
 		log_error("oplog init\n");
+	
 	if (!(_op->cli = opcli_init()))
 		log_error("opcli init\n");
+	
 	if (!(_op->sql = opsql_init(OPSERVER_CONF)))
 		log_error("opsql init\n\n");
 
 	if (!(_op->mgr = opmgr_init()))
 		log_error("opmgr init\n");
+	
 	if (!(_op->mail = opmail_init()))
 		log_error("opmail init\n");
+	
 	if (!(_op->_4g = op4g_init()))
 		log_error("op4g init\n");
 
@@ -217,8 +220,7 @@ static void server_init(struct _opserver_struct_ *_op)
 	if (!(_op->web = webserver_init()))
 		log_error("web init\n");
 
-	if (!(_op->mqtt = mqtt_init()))
-		log_error("mqtt init failed\n");
+
 
 out:
 	return;

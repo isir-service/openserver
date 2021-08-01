@@ -17,7 +17,6 @@ Contributors:
 */
 
 #include "mqtt_config.h"
-#include "mosquitto_ex.h"
 #ifndef WIN32
 /* For initgroups() */
 #  include <unistd.h>
@@ -435,7 +434,7 @@ static int pid__write(void)
 	return MOSQ_ERR_SUCCESS;
 }
 
-int mqtt_main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 	struct mosquitto__config config;
 #ifdef WITH_BRIDGE

@@ -33,6 +33,7 @@ Contributors:
 #include "packet_mosq.h"
 #include "property_mosq.h"
 #include "send_mosq.h"
+#include "base/oplog.h"
 
 int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session, const mosquitto_property *properties)
 {
@@ -49,6 +50,7 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 	uint16_t receive_maximum;
 
 	assert(mosq);
+	log_debug_ex("send__connect mqtt protol:%d, sizeof mqtt = %d\n", mosq->protocol, (int)sizeof(*mosq));
 
 	if(mosq->protocol == mosq_p_mqtt31 && !mosq->id) return MOSQ_ERR_PROTOCOL;
 
@@ -68,11 +70,15 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 	password = mosq->password;
 #endif
 
+
 	if(mosq->protocol == mosq_p_mqtt5){
 		/* Generate properties from options */
 		if(!mosquitto_property_read_int16(properties, MQTT_PROP_RECEIVE_MAXIMUM, &receive_maximum, false)){
 			rc = mosquitto_property_add_int16(&local_props, MQTT_PROP_RECEIVE_MAXIMUM, mosq->msgs_in.inflight_maximum);
-			if(rc) return rc;
+			if(rc) {
+				log_warn_ex("mosquitto_property_add_int16 failed\n");
+				return rc;
+			}
 		}else{
 			mosq->msgs_in.inflight_maximum = receive_maximum;
 			mosq->msgs_in.inflight_quota = receive_maximum;
@@ -92,6 +98,7 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 		version = MQTT_PROTOCOL_V31;
 		headerlen = 12;
 	}else{
+		log_warn_ex("mqtt protol not support: protol=%d\n", mosq->protocol);
 		return MOSQ_ERR_INVAL;
 	}
 
@@ -122,6 +129,7 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 	 * username before checking password. */
 	if(mosq->protocol == mosq_p_mqtt31 || mosq->protocol == mosq_p_mqtt311){
 		if(password != NULL && username == NULL){
+			log_warn_ex("password have but username is not provide\n");
 			mosquitto__free(packet);
 			return MOSQ_ERR_INVAL;
 		}
@@ -138,6 +146,7 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 	packet->remaining_length = headerlen + payloadlen;
 	rc = packet__alloc(packet);
 	if(rc){
+		log_warn_ex("packet alloc failed\n");
 		mosquitto__free(packet);
 		return rc;
 	}
@@ -209,6 +218,8 @@ int send__connect(struct mosquitto *mosq, uint16_t keepalive, bool clean_session
 #else
 	log__printf(mosq, MOSQ_LOG_DEBUG, "Client %s sending CONNECT", clientid);
 #endif
-	return packet__queue(mosq, packet);
+	rc = packet__queue(mosq, packet);
+	log_debug_ex("packet queue, rc=%d\n", rc);
+	return rc;
 }
 

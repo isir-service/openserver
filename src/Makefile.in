@@ -330,8 +330,9 @@ opserver_LDFLAGS = -L$(top_builddir)/src/opbox/.libs \
 	-L$(top_builddir)/src/module/webserver/.libs \
 	-L$(top_builddir)/src/module/outer/.libs \
 	-L$(top_builddir)/src/module/opdpdk/.libs \
-	-L$(top_builddir)/src/module/mqtt/.libs -L$(prefix)/lib
-opserver_LDADD = -lopbox -liniparser -lbase -levent -lopmgr -lop4g -ltimer -lspider -lwebserver -louter -lopdpdk -lpcap -lmqtt -ldl -lcrypt -lpcre -lssl -lcrypto -ldl -lpthread -lz
+	-L$(top_builddir)/src/module/mqtt/.libs \
+	-L$(top_builddir)/src/module/mqtt/lib/.libs -L$(prefix)/lib
+opserver_LDADD = -lopbox -liniparser -lbase -levent -lopmgr -lop4g -ltimer -lspider -lwebserver -louter -lopdpdk -lpcap -lmqttbase -ldl -lcrypt -lpcre -lssl -lcrypto  -lpthread -lz
 opserver_CFLAGS = -I$(top_srcdir)/src/module/opmgr \
 	-I$(top_srcdir)/src/module/op4g \
 	-I$(top_srcdir)/src/module/timer_service \
@@ -339,7 +340,6 @@ opserver_CFLAGS = -I$(top_srcdir)/src/module/opmgr \
 	-I$(top_srcdir)/src/module/webserver \
 	-I$(top_srcdir)/src/module/outer \
 	-I$(top_srcdir)/src/module/opdpdk \
-	-I$(top_srcdir)/src/module/mqtt \
 	-I$(top_srcdir)/src/module/mqtt/include -I$(prefix)/include \
 	-I$(prefix)/include/module -I$(prefix)/include/libpcap -W \
 	-Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit \

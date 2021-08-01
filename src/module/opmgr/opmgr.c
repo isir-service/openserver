@@ -15,6 +15,7 @@
 #include "opmgr_cmd.h"
 #include "opmgr_bus.h"
 #include "base/opmem.h"
+#include "mqtt/mosquitto.h"
 
 struct proc_cpu_info {
 	char cpu_name[64];
@@ -35,6 +36,9 @@ struct _mgr_thread_
 	pthread_attr_t thread_attr;
 	pthread_mutex_t lock;
 	pthread_mutexattr_t attr;
+
+	pthread_t mqtt_thread_id;
+	pthread_attr_t mqtt_thread_attr;
 };
 
 struct _mgr_timer {
@@ -46,9 +50,27 @@ struct _opmgr_struct {
 	struct _mgr_thread_ thread;
 	struct _mgr_timer timer;
 	struct cpu_info _cpu_info;
+	struct mosquitto *mqtt;
 };
 
 static struct _opmgr_struct  *self;
+
+static void *opmgr_mqtt_routine (void *arg)
+{
+	struct mosquitto *mqtt = (struct mosquitto *)arg;
+	log_debug ("opmgr_mqtt_routine run\n");
+
+	if(mosquitto_loop_forever(mqtt, -1, 1)) {
+		log_error("opmgr_mqtt_routine failed\n");
+		pthread_detach(pthread_self());
+		pthread_exit(NULL);
+		goto exit;
+	}
+
+	log_debug_ex ("opmgr_mqtt_routine exit\n");
+exit:
+	return NULL;
+}
 
 static void *opmgr_routine (void *arg)
 {
@@ -200,6 +222,84 @@ static void _mgr_bus_register(void)
 	return;
 }
 
+static void opmgr_on_connect(struct mosquitto *mosq, void *obj, int reason_code)
+{
+	int rc;
+
+	log_debug("on_connect: %s\n", mosquitto_connack_string(reason_code));
+	if(reason_code != 0)
+		mosquitto_disconnect(mosq);
+
+	rc = mosquitto_subscribe(mosq, NULL, "opmgr/temperature", 1);
+	if(rc != MOSQ_ERR_SUCCESS){
+		log_warn("Error subscribing: %s\n", mosquitto_strerror(rc));
+		mosquitto_disconnect(mosq);
+	}
+
+	return;
+}
+
+static void opmgr_on_subscribe(struct mosquitto *mosq, void *obj, int mid, int qos_count, const int *granted_qos)
+{
+	int i;
+	bool have_subscription = false;
+
+	for(i=0; i<qos_count; i++){
+		log_debug("on_subscribe: %d:granted qos = %d\n", i, granted_qos[i]);
+		if(granted_qos[i] <= 2){
+			have_subscription = true;
+		}
+	}
+	if(have_subscription == false){
+		log_warn("Error: All subscriptions rejected.\n");
+		mosquitto_disconnect(mosq);
+	}
+
+	return;
+}
+
+static void opmgr_on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg)
+{
+	log_debug("mqtt :%s %d %s\n", msg->topic, msg->qos, (char *)msg->payload);
+	return;
+}
+
+void mqtt_cb_init(struct _opmgr_struct *mgr)
+{
+	int rc ;
+	
+	mgr->mqtt = mosquitto_new(NULL, true, NULL);
+	if(!mgr->mqtt){
+		log_warn("Error: Out of memory.\n");
+		goto out;
+	}
+
+	mosquitto_connect_callback_set(mgr->mqtt, opmgr_on_connect);
+	mosquitto_subscribe_callback_set(mgr->mqtt, opmgr_on_subscribe);
+	mosquitto_message_callback_set(mgr->mqtt, opmgr_on_message);
+
+	log_debug("mqtt max port:%d\n", UINT16_MAX);
+	rc = mosquitto_connect(mgr->mqtt, "127.0.0.1", 55558, 60);
+	if(rc != MOSQ_ERR_SUCCESS){
+		mosquitto_destroy(mgr->mqtt);
+		log_warn("Error: %s\n", mosquitto_strerror(rc));
+		goto out;
+	}
+
+	if(pthread_attr_init(&mgr->thread.mqtt_thread_attr)) {
+		log_error ("opmgr pthread_attr_init faild\n");
+		goto out;
+	}
+
+	if(pthread_create(&mgr->thread.mqtt_thread_id, &mgr->thread.mqtt_thread_attr, opmgr_mqtt_routine, mgr->mqtt)) {
+		log_error ("opmgr pthread_create faild\n");
+		goto out;
+	}
+
+out:
+	return;
+}
+
 void *opmgr_init(void)
 {
 	struct _opmgr_struct  *mgr = NULL;
@@ -253,6 +353,8 @@ void *opmgr_init(void)
 		log_error ("opmgr pthread_create faild\n");
 		goto exit;
 	}
+
+	mqtt_cb_init(mgr);
 
 	log_debug ("opmgr thread_id[%x]\n", (unsigned int)mgr->thread.thread_id);
 
