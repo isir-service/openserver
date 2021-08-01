@@ -152,3 +152,5 @@ libwebserveretc_DATA=webserver.conf
 libwebserver1etcdir = $(prefix)/etc/webserver/conf
 libwebserver1etc_DATA=conf/fastcgi.conf conf/fastcgi_params  conf/koi-utf  conf/koi-win  conf/mime.types \
 	conf/nginx.conf  conf/scgi_params  conf/uwsgi_params  conf/win-utf conf/server.key conf/server.crt
+libwebserver2etcdir = $(prefix)/log/nginx
+libwebserver2etc_DATA=.log

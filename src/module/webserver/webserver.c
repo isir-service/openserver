@@ -43,14 +43,14 @@ void nginx_main_start(char *opserver_conf_path)
 	}
 
 	if(!(str = iniparser_getstring(dict,WEBSERVER_CONF,NULL))) {
-		log_error ("iniparser_getstring faild[%s]\n", WEBSERVER_CONF);
+		log_error_ex ("iniparser_getstring faild[%s]\n", WEBSERVER_CONF);
 		return;
 	}
 
 	snprintf(web_conf_file, sizeof(web_conf_file), "%s/%s", str, "webserver.conf");
 
 	if(!(str = iniparser_getstring(dict,WEBSERVER_CONF,NULL))) {
-		log_error ("iniparser_getstring faild[%s]\n", WEBSERVER_CONF);
+		log_error_ex ("iniparser_getstring faild[%s]\n", WEBSERVER_CONF);
 		return;
 	}
 	
@@ -60,14 +60,14 @@ void nginx_main_start(char *opserver_conf_path)
 
 	argv = calloc(1, sizeof(char*) * WEBSERVER_ARGV_NUM);
 	if (!argv) {
-		log_error ("calloc failed\n");
+		log_error_ex ("calloc failed\n");
 		return;
 	}
 
 	for(i = 0; i < WEBSERVER_ARGV_NUM; i++) {
 		argv[i] = calloc(1, WEBSERVER_ARGV_ELE_LENGTH);
 		if (!argv[i]) {
-			log_error ("calloc failed, index=%d\n",i);
+			log_error_ex ("calloc failed, index=%d\n",i);
 			return;
 		}
 	}
@@ -80,7 +80,7 @@ void nginx_main_start(char *opserver_conf_path)
 
 	argc = WEBSERVER_ARGV_NUM;
 
-	log_debug("webserver init...\n");
+	log_debug_ex("webserver init...\n");
 	nginx_main(argc, argv);
 	return;
 }

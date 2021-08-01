@@ -15,7 +15,8 @@ AC_PROG_LIBTOOL
 AC_DEFINE([OPSERVER_CONF],["/home/opserver/etc/opserver.conf"],["opserver config file"])
 CFLAGS=""
 # Checks for library functions.
-AC_CONFIG_FILES([src/base/Makefile
+AC_CONFIG_FILES([
+src/base/Makefile
 src/opbox/Makefile
 src/module/Makefile
 src/module/opmgr/Makefile
@@ -25,6 +26,7 @@ src/module/opdpdk/Makefile
 src/module/timer_service/Makefile
 src/module/spider/Makefile
 src/module/webserver/Makefile
+src/module/mqtt/Makefile
 src/Makefile
 ])
 AC_OUTPUT([Makefile])

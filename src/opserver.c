@@ -24,6 +24,7 @@
 
 #include "base/opmem.h"
 #include "opbox/list.h"
+#include "mqtt.h"
 
 #define OPSERVER_PATH "env:path"
 #define OPSERVER_LIB "env:lib"
@@ -45,6 +46,7 @@ struct _opserver_struct_ {
 	void *web;
 	void *mail;
 	void *mem;
+	void *mqtt;
 	struct list_head process_list;
 	struct event_base *base;
 	struct event *process_watchd;
@@ -125,6 +127,7 @@ void opserver_exit(struct _opserver_struct_ *_op)
 	webserver_exit(_op->web);
 	opmail_exit(_op->mail);;
 	opmem_exit(_op->mem);
+	opmem_exit(_op->mqtt);
 	free(_op);
 	return;
 }
@@ -213,6 +216,9 @@ static void server_init(struct _opserver_struct_ *_op)
 
 	if (!(_op->web = webserver_init()))
 		log_error("web init\n");
+
+	if (!(_op->mqtt = mqtt_init()))
+		log_error("mqtt init failed\n");
 
 out:
 	return;
