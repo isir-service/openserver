@@ -22,6 +22,7 @@
 #include "base/opmem.h"
 #include "opbox/list.h"
 #include "mqtt/mosquitto.h"
+#include "base/oprpc.h"
 
 #define OPSERVER_PATH "env:path"
 #define OPSERVER_LIB "env:lib"
@@ -88,6 +89,9 @@ int opserver_init(struct _opserver_struct_ *server)
 
 	if (!server)
 		return -1;
+
+	mosquitto_lib_init();
+	op_tipc_init(rpc_tipc_module_opserver);
 
 	INIT_LIST_HEAD(&server->process_list);
 	server->process_watchd = evtimer_new(server->base, opserver_process_watchd, server);
@@ -187,10 +191,6 @@ static void server_init(struct _opserver_struct_ *_op)
 		exit(0);
 	}
 
-	mosquitto_lib_init();
-	if (!(_op->log = oplog_init()))
-		log_error("oplog init\n");
-	
 	if (!(_op->cli = opcli_init()))
 		log_error("opcli init\n");
 	
@@ -199,7 +199,7 @@ static void server_init(struct _opserver_struct_ *_op)
 
 	if (!(_op->mgr = opmgr_init()))
 		log_error("opmgr init\n");
-	
+
 	if (!(_op->mail = opmail_init()))
 		log_error("opmail init\n");
 	
@@ -249,6 +249,11 @@ int main(int argc, char*argv[])
 	if(!(_op->mem = opmem_init()))
 		log_error("opmem init\n");
 
+	if (!(_op->log = oplog_init()))
+		log_error("oplog init\n");
+
+	opserver_init(_op);
+
 	server_init(_op);
 
 	_op->base = event_base_new();
@@ -257,7 +262,6 @@ int main(int argc, char*argv[])
 		goto exit;
 	}
 
-	opserver_init(_op);
 
 	self = _op;
 

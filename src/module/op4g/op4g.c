@@ -15,6 +15,7 @@
 #include "opbox/utils.h"
 #include "_4g_pdu.h"
 #include "op4g_bus.h"
+#include "base/oprpc.h"
 
 #define _4G_DEV "op4G:dev"
 #define _4G_CENTER_MESSAGE "op4G:message_centor"
@@ -163,9 +164,9 @@ exit:
 	return NULL;
 }
 
-void op4g_bus_register (void)
+void op4g_tipc_register (void)
 {
-	//opbus_register(opbus_op4g_send_quotes, _4g_send_quotes);
+	op_tipc_register(tipc_opserver_send_quotes,_4g_send_quotes);
 	return;
 }
 void *op4g_init(void)
@@ -263,7 +264,7 @@ void *op4g_init(void)
 		goto exit;
 	}
 
-	op4g_bus_register();
+	op4g_tipc_register();
 
 	module_param.base = _4g->base;
 	module_param.thread_id = _4g->thread.thread_id;

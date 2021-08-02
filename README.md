@@ -1,3 +1,5 @@
 open server  test
 apt-get install libpcre3-dev libbz2-dev
-apt-get install libxml2-dev libxslt-dev flex bison
+apt-get install libxml2-dev libxslt-dev flex bison libdaemon-dev libmnl-dev
+modprobe tipc
+

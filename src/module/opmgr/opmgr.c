@@ -10,6 +10,8 @@
 #include "opbox/usock.h"
 #include "base/oplog.h"
 #include "base/opcli.h"
+#include "base/oprpc.h"
+
 #include "opbox/utils.h"
 #include "event.h"
 #include "opmgr_cmd.h"
@@ -190,7 +192,6 @@ int format_cpu_usage1(unsigned int type,unsigned char *response,int res_size)
 
 }
 
-
 int bus_get_cpu_usage(unsigned char *req, int req_size, unsigned char *response, int res_size)
 {
 	int src_size;
@@ -215,10 +216,10 @@ int bus_get_mem_pool_infrmation(unsigned char *req, int req_size, unsigned char 
 }
 
 
-static void _mgr_bus_register(void)
+static void _mgr_tipc_register(void)
 {
-	//opbus_register(opbus_opmgr_get_cpu_usage, bus_get_cpu_usage);
-	//opbus_register(opbus_opmgr_show_mem_poll, bus_get_mem_pool_infrmation);
+	op_tipc_register(tipc_opserver_cup_usage,bus_get_cpu_usage);
+	op_tipc_register(tipc_opserver_show_mem_poll,bus_get_mem_pool_infrmation);
 	return;
 }
 
@@ -261,6 +262,7 @@ static void opmgr_on_subscribe(struct mosquitto *mosq, void *obj, int mid, int q
 static void opmgr_on_message(struct mosquitto *mosq, void *obj, const struct mosquitto_message *msg)
 {
 	log_debug("mqtt :%s %d %s\n", msg->topic, msg->qos, (char *)msg->payload);
+	
 	return;
 }
 
@@ -327,7 +329,7 @@ void *opmgr_init(void)
 
 	_get_cpu_info_by_file(mgr->_cpu_info.usage , mgr->_cpu_info.cpu_num, 500);
 
-	_mgr_bus_register();
+	_mgr_tipc_register();
 	opmgr_cmd_init();
 
 	mgr->timer.cpu_usage = event_new(mgr->base, -1, EV_PERSIST, _mgr_cpu_usage_period, mgr->_cpu_info.usage);

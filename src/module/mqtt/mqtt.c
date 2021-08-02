@@ -16,7 +16,8 @@ int main(int argc, char *argv[])
 		int argc_int =0 ;
 		char **argv_str = NULL;
 		int i = 0;
-	
+
+		op_daemon();
 		dict = iniparser_load(OPSERVER_CONF);
 		if (!dict) {
 			log_error ("iniparser_load faild[%s]\n", OPSERVER_CONF);

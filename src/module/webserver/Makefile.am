@@ -150,5 +150,5 @@ webserveretc_DATA=webserver.conf
 webserver1etcdir = $(prefix)/etc/webserver/conf
 webserver1etc_DATA=conf/fastcgi.conf conf/fastcgi_params  conf/koi-utf  conf/koi-win  conf/mime.types \
 	conf/nginx.conf  conf/scgi_params  conf/uwsgi_params  conf/win-utf conf/server.key conf/server.crt
-webserver2etcdir = $(prefix)/log/nginx
+webserver2etcdir = $(prefix)/log/webserver
 webserver2etc_DATA=.log

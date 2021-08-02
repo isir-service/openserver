@@ -304,7 +304,7 @@ static void load_crontab(const char *fileName)
 
 	ret = fstat(fileno(parser->fp), &sbuf);
 
-	log_warn("load_crontab[%s], fstat ret = %d\n", fileName, ret);
+	log_debug("load_crontab[%s], fstat ret = %d\n", fileName, ret);
 
 	if (!ret) {
 		file = calloc(1, sizeof(CronFile));

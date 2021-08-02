@@ -133,7 +133,8 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libbase_ladir)" \
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libbase_la_DEPENDENCIES =
 am_libbase_la_OBJECTS = libbase_la-oplog.lo libbase_la-oprpc.lo \
-	libbase_la-opcli.lo libbase_la-opsql.lo libbase_la-opmem.lo
+	libbase_la-opcli.lo libbase_la-opsql.lo libbase_la-opmem.lo \
+	libbase_la-libtipc.lo
 libbase_la_OBJECTS = $(am_libbase_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -157,7 +158,8 @@ am__v_at_1 =
 DEFAULT_INCLUDES = -I.@am__isrc@ -I$(top_builddir)
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__maybe_remake_depfiles = depfiles
-am__depfiles_remade = ./$(DEPDIR)/libbase_la-opcli.Plo \
+am__depfiles_remade = ./$(DEPDIR)/libbase_la-libtipc.Plo \
+	./$(DEPDIR)/libbase_la-opcli.Plo \
 	./$(DEPDIR)/libbase_la-oplog.Plo \
 	./$(DEPDIR)/libbase_la-opmem.Plo \
 	./$(DEPDIR)/libbase_la-oprpc.Plo \
@@ -330,9 +332,9 @@ top_srcdir = @top_srcdir@
 ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS = foreign
 lib_LTLIBRARIES = libbase.la
-libbase_la_SOURCES = oplog.c oprpc.c opcli.c opsql.c opmem.c
+libbase_la_SOURCES = oplog.c oprpc.c opcli.c opsql.c opmem.c libtipc.c
 libbase_la_includedir = $(prefix)/include/base
-libbase_la_include_HEADERS = oplog.h oprpc.h opcli.h opsql.h sql_name.h opmem.h
+libbase_la_include_HEADERS = oplog.h oprpc.h opcli.h opsql.h sql_name.h opmem.h tipcc.h
 libbase_la_CFLAGS = -I$(top_srcdir)/src -I$(prefix)/include -W -Wall \
 	-Wchar-subscripts -Wcomment -Wformat -Wimplicit \
 	-Wmissing-braces -Wparentheses -Wswitch -Wno-unused-parameter \
@@ -420,6 +422,7 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbase_la-libtipc.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbase_la-opcli.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbase_la-oplog.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libbase_la-opmem.Plo@am__quote@ # am--include-marker
@@ -490,6 +493,13 @@ libbase_la-opmem.lo: opmem.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='opmem.c' object='libbase_la-opmem.lo' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libbase_la_CFLAGS) $(CFLAGS) -c -o libbase_la-opmem.lo `test -f 'opmem.c' || echo '$(srcdir)/'`opmem.c
+
+libbase_la-libtipc.lo: libtipc.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libbase_la_CFLAGS) $(CFLAGS) -MT libbase_la-libtipc.lo -MD -MP -MF $(DEPDIR)/libbase_la-libtipc.Tpo -c -o libbase_la-libtipc.lo `test -f 'libtipc.c' || echo '$(srcdir)/'`libtipc.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libbase_la-libtipc.Tpo $(DEPDIR)/libbase_la-libtipc.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='libtipc.c' object='libbase_la-libtipc.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libbase_la_CFLAGS) $(CFLAGS) -c -o libbase_la-libtipc.lo `test -f 'libtipc.c' || echo '$(srcdir)/'`libtipc.c
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -667,7 +677,8 @@ clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
 	mostlyclean-am
 
 distclean: distclean-am
-		-rm -f ./$(DEPDIR)/libbase_la-opcli.Plo
+		-rm -f ./$(DEPDIR)/libbase_la-libtipc.Plo
+	-rm -f ./$(DEPDIR)/libbase_la-opcli.Plo
 	-rm -f ./$(DEPDIR)/libbase_la-oplog.Plo
 	-rm -f ./$(DEPDIR)/libbase_la-opmem.Plo
 	-rm -f ./$(DEPDIR)/libbase_la-oprpc.Plo
@@ -718,7 +729,8 @@ install-ps-am:
 installcheck-am:
 
 maintainer-clean: maintainer-clean-am
-		-rm -f ./$(DEPDIR)/libbase_la-opcli.Plo
+		-rm -f ./$(DEPDIR)/libbase_la-libtipc.Plo
+	-rm -f ./$(DEPDIR)/libbase_la-opcli.Plo
 	-rm -f ./$(DEPDIR)/libbase_la-oplog.Plo
 	-rm -f ./$(DEPDIR)/libbase_la-opmem.Plo
 	-rm -f ./$(DEPDIR)/libbase_la-oprpc.Plo
