@@ -92,7 +92,7 @@ int opserver_init(struct _opserver_struct_ *server)
 
 	mosquitto_lib_init();
 	op_tipc_init(rpc_tipc_module_opserver);
-
+	op_local_init(rpc_tipc_module_opserver);
 	INIT_LIST_HEAD(&server->process_list);
 	server->process_watchd = evtimer_new(server->base, opserver_process_watchd, server);
 	if (!server->process_watchd) {

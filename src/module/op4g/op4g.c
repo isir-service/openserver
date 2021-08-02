@@ -167,6 +167,8 @@ exit:
 void op4g_tipc_register (void)
 {
 	op_tipc_register(tipc_opserver_send_quotes,_4g_send_quotes);
+
+	op_local_register(tipc_opserver_send_quotes,_4g_send_quotes);
 	return;
 }
 void *op4g_init(void)

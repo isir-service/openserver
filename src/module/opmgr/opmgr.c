@@ -220,6 +220,9 @@ static void _mgr_tipc_register(void)
 {
 	op_tipc_register(tipc_opserver_cup_usage,bus_get_cpu_usage);
 	op_tipc_register(tipc_opserver_show_mem_poll,bus_get_mem_pool_infrmation);
+
+	op_local_register(tipc_opserver_cup_usage,bus_get_cpu_usage);
+	op_local_register(tipc_opserver_show_mem_poll,bus_get_mem_pool_infrmation);
 	return;
 }
 

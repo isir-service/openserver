@@ -39,8 +39,8 @@ struct _tipc_client {
 	struct sockaddr_in in;
 	struct bufferevent *buffer;
 	struct _tipc_header head;
-	unsigned char req_content[TIPC_REQ_SIZE];
-	unsigned char response_content[TIPC_RESPONSE_SIZE];
+	unsigned char req_content[RPC_REQ_SIZE];
+	unsigned char response_content[RPC_RESPONSE_SIZE];
 	unsigned int water_level;
 	unsigned int event_type;
 };
@@ -51,12 +51,21 @@ struct _op_tipc {
 	struct event_base *base;
 	struct event *ev;
 	struct _rpc_tipc_thread_ thread;
-	rpc_tipc_cb cb[TIPC_MAX_ELEMENT];
+	rpc_cb cb[RPC_MAX_ELEMENT];
 	void *client_hash;
 	unsigned int module;
 };
 
+struct _op_local_rpc {
+	pthread_mutex_t lock;
+	pthread_mutexattr_t attr;
+	rpc_cb cb[RPC_MAX_ELEMENT];
+	unsigned int module;
+};
+
+
 static struct _op_tipc *tipc_self = NULL;
+static struct _op_local_rpc *local_self = NULL;
 
 void op_tipc_exit(struct _op_tipc *tipc)
 {
@@ -167,7 +176,7 @@ _recv:
 			goto out;
 		}
 
-		if (client->head.data_size > TIPC_REQ_SIZE) {
+		if (client->head.data_size > RPC_REQ_SIZE) {
 			log_warn_ex("data size too larger\n", client->head.data_size);
 			goto out;
 		}
@@ -194,7 +203,7 @@ _recv:
 				goto out;
 			}
 
-			if (client->head.type >= TIPC_MAX_ELEMENT) {
+			if (client->head.type >= RPC_MAX_ELEMENT) {
 				log_warn_ex("not support type, get module: %u, get type:%u\n", client->head.module, client->head.type);
 				goto out;
 			}
@@ -204,11 +213,11 @@ _recv:
 				goto out;
 			}
 
-			ret = tipc->cb[client->head.type](client->req_content, client->water_level, client->response_content, TIPC_RESPONSE_SIZE);
+			ret = tipc->cb[client->head.type](client->req_content, client->water_level, client->response_content, RPC_RESPONSE_SIZE);
 			if (ret < 0)
 				ret = 0;
 
-			if (ret > TIPC_RESPONSE_SIZE) {
+			if (ret > RPC_RESPONSE_SIZE) {
 				log_warn_ex("not support type, get module: %u, get type:%u, response size [%d] too large\n", client->head.module, client->head.type, ret);
 				goto out;
 			}
@@ -411,7 +420,7 @@ out:
 	return -1;
 }
 
-int op_tipc_register(unsigned int type, rpc_tipc_cb cb)
+int op_tipc_register(unsigned int type, rpc_cb cb)
 {
 
 	log_debug_ex ("tipc try register, type=%u\n", type);
@@ -421,7 +430,7 @@ int op_tipc_register(unsigned int type, rpc_tipc_cb cb)
 		goto out;
 	}
 
-	if (type >= TIPC_MAX_ELEMENT) {
+	if (type >= RPC_MAX_ELEMENT) {
 		log_warn_ex ("type too large , type=%u\n", type);
 		goto out;
 	}
@@ -509,7 +518,7 @@ static int _op_tipc_send(unsigned int module,unsigned int type, unsigned char *r
 		return 0;
 	}
 
-	if (head.data_size > TIPC_RESPONSE_SIZE) {
+	if (head.data_size > RPC_RESPONSE_SIZE) {
 		log_warn_ex("read header failed, data size = %u\n", head.data_size);
 		goto out;
 	}
@@ -557,4 +566,99 @@ int op_tipc_send_ex(unsigned int module,unsigned int type, unsigned char *req, u
 {
 	return _op_tipc_send(module, type, req, size, response, response_size);
 }
+
+static void op_local_exit(struct _op_local_rpc *local)
+{
+	if (!local)
+		return;
+
+	return;
+}
+
+int op_local_init(unsigned int module)
+{
+	struct _op_local_rpc *local =  NULL;
+
+	local = op_calloc(1, sizeof(struct _op_local_rpc));
+	if (!local) {
+		log_warn_ex ("op_calloc faild\n");
+		goto exit;
+	}
+	if(pthread_mutexattr_init(&local->attr)) {
+		log_warn_ex ("pthread_mutexattr_init faild\n");
+		goto exit;
+	}
+
+	if(pthread_mutex_init(&local->lock, &local->attr)) {
+		log_warn_ex ("pthread_mutex_init faild\n");
+		goto exit;
+	}
+
+	local->module = module;
+	local_self = local;
+
+	return 0;
+exit:
+	op_local_exit(local);
+	return -1;
+}
+
+int op_local_register(unsigned int type, rpc_cb cb)
+{
+	if (!local_self)
+		return -1;
+
+	if (type >= RPC_MAX_ELEMENT) {
+		log_warn_ex("type is too large, type=%u\n", type);
+		return -1;
+	}
+
+	local_self->cb[type] = cb;
+
+	return 0;
+}
+
+static int _op_local_send_ex(unsigned int module, unsigned int type, unsigned char *req, unsigned int size, unsigned char *response, int response_size)
+{
+	struct _op_local_rpc *local = local_self;
+	int ret = 0;
+
+	if (!local)
+		goto out;
+
+	if (local->module != module) {
+		log_warn_ex("module %u is not register\n", module);
+		goto out;
+	}
+
+	if (type >= RPC_MAX_ELEMENT) {
+		log_warn_ex("type is too large, type=%u\n", type);
+		goto out;
+	}
+
+	if (!local->cb[type]) {
+		log_warn_ex("type handle is not register, type=%u\n", type);
+		goto out;
+	}
+	
+	pthread_mutex_lock(&local->lock);
+	ret = local->cb[type](req, size, response, response_size);
+	if (ret < 0)
+		log_warn_ex("type handle exe failed, type=%u\n", type);
+	pthread_mutex_unlock(&local->lock);
+	return 0;
+out:
+	return -1;
+}
+
+int op_local_send(unsigned int module, unsigned int type, unsigned char *req, unsigned int size)
+{
+	return _op_local_send_ex(module, type, req, size, NULL, 0);
+}
+
+int op_local_send_ex(unsigned int module, unsigned int type, unsigned char *req, unsigned int size, unsigned char *response, int response_size)
+{
+	return _op_local_send_ex(module, type, req, size, response, response_size);
+}
+
 

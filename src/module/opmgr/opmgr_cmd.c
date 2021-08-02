@@ -9,7 +9,7 @@ static int cmd_mgr_cpu_usage(int argc, const char **argv, struct cmd_element *el
 	char buf[2048] = {};
 	struct cpu_info *cpu_usage = NULL;
 	int i = 0;
-	op_tipc_send_ex(rpc_tipc_module_opserver,tipc_opserver_cup_usage, NULL, 0, (unsigned char*)buf, sizeof(buf)-1);
+	op_local_send_ex(rpc_tipc_module_opserver,tipc_opserver_cup_usage, NULL, 0, (unsigned char*)buf, sizeof(buf)-1);
 	cpu_usage = (struct cpu_info *)buf;
 	
 	opcli_out(vty ,"name      %%user       %%nice       %%system      %%iowait      %%steal      %%usage\r\n");
@@ -27,7 +27,7 @@ static int cmd_mem_pool_information(int argc, const char **argv, struct cmd_elem
 {
 	char buf[4096] = {};
 
-	op_tipc_send_ex(rpc_tipc_module_opserver,tipc_opserver_show_mem_poll, NULL, 0, (unsigned char*)buf, sizeof(buf)-1);
+	op_local_send_ex(rpc_tipc_module_opserver,tipc_opserver_show_mem_poll, NULL, 0, (unsigned char*)buf, sizeof(buf)-1);
 
 	opcli_out(vty ,"%s\r\n", buf);
 	return 0;
