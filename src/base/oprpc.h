@@ -19,6 +19,7 @@ enum {
 	tipc_opserver_cup_usage,
 	tipc_opserver_show_mem_poll,
 	tipc_opserver_send_quotes,
+	tipc_opserver_check_stock,
 	tipc_opserver_max,
 };
 
@@ -27,6 +28,8 @@ int op_tipc_init(unsigned int module);
 int op_tipc_register(unsigned int type, rpc_cb cb);
 int op_tipc_send(unsigned int module, unsigned int type, unsigned char *req, unsigned int size);
 int op_tipc_send_ex(unsigned int module, unsigned int type, unsigned char *req, unsigned int size, unsigned char *response, int response_size);
+int op_tipc_send_ex_out(unsigned int module, unsigned int type, unsigned char *req, unsigned int size, unsigned char *response, int response_size);
+
 
 /*********************tipc end****************************************/
 

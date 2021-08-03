@@ -433,7 +433,6 @@ static int oplog_init_ex(void)
 		goto exit;
 	}
 
-	printf("init ok\n");
 	return 0;
 exit:
 	return -1;

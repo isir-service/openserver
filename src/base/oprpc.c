@@ -309,7 +309,7 @@ static void rpc_tipc_accept__dispatch(evutil_socket_t fd,short what,void* arg)
 	bufferevent_enable(client->buffer, EV_READ);
 	op_hash_insert(tipc->client_hash, client);
 
-	log_warn_ex ("tipc accept client, fd=%d\n", client_fd);
+	log_debug_ex ("tipc accept client, fd=%d\n", client_fd);
 
 	return;
 out:
@@ -441,7 +441,7 @@ out:
 	return -1;
 }
 
-static int _op_tipc_send(unsigned int module,unsigned int type, unsigned char *req, unsigned int size, unsigned char *response, int response_size)
+static int _op_tipc_send(unsigned int module,unsigned int type, unsigned char *req, unsigned int size, unsigned char *response, int response_size, int out)
 {
 	int tipc_fd = 0;
 	struct sockaddr_tipc sa;
@@ -523,7 +523,10 @@ static int _op_tipc_send(unsigned int module,unsigned int type, unsigned char *r
 		goto out;
 	}
 
-	res = op_calloc(1, head.data_size);
+	if (out)
+		res = calloc(1, head.data_size);
+	else
+		res = op_calloc(1, head.data_size);
 	if (!res) {
 		log_warn_ex("op_calloc failed\n");
 		goto out;
@@ -544,14 +547,21 @@ static int _op_tipc_send(unsigned int module,unsigned int type, unsigned char *r
 
 	memcpy(response, res, copy_size);
 	close(tipc_fd);
-	op_free(res);
+	if (out)
+		free(res);
+	else
+		op_free(res);
 	return copy_size;
 	
 out:
 	if (tipc_fd)
 		close(tipc_fd);
-	if (res)
-		op_free(res);
+	if (res) {
+		if (out)
+			free(res);
+		else
+			op_free(res);
+	}
 
 	return -1;
 
@@ -559,12 +569,17 @@ out:
 
 int op_tipc_send(unsigned int module, unsigned int type, unsigned char *req, unsigned int size)
 {
-	return _op_tipc_send(module, type, req, size, NULL, 0);
+	return _op_tipc_send(module, type, req, size, NULL, 0, 0);
 }
 
 int op_tipc_send_ex(unsigned int module,unsigned int type, unsigned char *req, unsigned int size, unsigned char *response, int response_size)
 {
-	return _op_tipc_send(module, type, req, size, response, response_size);
+	return _op_tipc_send(module, type, req, size, response, response_size, 0);
+}
+
+int op_tipc_send_ex_out(unsigned int module, unsigned int type, unsigned char *req, unsigned int size, unsigned char *response, int response_size)
+{
+	return _op_tipc_send(module, type, req, size, response, response_size, 1);
 }
 
 static void op_local_exit(struct _op_local_rpc *local)

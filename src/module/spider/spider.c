@@ -9,6 +9,8 @@
 #include "base/oplog.h"
 #include "opbox/list.h"
 #include "base/opsql.h"
+#include "base/oprpc.h"
+
 #include "op4g.h"
 
 struct _spider_thread_ 
@@ -193,7 +195,9 @@ out:
 
 void spider_bus_register(void)
 {
-	//opbus_register(opbus_spider_check_stock, spider_check_stock);
+	op_tipc_register(tipc_opserver_check_stock, spider_check_stock);
+	
+	op_local_register(tipc_opserver_check_stock, spider_check_stock);
 	return;
 }
 

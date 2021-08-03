@@ -29,5 +29,7 @@ src/module/webserver/Makefile
 src/module/mqtt/Makefile
 src/module/mqtt/lib/Makefile
 src/Makefile
+src/tools/Makefile
+src/tools/pbus/Makefile
 ])
 AC_OUTPUT([Makefile])

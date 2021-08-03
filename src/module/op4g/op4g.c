@@ -114,9 +114,9 @@ static void op4g_job(evutil_socket_t fd,short what,void* arg)
 
 	ret = read(fd, self->buf.bf+self->buf.index, _4G_READ_BUF_SIZE-self->buf.index-1);
 	if (what == EV_READ && !ret) {
-		log_warn("op4g free fd[%d]\n", fd);
+		log_warn("op4g free fd[%d], dev may drop\n", fd);
 		close(fd);
-		event_free(self->ev);
+		event_del(self->ev);
 		goto out;
 	}
 	self->buf.index += ret;
