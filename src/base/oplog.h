@@ -11,7 +11,9 @@ enum OPLOGLEVEL{
 };
 
 enum OPLOGTYPE {
+	oplog_none,
 	oplog_prog,
+	oplog_max,
 	
 };
 

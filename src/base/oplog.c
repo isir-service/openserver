@@ -30,10 +30,8 @@
 #define LOG_PORT "oplog:log_port"
 #define LOG_PROG_ROOT "oplog:prog_log_path"
 
-#define LOG_SEND_BUF_SIZE 4096
-#define LOG_RECV_BUF_SIZE 4096
-#define LOG_PROG_FORMAT_SIZE 8192
-#define LOG_RECV_LIST_SIZE 1024
+#define LOG_BUF_SIZE 8192
+#define LOG_RECV_LIST_SIZE 4096
 #define LOG_DISK_THREAD_NUM 2
 
 struct log_level_name_map {
@@ -81,7 +79,7 @@ struct _log_send_ {
 	struct sockaddr_in send_addr;
 	pthread_mutex_t lock;
 	pthread_mutexattr_t attr;
-	unsigned char buf_send[LOG_SEND_BUF_SIZE];
+	unsigned char buf_send[LOG_BUF_SIZE];
 };
 
 struct _log_item_buf_ {
@@ -102,7 +100,7 @@ struct _log_recv_ {
 	pthread_condattr_t cont_attr;
 	pthread_mutex_t lock;
 	pthread_mutexattr_t attr;
-	unsigned char buf_secv[LOG_RECV_BUF_SIZE];
+	unsigned char buf_secv[LOG_BUF_SIZE];
 	int disk_run;
 };
 
@@ -110,7 +108,7 @@ struct _log_prog_ {
 	int fd;
 	char root_path[256];
 	struct tm tm;
-	unsigned char log_format[LOG_PROG_FORMAT_SIZE];
+	unsigned char log_format[LOG_BUF_SIZE];
 };
 
 struct _oplog_struct_
@@ -124,9 +122,21 @@ struct _oplog_struct_
 	struct _log_prog_ prog;
 };
 
+typedef void (*log_cb)(struct _log_send_header *head, unsigned char *content, int content_size);
+
+struct _op_log_cb {
+	int type;
+	log_cb cb;
+};
+
 static struct _oplog_struct_ *self;
 static struct _log_send_ log_send_ex;
 
+static void op_log_prog(struct _log_send_header *head, unsigned char *content, int content_size);
+
+static struct _op_log_cb _g_log_cb[oplog_max] = {
+	[oplog_prog] = {.type=oplog_prog, .cb= op_log_prog},
+};
 
 static void oplog_job(evutil_socket_t fd,short what,void* arg)
 {
@@ -149,8 +159,8 @@ static void oplog_job(evutil_socket_t fd,short what,void* arg)
 		goto out;
 	}
 
-	if (ret > LOG_RECV_BUF_SIZE) {
-		printf ("%s %d oplog_job recv message too long\n",__FILE__,__LINE__);
+	if (ret > LOG_BUF_SIZE || ret < (int)sizeof(struct _log_send_header)) {
+		printf ("%s %d oplog_job recv message length [%d] is not support\n",__FILE__,__LINE__, ret);
 		goto out;
 	}
 	
@@ -280,32 +290,30 @@ static int _oplog_format(int format_type, unsigned char * fromat_buf, int buf_si
 			break;
 	}
 
-
 	return ret;
 
 }
 
-static void _oplog_sync_to_disk(int fd, struct _log_item_buf_ *log)
+static void _oplog_sync_to_disk(int fd, struct _log_send_header *head, unsigned char *content)
 {
-	struct _log_send_header *head = NULL;
-	unsigned char *message = NULL;
 	int ret = 0;
 
-	if (!log->buf || log->size < (int)sizeof(struct _log_send_header) || fd < 0) {
+	if (!content || fd < 0) {
 		printf ("%s %d _oplog_sync_to_disk parameter failed\n",__FILE__,__LINE__);
 		goto out;
 	}
 
-	head = (struct _log_send_header *)log->buf;
-	log_header_ntohl(head);
+	if (head->type != oplog_prog){
+		printf ("%s %d _oplog_sync_to_disk head type is not support, type= %d\n",__FILE__,__LINE__, head->type);
+		goto out;
+	}
+	
 	if (head->level > oplog_level_max) {
 		printf ("%s %d _oplog_sync_to_disk level parameter failed\n",__FILE__,__LINE__);
 		goto out;
 	}
-	
-	message = log->buf+sizeof(struct _log_send_header);
 
-	ret = _oplog_format(LOG_FORMAT_DETAIL, self->prog.log_format, LOG_PROG_FORMAT_SIZE, head, message);
+	ret = _oplog_format(LOG_FORMAT_DETAIL, self->prog.log_format, LOG_BUF_SIZE, head, content);
 
 	if (write(fd, self->prog.log_format, ret) < 0) {
 		printf ("%s %d _oplog_sync_to_disk write failed[%d]\n",__FILE__,__LINE__, errno);
@@ -316,12 +324,28 @@ out:
 	return;
 }
 
-static void *oplog_disk (void *arg)
+static void op_log_prog(struct _log_send_header *head, unsigned char *content, int content_size)
+{
+	int log_fd = 0;
+
+	if ((log_fd = _oplog_check_disk()) < 0) {
+		printf ("%s %d _oplog_check_disk failed[%x]\n",__FILE__,__LINE__, (unsigned int)pthread_self());
+		goto out;
+	}
+
+	_oplog_sync_to_disk(log_fd, head, content);
+
+out:
+	return;
+}
+
+static void *oplog_dispatch (void *arg)
 {
 	struct _log_recv_ *_recv = NULL;
 	struct _log_item_ *item;
-	int log_fd = 0;
-
+	struct _log_send_header * head;
+	unsigned char *content = NULL;
+	
 	_recv = (struct _log_recv_ *)arg;
 
 	if (!_recv) {
@@ -339,20 +363,29 @@ static void *oplog_disk (void *arg)
 		if(list_empty(&_recv->vector))
 			goto next;
 
-		if ((log_fd = _oplog_check_disk()) < 0) {
-			printf ("%s %d _oplog_check_disk failed[%x]\n",__FILE__,__LINE__, (unsigned int)pthread_self());
-			sleep(1);
-			goto next;
-		}
-
 		item = list_first_entry(&_recv->vector, struct _log_item_ , list);
 		if (!item) {
 			printf ("%s %d oplog_disk item failed[%x]\n",__FILE__,__LINE__, (unsigned int)pthread_self());
 			goto next;
 		}
 
-		_oplog_sync_to_disk(log_fd, &item->log);
+		head = (struct _log_send_header *)item->log.buf;
+		log_header_ntohl(head);
+		if (head->type <= oplog_none || head->type >= oplog_max) {
+			printf ("%s %d oplog type is not support, type=%d\n",__FILE__,__LINE__, head->type);
+			goto _delete;
+		}
 
+		if (!_g_log_cb[head->type].cb) {
+			printf ("%s %d oplog type cb is not support, type=%d\n",__FILE__,__LINE__, head->type);
+			goto _delete;
+		}
+
+		content = item->log.buf+sizeof(struct _log_send_header);
+
+		_g_log_cb[head->type].cb(head, content,item->log.size);
+
+_delete:
 		list_del_init(&item->list);
 		if (item->log.buf) {
 			op_free(item->log.buf);
@@ -578,7 +611,7 @@ void *oplog_init(void)
 			goto exit;
 		}
 		
-		if(pthread_create(&_op->thread.disk_thread_id[i], &_op->thread.disk_thread_attr[i], oplog_disk, &_op->recv)) {
+		if(pthread_create(&_op->thread.disk_thread_id[i], &_op->thread.disk_thread_attr[i], oplog_dispatch, &_op->recv)) {
 			printf ("%s %d oplog pthread_create faild\n",__FILE__,__LINE__);
 			goto exit;
 		}
@@ -692,7 +725,7 @@ void oplog_print(int log_type, char *file, const char *function, int line, int l
 	head->line = htonl(line);
 	head->level = htonl(level);
 	head->type = htonl(log_type);
-	size = vsnprintf((char*)(self->send.buf_send+sizeof(*head)), LOG_SEND_BUF_SIZE-sizeof(*head), fmt, args);
+	size = vsnprintf((char*)(self->send.buf_send+sizeof(*head)), LOG_BUF_SIZE-sizeof(*head), fmt, args);
 	log_write(self->send.buf_send,size+sizeof(*head));
 	pthread_mutex_unlock(&self->send.lock);
 	va_end(args);
@@ -725,7 +758,7 @@ void oplog_print_ex(int log_type, char *file, const char *function, int line, in
 	head->line = htonl(line);
 	head->level = htonl(level);
 	head->type = htonl(log_type);
-	size = vsnprintf((char*)(log_send_ex.buf_send+sizeof(*head)), LOG_SEND_BUF_SIZE-sizeof(*head), fmt, args);
+	size = vsnprintf((char*)(log_send_ex.buf_send+sizeof(*head)), LOG_BUF_SIZE-sizeof(*head), fmt, args);
 	log_write_ex(log_send_ex.buf_send,size+sizeof(*head));
 	pthread_mutex_unlock(&log_send_ex.lock);
 	va_end(args);

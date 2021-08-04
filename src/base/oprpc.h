@@ -9,7 +9,7 @@ typedef int (*rpc_cb)(unsigned char *req, int req_size, unsigned char *response,
 /********************tipc*******************************/
 
 enum {
-	rpc_tipc_module_none = 9999,
+	rpc_tipc_module_none = 0,
 	rpc_tipc_module_opserver,
 	rpc_tipc_module_max,
 };

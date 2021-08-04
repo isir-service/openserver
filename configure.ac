@@ -31,5 +31,6 @@ src/module/mqtt/lib/Makefile
 src/Makefile
 src/tools/Makefile
 src/tools/pbus/Makefile
+src/tools/file_compile/Makefile
 ])
 AC_OUTPUT([Makefile])

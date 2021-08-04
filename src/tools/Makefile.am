@@ -1,1 +1,1 @@
-SUBDIRS = pbus
+SUBDIRS = pbus file_compile
