@@ -24,7 +24,6 @@ int main(int argc, char *argv[])
 {
 	int long_index = 0;
 	int c = 0;
-	struct magic_set *magic = NULL;
 
 	while((c = getopt_long(argc, argv, file_compile_string, file_compile_long_options, &long_index)) > 0) {
 		switch(c) {
@@ -43,15 +42,5 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	magic = file_ms_alloc(MAGIC_CHECK);
-	if (!magic) {
-		log_warn_ex("file_ms_alloc failed\n");
-		return 0;
-	}
-
-	magic_compile(magic, argv[1], argv[2]);
-
-	if (magic)
-		magic_close(magic);
 	return 0;
 }
