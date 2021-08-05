@@ -331,14 +331,16 @@ opserver_LDFLAGS = -L$(top_builddir)/src/opbox/.libs \
 	-L$(top_builddir)/src/module/outer/.libs \
 	-L$(top_builddir)/src/module/opdpdk/.libs \
 	-L$(top_builddir)/src/module/mqtt/.libs \
-	-L$(top_builddir)/src/module/mqtt/lib/.libs -L$(prefix)/lib
-opserver_LDADD = -lopbox -liniparser -lbase -levent -lopmgr -lop4g -ltimer -lspider -louter -lpcap -lmqttbase -ldl  -lpthread -lz
+	-L$(top_builddir)/src/module/mqtt/lib/.libs \
+	-L$(top_builddir)/src/module/opfile/.libs -L$(prefix)/lib
+opserver_LDADD = -lopbox -liniparser -lbase -levent -lopmgr -lop4g -ltimer -lspider -louter -lpcap -lmqttbase -lopfile -ldl  -lpthread -lz
 opserver_CFLAGS = -I$(top_srcdir)/src/module/opmgr \
 	-I$(top_srcdir)/src/module/op4g \
 	-I$(top_srcdir)/src/module/timer_service \
 	-I$(top_srcdir)/src/module/spider \
 	-I$(top_srcdir)/src/module/outer \
-	-I$(top_srcdir)/src/module/mqtt/include -I$(prefix)/include \
+	-I$(top_srcdir)/src/module/mqtt/include \
+	-I$(top_srcdir)/src/module/opfile -I$(prefix)/include \
 	-I$(prefix)/include/module -I$(prefix)/include/libpcap -W \
 	-Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit \
 	-Wmissing-braces -Wparentheses -Wswitch -Wno-unused-parameter \

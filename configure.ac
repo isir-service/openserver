@@ -28,6 +28,7 @@ src/module/spider/Makefile
 src/module/webserver/Makefile
 src/module/mqtt/Makefile
 src/module/mqtt/lib/Makefile
+src/module/opfile/Makefile
 src/Makefile
 src/tools/Makefile
 src/tools/pbus/Makefile

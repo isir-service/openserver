@@ -23,6 +23,7 @@
 #include "opbox/list.h"
 #include "mqtt/mosquitto.h"
 #include "base/oprpc.h"
+#include "opfile.h"
 
 #define OPSERVER_PATH "env:path"
 #define OPSERVER_LIB "env:lib"
@@ -93,6 +94,8 @@ int opserver_init(struct _opserver_struct_ *server)
 	mosquitto_lib_init();
 	op_tipc_init(rpc_tipc_module_opserver);
 	op_local_init(rpc_tipc_module_opserver);
+	opfile_init();
+
 	INIT_LIST_HEAD(&server->process_list);
 	server->process_watchd = evtimer_new(server->base, opserver_process_watchd, server);
 	if (!server->process_watchd) {
