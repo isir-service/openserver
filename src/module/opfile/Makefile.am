@@ -5,8 +5,8 @@ lib_LTLIBRARIES=libopfile.la
 
 libopfile_la_SOURCES=buffer.c magic.c apprentice.c softmagic.c ascmagic.c \
 	encoding.c compress.c is_csv.c is_json.c is_tar.c readelf.c print.c \
-	fsmagic.c funcs.c readelf.h tar.h apptype.c der.c fmtcheck.c\
-    mygetopt.h cdf.c cdf_time.c readcdf.c opfile.c
+	fsmagic.c funcs.c apptype.c der.c fmtcheck.c\
+     cdf.c cdf_time.c readcdf.c opfile.c file.c seccomp.c
 libopfile_la_includedir=$(prefix)/include/module
 libopfile_la_include_HEADERS=opfile.h
 

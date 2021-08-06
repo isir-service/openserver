@@ -389,9 +389,8 @@ out:
 	return rv;
 }
 
-#ifndef TEST
-int
-file_is_json(struct magic_set *ms, const struct buffer *b)
+
+int file_is_json(struct magic_set *ms, const struct buffer *b)
 {
 	const unsigned char *uc = CAST(const unsigned char *, b->fbuf);
 	const unsigned char *ue = uc + b->flen;
@@ -429,41 +428,3 @@ file_is_json(struct magic_set *ms, const struct buffer *b)
 #endif
 	return 1;
 }
-
-#else
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <err.h>
-
-int
-main(int argc, char *argv[])
-{
-	int fd, rv;
-	struct stat st;
-	unsigned char *p;
-	size_t stats[JSON_MAX];
-
-	if ((fd = open(argv[1], O_RDONLY)) == -1)
-		err(EXIT_FAILURE, "Can't open `%s'", argv[1]);
-
-	if (fstat(fd, &st) == -1)
-		err(EXIT_FAILURE, "Can't stat `%s'", argv[1]);
-
-	if ((p = malloc(st.st_size)) == NULL)
-		err(EXIT_FAILURE, "Can't allocate %jd bytes",
-		    (intmax_t)st.st_size);
-	if (read(fd, p, st.st_size) != st.st_size)
-		err(EXIT_FAILURE, "Can't read %jd bytes",
-		    (intmax_t)st.st_size);
-	memset(stats, 0, sizeof(stats));
-	printf("is json %d\n", json_parse((const unsigned char **)&p,
-	    p + st.st_size, stats, 0));
-	return 0;
-}
-#endif

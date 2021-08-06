@@ -169,10 +169,8 @@ private struct {
 
 #ifdef COMPILE_ONLY
 
-int main(int, char *[]);
-
 int
-main(int argc, char *argv[])
+compile_main(int argc, char *argv[])
 {
 	int ret;
 	struct magic_set *ms;
@@ -729,19 +727,6 @@ file_apprentice(struct magic_set *ms, const char *fn, int action)
 		file_error(ms, 0, "could not find any valid magic files!");
 		return -1;
 	}
-
-#if 0
-	/*
-	 * Always leave the database loaded
-	 */
-	if (action == FILE_LOAD)
-		return 0;
-
-	for (i = 0; i < MAGIC_SETS; i++) {
-		mlist_free(ms->mlist[i]);
-		ms->mlist[i] = NULL;
-	}
-#endif
 
 	switch (action) {
 	case FILE_LOAD:

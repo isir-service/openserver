@@ -141,7 +141,8 @@ am_libopfile_la_OBJECTS = libopfile_la-buffer.lo libopfile_la-magic.lo \
 	libopfile_la-apptype.lo libopfile_la-der.lo \
 	libopfile_la-fmtcheck.lo libopfile_la-cdf.lo \
 	libopfile_la-cdf_time.lo libopfile_la-readcdf.lo \
-	libopfile_la-opfile.lo
+	libopfile_la-opfile.lo libopfile_la-file.lo \
+	libopfile_la-seccomp.lo
 libopfile_la_OBJECTS = $(am_libopfile_la_OBJECTS)
 AM_V_lt = $(am__v_lt_@AM_V@)
 am__v_lt_ = $(am__v_lt_@AM_DEFAULT_V@)
@@ -174,6 +175,7 @@ am__depfiles_remade = ./$(DEPDIR)/libopfile_la-apprentice.Plo \
 	./$(DEPDIR)/libopfile_la-compress.Plo \
 	./$(DEPDIR)/libopfile_la-der.Plo \
 	./$(DEPDIR)/libopfile_la-encoding.Plo \
+	./$(DEPDIR)/libopfile_la-file.Plo \
 	./$(DEPDIR)/libopfile_la-fmtcheck.Plo \
 	./$(DEPDIR)/libopfile_la-fsmagic.Plo \
 	./$(DEPDIR)/libopfile_la-funcs.Plo \
@@ -185,6 +187,7 @@ am__depfiles_remade = ./$(DEPDIR)/libopfile_la-apprentice.Plo \
 	./$(DEPDIR)/libopfile_la-print.Plo \
 	./$(DEPDIR)/libopfile_la-readcdf.Plo \
 	./$(DEPDIR)/libopfile_la-readelf.Plo \
+	./$(DEPDIR)/libopfile_la-seccomp.Plo \
 	./$(DEPDIR)/libopfile_la-softmagic.Plo
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
@@ -355,8 +358,8 @@ AUTOMAKE_OPTIONS = foreign
 lib_LTLIBRARIES = libopfile.la
 libopfile_la_SOURCES = buffer.c magic.c apprentice.c softmagic.c ascmagic.c \
 	encoding.c compress.c is_csv.c is_json.c is_tar.c readelf.c print.c \
-	fsmagic.c funcs.c readelf.h tar.h apptype.c der.c fmtcheck.c\
-    mygetopt.h cdf.c cdf_time.c readcdf.c opfile.c
+	fsmagic.c funcs.c apptype.c der.c fmtcheck.c\
+     cdf.c cdf_time.c readcdf.c opfile.c file.c seccomp.c
 
 libopfile_la_includedir = $(prefix)/include/module
 libopfile_la_include_HEADERS = opfile.h
@@ -455,6 +458,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopfile_la-compress.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopfile_la-der.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopfile_la-encoding.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopfile_la-file.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopfile_la-fmtcheck.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopfile_la-fsmagic.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopfile_la-funcs.Plo@am__quote@ # am--include-marker
@@ -466,6 +470,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopfile_la-print.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopfile_la-readcdf.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopfile_la-readelf.Plo@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopfile_la-seccomp.Plo@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libopfile_la-softmagic.Plo@am__quote@ # am--include-marker
 
 $(am__depfiles_remade):
@@ -645,6 +650,20 @@ libopfile_la-opfile.lo: opfile.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopfile_la_CFLAGS) $(CFLAGS) -c -o libopfile_la-opfile.lo `test -f 'opfile.c' || echo '$(srcdir)/'`opfile.c
 
+libopfile_la-file.lo: file.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopfile_la_CFLAGS) $(CFLAGS) -MT libopfile_la-file.lo -MD -MP -MF $(DEPDIR)/libopfile_la-file.Tpo -c -o libopfile_la-file.lo `test -f 'file.c' || echo '$(srcdir)/'`file.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libopfile_la-file.Tpo $(DEPDIR)/libopfile_la-file.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='file.c' object='libopfile_la-file.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopfile_la_CFLAGS) $(CFLAGS) -c -o libopfile_la-file.lo `test -f 'file.c' || echo '$(srcdir)/'`file.c
+
+libopfile_la-seccomp.lo: seccomp.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopfile_la_CFLAGS) $(CFLAGS) -MT libopfile_la-seccomp.lo -MD -MP -MF $(DEPDIR)/libopfile_la-seccomp.Tpo -c -o libopfile_la-seccomp.lo `test -f 'seccomp.c' || echo '$(srcdir)/'`seccomp.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/libopfile_la-seccomp.Tpo $(DEPDIR)/libopfile_la-seccomp.Plo
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='seccomp.c' object='libopfile_la-seccomp.lo' libtool=yes @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libopfile_la_CFLAGS) $(CFLAGS) -c -o libopfile_la-seccomp.lo `test -f 'seccomp.c' || echo '$(srcdir)/'`seccomp.c
+
 mostlyclean-libtool:
 	-rm -f *.lo
 
@@ -809,6 +828,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libopfile_la-compress.Plo
 	-rm -f ./$(DEPDIR)/libopfile_la-der.Plo
 	-rm -f ./$(DEPDIR)/libopfile_la-encoding.Plo
+	-rm -f ./$(DEPDIR)/libopfile_la-file.Plo
 	-rm -f ./$(DEPDIR)/libopfile_la-fmtcheck.Plo
 	-rm -f ./$(DEPDIR)/libopfile_la-fsmagic.Plo
 	-rm -f ./$(DEPDIR)/libopfile_la-funcs.Plo
@@ -820,6 +840,7 @@ distclean: distclean-am
 	-rm -f ./$(DEPDIR)/libopfile_la-print.Plo
 	-rm -f ./$(DEPDIR)/libopfile_la-readcdf.Plo
 	-rm -f ./$(DEPDIR)/libopfile_la-readelf.Plo
+	-rm -f ./$(DEPDIR)/libopfile_la-seccomp.Plo
 	-rm -f ./$(DEPDIR)/libopfile_la-softmagic.Plo
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
@@ -875,6 +896,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libopfile_la-compress.Plo
 	-rm -f ./$(DEPDIR)/libopfile_la-der.Plo
 	-rm -f ./$(DEPDIR)/libopfile_la-encoding.Plo
+	-rm -f ./$(DEPDIR)/libopfile_la-file.Plo
 	-rm -f ./$(DEPDIR)/libopfile_la-fmtcheck.Plo
 	-rm -f ./$(DEPDIR)/libopfile_la-fsmagic.Plo
 	-rm -f ./$(DEPDIR)/libopfile_la-funcs.Plo
@@ -886,6 +908,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ./$(DEPDIR)/libopfile_la-print.Plo
 	-rm -f ./$(DEPDIR)/libopfile_la-readcdf.Plo
 	-rm -f ./$(DEPDIR)/libopfile_la-readelf.Plo
+	-rm -f ./$(DEPDIR)/libopfile_la-seccomp.Plo
 	-rm -f ./$(DEPDIR)/libopfile_la-softmagic.Plo
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic

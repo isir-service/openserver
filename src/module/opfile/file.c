@@ -178,8 +178,7 @@ private void applyparam(magic_t);
 /*
  * main - parse arguments and handle options
  */
-int
-main(int argc, char *argv[])
+int file_main(int argc, char *argv[])
 {
 	int c;
 	size_t i;
