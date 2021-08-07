@@ -426,7 +426,7 @@ int op_tipc_register(unsigned int type, rpc_cb cb)
 	log_debug_ex ("tipc try register, type=%u\n", type);
 
 	if (!tipc_self) {
-		log_warn_ex ("tipc_register faild, type=%u, tipc not regvister\n", type);
+		log_warn_ex ("tipc_register faild, type=%u, tipc not register\n", type);
 		goto out;
 	}
 

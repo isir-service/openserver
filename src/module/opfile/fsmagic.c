@@ -57,9 +57,6 @@ file_fsmagic(struct magic_set *ms, const char *fn, struct stat *sb)
 	}
 
 	ret = 1;
-	if (!mime && !silent) {
-		return -1;
-	}
 
 	switch (sb->st_mode & S_IFMT) {
 	case S_IFDIR:

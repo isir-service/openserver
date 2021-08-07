@@ -123,7 +123,6 @@ magic_load(struct magic_set *ms, const char *magicfile)
 	return file_apprentice(ms, magicfile, FILE_LOAD);
 }
 
-#ifndef COMPILE_ONLY
 /*
  * Install a set of compiled magic buffers.
  */
@@ -136,7 +135,6 @@ magic_load_buffers(struct magic_set *ms, void **bufs, size_t *sizes,
 	return buffer_apprentice(ms, RCAST(struct magic **, bufs),
 	    sizes, nbufs);
 }
-#endif
 
 public int
 magic_compile(struct magic_set *ms, const char *magicfile)

@@ -363,7 +363,7 @@ libopfile_la_SOURCES = buffer.c magic.c apprentice.c softmagic.c ascmagic.c \
 
 libopfile_la_includedir = $(prefix)/include/module
 libopfile_la_include_HEADERS = opfile.h
-libopfile_la_CFLAGS = -I$(top_srcdir)/src -I$(prefix)/include -W \
+libopfile_la_CFLAGS = -I$(top_srcdir)/src -I$(prefix)/include -g -W \
 	-DHAVE_CONFIG_H -Wall -Wchar-subscripts -Wcomment -Wformat \
 	-Wimplicit -Wmissing-braces -Wno-error=unused-result \
 	-Wparentheses -Wswitch -Wno-unused-parameter -Wfloat-equal \

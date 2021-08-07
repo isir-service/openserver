@@ -47,8 +47,10 @@ int file_main(int argc, char *argv[])
 	int flags = 0;
 	struct magic_set *magic = NULL;
 	const char *magicfile = "/home/isir/developer/tmp/file-master/magic/magic.mgc";
-	if (!(magic = load(magicfile, flags)))
+	if (!(magic = load(magicfile, flags))) {
+		log_warn_ex("file main load failed\n");
 		return 1;
+	}
 
 	applyparam(magic);
 	process(magic, "/home/isir/developer/doc/U9300_1_9x07平台_AT手册_V5.3.9.pdf", 0);
@@ -102,8 +104,7 @@ private int process(struct magic_set *ms, const char *inname, int wid)
 	if (!type)
 		log_warn_ex("ERROR: %s\n", magic_error(ms));
 	else
-		log_warn_ex("%s\n", type);
-	printf("type=%s\n", type);
+		log_debug_ex("%s\n", type);
 	return type == NULL;
 }
 

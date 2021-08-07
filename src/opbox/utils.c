@@ -417,7 +417,7 @@ int uart_open(char *dev)
 
 	fd = open(dev, O_RDWR | O_NOCTTY | O_NONBLOCK);
 	if (fd < 0) {
-		printf ("%s %d open failed[%s] [%d]\n", __FUNCTION__, __LINE__,dev, errno);
+		//printf ("%s %d open failed[%s] [%d]\n", __FUNCTION__, __LINE__,dev, errno);
 		goto out;
 	}
 	

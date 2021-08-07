@@ -181,7 +181,6 @@ void *op4g_init(void)
 	struct _4g_module_init module_param;
 	
 	memset(&module_param , 0, sizeof(module_param));
-	log_debug("op4g init\n");
 	_4g = calloc(1, sizeof(*_4g));
 	if (!_4g) {
 		log_error("calloc failed[%d]\n", errno);

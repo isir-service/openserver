@@ -448,8 +448,6 @@ void *opcli_init(void)
 	cli->sock.port = str_int;
 
 	iniparser_freedict(dict);
-
-	printf("opcli server:%s, port:%d\n", cli->sock.ip, cli->sock.port);
 	
 	if (vty_init(&cli->vtyvec) < 0) {
 		printf ("%s %d vty_init faild\n",__FILE__,__LINE__);

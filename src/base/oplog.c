@@ -523,8 +523,6 @@ void *oplog_init(void)
 		goto exit;
 	}
 	
-	printf("oplog server:%s, port:%d\n", ip, _op->sock.port);
-
 	iniparser_freedict(dict);
 	
 	_op->send.send_fd = socket(AF_INET, SOCK_DGRAM, 0);

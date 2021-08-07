@@ -151,7 +151,6 @@ int opserver_env_set(void)
 
 	snprintf(buf, sizeof(buf), "%s:%s", getenv("PATH"), str);
 	
-	printf ("path=%s\n", buf);
 	setenv("PATH", buf, 1);
 
 	if(!(str = iniparser_getstring(dict,OPSERVER_LIB,NULL))) {
@@ -162,8 +161,6 @@ int opserver_env_set(void)
 	
 	snprintf(buf, sizeof(buf), "%s:%s", getenv("LD_LIBRARY_PATH"), str);
 	iniparser_freedict(dict);
-
-	printf ("lib=%s\n", buf);
 
 	setenv("LD_LIBRARY_PATH", buf, 1);
 	

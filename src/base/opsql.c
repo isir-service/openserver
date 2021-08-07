@@ -35,8 +35,6 @@ void *opsql_init(char *conf_path)
 	const char * str = NULL;
 	char buf_tmp[240] = {};
 
-	printf ("%s %d opsql_init init[conf_path=%s]\n",__FILE__,__LINE__, conf_path);
-
 	_sql = calloc(1, sizeof(struct _opsql_struct));
 	if (!_sql) {
 		printf ("%s %d calloc failed[%d]\n",__FILE__,__LINE__, errno);
@@ -56,8 +54,6 @@ void *opsql_init(char *conf_path)
 		iniparser_freedict(dict);
 		goto exit;
 	}
-
-	printf ("%s %d odbc etc =%s\n",__FILE__,__LINE__, str);
 
 	strlcpy(_sql->path, str, sizeof(_sql->path));
 
