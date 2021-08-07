@@ -1,34 +1,4 @@
-/*-
- * Copyright (c) 2008, 2016 Christos Zoulas
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
 #include "file.h"
-
-#ifndef lint
-FILE_RCSID("@(#)$File: readcdf.c,v 1.74 2019/09/11 15:46:30 christos Exp $")
-#endif
-
 #include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -100,10 +70,7 @@ cdf_clsid_to_mime(const uint64_t clsid[2], const struct cv *cv)
 		if (clsid[0] == cv[i].clsid[0] && clsid[1] == cv[i].clsid[1])
 			return cv[i].mime;
 	}
-#ifdef CDF_DEBUG
-	fprintf(stderr, "unknown mime %" PRIx64 ", %" PRIx64 "\n", clsid[0],
-	    clsid[1]);
-#endif
+
 	return NULL;
 }
 
@@ -112,35 +79,22 @@ cdf_app_to_mime(const char *vbuf, const struct nv *nv)
 {
 	size_t i;
 	const char *rv = NULL;
-#ifdef USE_C_LOCALE
 	locale_t old_lc_ctype, c_lc_ctype;
 
 	c_lc_ctype = newlocale(LC_CTYPE_MASK, "C", 0);
 	assert(c_lc_ctype != NULL);
 	old_lc_ctype = uselocale(c_lc_ctype);
 	assert(old_lc_ctype != NULL);
-#else
-	char *old_lc_ctype = setlocale(LC_CTYPE, NULL);
-	assert(old_lc_ctype != NULL);
-	old_lc_ctype = strdup(old_lc_ctype);
-	assert(old_lc_ctype != NULL);
-	(void)setlocale(LC_CTYPE, "C");
-#endif
+
 	for (i = 0; nv[i].pattern != NULL; i++)
 		if (strcasestr(vbuf, nv[i].pattern) != NULL) {
 			rv = nv[i].mime;
 			break;
 		}
-#ifdef CDF_DEBUG
-	fprintf(stderr, "unknown app %s\n", vbuf);
-#endif
-#ifdef USE_C_LOCALE
+
 	(void)uselocale(old_lc_ctype);
 	freelocale(c_lc_ctype);
-#else
-	(void)setlocale(LC_CTYPE, old_lc_ctype);
-	free(old_lc_ctype);
-#endif
+
 	return rv;
 }
 
@@ -351,20 +305,6 @@ cdf_file_summary_info(struct magic_set *ms, const cdf_header_t *h,
 	return m == -1 ? -2 : m;
 }
 
-#ifdef notdef
-private char *
-format_clsid(char *buf, size_t len, const uint64_t uuid[2]) {
-	snprintf(buf, len, "%.8" PRIx64 "-%.4" PRIx64 "-%.4" PRIx64 "-%.4"
-	    PRIx64 "-%.12" PRIx64,
-	    (uuid[0] >> 32) & (uint64_t)0x000000000ffffffffULL,
-	    (uuid[0] >> 16) & (uint64_t)0x0000000000000ffffULL,
-	    (uuid[0] >>  0) & (uint64_t)0x0000000000000ffffULL,
-	    (uuid[1] >> 48) & (uint64_t)0x0000000000000ffffULL,
-	    (uuid[1] >>  0) & (uint64_t)0x0000fffffffffffffULL);
-	return buf;
-}
-#endif
-
 private int
 cdf_file_catalog_info(struct magic_set *ms, const cdf_info_t *info,
     const cdf_header_t *h, const cdf_sat_t *sat, const cdf_sat_t *ssat,
@@ -375,9 +315,6 @@ cdf_file_catalog_info(struct magic_set *ms, const cdf_info_t *info,
 	if ((i = cdf_read_user_stream(info, h, sat, ssat, sst,
 	    dir, "Catalog", scn)) == -1)
 		return i;
-#ifdef CDF_DEBUG
-	cdf_dump_catalog(h, scn);
-#endif
 	if ((i = cdf_file_catalog(ms, h, scn)) == -1)
 		return -1;
 	return i;
@@ -395,9 +332,6 @@ cdf_check_summary_info(struct magic_set *ms, const cdf_info_t *info,
 	char name[__arraycount(d->d_name)];
 	size_t j, k;
 
-#ifdef CDF_DEBUG
-	cdf_dump_summary_info(h, scn);
-#endif
 	if ((i = cdf_file_summary_info(ms, h, scn, root_storage)) < 0) {
 	    *expn = "Can't expand summary_info";
 	    return i;
@@ -451,17 +385,9 @@ private struct sinfo {
 	},
 	{ "QuickBooks", "quickbooks",
 		{
-#if 0
-			"TaxForms", "PDFTaxForms", "modulesInBackup",
-#endif
 			"mfbu_header", NULL, NULL, NULL, NULL,
 		},
 		{
-#if 0
-			CDF_DIR_TYPE_USER_STORAGE,
-			CDF_DIR_TYPE_USER_STORAGE,
-			CDF_DIR_TYPE_USER_STREAM,
-#endif
 			CDF_DIR_TYPE_USER_STREAM,
 			0, 0, 0, 0
 		},
@@ -519,9 +445,6 @@ cdf_file_dir_info(struct magic_set *ms, const cdf_dir_t *dir)
 			if (cdf_find_stream(dir, si->sections[j], si->types[j])
 			    > 0)
 				break;
-#ifdef CDF_DEBUG
-			fprintf(stderr, "Can't read %s\n", si->sections[j]);
-#endif
 		}
 		if (si->sections[j] == NULL)
 			continue;
@@ -560,25 +483,19 @@ file_trycdf(struct magic_set *ms, const struct buffer *b)
 		return 0;
 	if (cdf_read_header(&info, &h) == -1)
 		return 0;
-#ifdef CDF_DEBUG
-	cdf_dump_header(&h);
-#endif
+
 
 	if ((i = cdf_read_sat(&info, &h, &sat)) == -1) {
 		expn = "Can't read SAT";
 		goto out0;
 	}
-#ifdef CDF_DEBUG
-	cdf_dump_sat("SAT", &sat, CDF_SEC_SIZE(&h));
-#endif
+
 
 	if ((i = cdf_read_ssat(&info, &h, &sat, &ssat)) == -1) {
 		expn = "Can't read SSAT";
 		goto out1;
 	}
-#ifdef CDF_DEBUG
-	cdf_dump_sat("SSAT", &ssat, CDF_SHORT_SEC_SIZE(&h));
-#endif
+
 
 	if ((i = cdf_read_dir(&info, &h, &sat, &dir)) == -1) {
 		expn = "Can't read directory";
@@ -590,20 +507,6 @@ file_trycdf(struct magic_set *ms, const struct buffer *b)
 		expn = "Cannot read short stream";
 		goto out3;
 	}
-#ifdef CDF_DEBUG
-	cdf_dump_dir(&info, &h, &sat, &ssat, &sst, &dir);
-#endif
-#ifdef notdef
-	if (root_storage) {
-		if (NOTMIME(ms)) {
-			char clsbuf[128];
-			if (file_printf(ms, "CLSID %s, ",
-			    format_clsid(clsbuf, sizeof(clsbuf),
-			    root_storage->d_storage_uuid)) == -1)
-				return -1;
-		}
-	}
-#endif
 
 	if ((i = cdf_read_user_stream(&info, &h, &sat, &ssat, &sst, &dir,
 	    "FileHeader", &scn)) != -1) {

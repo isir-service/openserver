@@ -1,49 +1,7 @@
-/*-
- * Copyright (c) 2008 Christos Zoulas
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-/*
- * Parse Composite Document Files, the format used in Microsoft Office
- * document files before they switched to zipped XML.
- * Info from: http://sc.openoffice.org/compdocfileformat.pdf
- *
- * N.B. This is the "Composite Document File" format, and not the
- * "Compound Document Format", nor the "Channel Definition Format".
- */
 
 #ifndef _H_CDF_
 #define _H_CDF_
 
-#ifdef WIN32
-#include <winsock2.h>
-#define timespec timeval
-#define tv_nsec tv_usec
-#endif
-#ifdef __DJGPP__
-#define timespec timeval
-#define tv_nsec tv_usec
-#endif
 
 typedef int32_t cdf_secid_t;
 
@@ -336,18 +294,6 @@ uint32_t cdf_tole4(uint32_t);
 uint64_t cdf_tole8(uint64_t);
 char *cdf_ctime(const time_t *, char *);
 char *cdf_u16tos8(char *, size_t, const uint16_t *);
-
-#ifdef CDF_DEBUG
-void cdf_dump_header(const cdf_header_t *);
-void cdf_dump_sat(const char *, const cdf_sat_t *, size_t);
-void cdf_dump(const void *, size_t);
-void cdf_dump_stream(const cdf_stream_t *);
-void cdf_dump_dir(const cdf_info_t *, const cdf_header_t *, const cdf_sat_t *,
-    const cdf_sat_t *, const cdf_stream_t *, const cdf_dir_t *);
-void cdf_dump_property_info(const cdf_property_info_t *, size_t);
-void cdf_dump_summary_info(const cdf_header_t *, const cdf_stream_t *);
-void cdf_dump_catalog(const cdf_header_t *, const cdf_stream_t *);
-#endif
 
 
 #endif /* _H_CDF_ */

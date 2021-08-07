@@ -26,19 +26,13 @@
  */
 #include "file.h"
 
-#ifndef	lint
-FILE_RCSID("@(#)$File: buffer.c,v 1.8 2020/02/16 15:52:49 christos Exp $")
-#endif	/* lint */
-
 #include "magic.h"
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 
-void
-buffer_init(struct buffer *b, int fd, const struct stat *st, const void *data,
-    size_t len)
+void buffer_init(struct buffer *b, int fd, const struct stat *st, const void *data,size_t len)
 {
 	b->fd = fd;
 	if (st)
@@ -52,14 +46,12 @@ buffer_init(struct buffer *b, int fd, const struct stat *st, const void *data,
 	b->elen = 0;
 }
 
-void
-buffer_fini(struct buffer *b)
+void buffer_fini(struct buffer *b)
 {
 	free(b->ebuf);
 }
 
-int
-buffer_fill(const struct buffer *bb)
+int buffer_fill(const struct buffer *bb)
 {
 	struct buffer *b = CCAST(struct buffer *, bb);
 

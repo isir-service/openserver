@@ -1,95 +1,28 @@
-/*
- * Copyright (c) Ian F. Darwin 1986-1995.
- * Software written by Ian F. Darwin and others;
- * maintained 1995-present by Christos Zoulas and others.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
-/*
- * compress routines:
- *	zmagic() - returns 0 if not recognized, uncompresses and prints
- *		   information if recognized
- *	uncompress(method, old, n, newch) - uncompress old into new,
- *					    using method, return sizeof new
- */
-#include "file.h"
 
-#ifndef lint
-FILE_RCSID("@(#)$File: compress.c,v 1.129 2020/12/08 21:26:00 christos Exp $")
-#endif
+#include "file.h"
 
 #include "magic.h"
 #include <stdlib.h>
-#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include <signal.h>
-#ifndef HAVE_SIG_T
 typedef void (*sig_t)(int);
-#endif /* HAVE_SIG_T */
-#if !defined(__MINGW32__) && !defined(WIN32) && !defined(__MINGW64__)
-#include <sys/ioctl.h>
-#endif
-#ifdef HAVE_SYS_WAIT_H
-#include <sys/wait.h>
-#endif
-#if defined(HAVE_SYS_TIME_H)
-#include <sys/time.h>
-#endif
 
-#if defined(HAVE_ZLIB_H) && defined(ZLIBSUPPORT)
+#include <sys/ioctl.h>
+#include <sys/wait.h>
+#include <sys/time.h>
+
 #define BUILTIN_DECOMPRESS
 #include <zlib.h>
-#endif
 
-#if defined(HAVE_BZLIB_H) && defined(BZLIBSUPPORT)
 #define BUILTIN_BZLIB
 #include <bzlib.h>
-#endif
 
-#if defined(HAVE_LZMA_H) && defined(XZLIBSUPPORT)
-#define BUILTIN_XZLIB
-#include <lzma.h>
-#endif
-
-#ifdef DEBUG
-int tty = -1;
-#define DPRINTF(...)	do { \
-	if (tty == -1) \
-		tty = open("/dev/tty", O_RDWR); \
-	if (tty == -1) \
-		abort(); \
-	dprintf(tty, __VA_ARGS__); \
-} while (/*CONSTCOND*/0)
-#else
 #define DPRINTF(...)
-#endif
 
-#ifdef ZLIBSUPPORT
 /*
  * The following python code is not really used because ZLIBSUPPORT is only
  * defined if we have a built-in zlib, and the built-in zlib handles that.
@@ -116,7 +49,6 @@ zlibcmp(const unsigned char *buf)
 		return 0;
 	return 1;
 }
-#endif
 
 static int
 lzmacmp(const unsigned char *buf)
@@ -159,8 +91,16 @@ static const char *zstd_args[] = {
 
 #define	do_zlib		NULL
 #define	do_bzlib	NULL
+#define METH_FROZEN	2
+#define METH_BZIP	7
+#define METH_XZ		9
+#define METH_LZMA	13
+#define METH_ZLIB	14
+#define OKDATA 	0
+#define NODATA	1
+#define ERRDATA	2
 
-private const struct {
+struct _compr{
 	union {
 		const char *magic;
 		int (*func)(const unsigned char *);
@@ -168,12 +108,10 @@ private const struct {
 	int maglen;
 	const char **argv;
 	void *unused;
-} compr[] = {
-#define METH_FROZEN	2
-#define METH_BZIP	7
-#define METH_XZ		9
-#define METH_LZMA	13
-#define METH_ZLIB	14
+} ;
+
+struct _compr compr[] = {
+
     { { .magic = "\037\235" },	2, gzip_args, NULL },	/* 0, compressed */
     /* Uncompress can get stuck; so use gzip first if we have it
      * Idea from Damien Clark, thanks! */
@@ -192,34 +130,19 @@ private const struct {
     { { .magic = "\004\"M\030" },4, lz4_args, NULL },	/* 11, LZ4 */
     { { .magic = "\x28\xB5\x2F\xFD" }, 4, zstd_args, NULL },/* 12, zstd */
     { { .func = lzmacmp },	-13, xz_args, NULL },	/* 13, lzma */
-#ifdef ZLIBSUPPORT
     { { .func = zlibcmp },	-2, zlib_args, NULL },	/* 14, zlib */
-#endif
 };
 
-#define OKDATA 	0
-#define NODATA	1
-#define ERRDATA	2
-
 private ssize_t swrite(int, const void *, size_t);
-#if HAVE_FORK
 private size_t ncompr = __arraycount(compr);
 private int uncompressbuf(int, size_t, size_t, const unsigned char *,
     unsigned char **, size_t *);
-#ifdef BUILTIN_DECOMPRESS
 private int uncompresszlib(const unsigned char *, unsigned char **, size_t,
     size_t *, int);
 private int uncompressgzipped(const unsigned char *, unsigned char **, size_t,
     size_t *);
-#endif
-#ifdef BUILTIN_BZLIB
 private int uncompressbzlib(const unsigned char *, unsigned char **, size_t,
     size_t *);
-#endif
-#ifdef BUILTIN_XZLIB
-private int uncompressxzlib(const unsigned char *, unsigned char **, size_t,
-    size_t *);
-#endif
 
 static int makeerror(unsigned char **, size_t *, const char *, ...)
     __attribute__((__format__(__printf__, 3, 4)));
@@ -347,7 +270,6 @@ out:
 	DPRINTF("Zmagic returns %d\n", rv);
 	return rv;
 }
-#endif
 /*
  * `safe' write for sockets and pipes.
  */
@@ -380,48 +302,11 @@ protected ssize_t
 sread(int fd, void *buf, size_t n, int canbepipe __attribute__((__unused__)))
 {
 	ssize_t rv;
-#ifdef FIONREAD
-	int t = 0;
-#endif
+
 	size_t rn = n;
 
 	if (fd == STDIN_FILENO)
 		goto nocheck;
-
-#ifdef FIONREAD
-	if (canbepipe && (ioctl(fd, FIONREAD, &t) == -1 || t == 0)) {
-#ifdef FD_ZERO
-		ssize_t cnt;
-		for (cnt = 0;; cnt++) {
-			fd_set check;
-			struct timeval tout = {0, 100 * 1000};
-			int selrv;
-
-			FD_ZERO(&check);
-			FD_SET(fd, &check);
-
-			/*
-			 * Avoid soft deadlock: do not read if there
-			 * is nothing to read from sockets and pipes.
-			 */
-			selrv = select(fd + 1, &check, NULL, NULL, &tout);
-			if (selrv == -1) {
-				if (errno == EINTR || errno == EAGAIN)
-					continue;
-			} else if (selrv == 0 && cnt >= 5) {
-				return 0;
-			} else
-				break;
-		}
-#endif
-		(void)ioctl(fd, FIONREAD, &t);
-	}
-
-	if (t > 0 && CAST(size_t, t) < n) {
-		n = t;
-		rn = n;
-	}
-#endif
 
 nocheck:
 	do
@@ -450,25 +335,14 @@ file_pipe2file(struct magic_set *ms, int fd, const void *startbuf,
 	int tfd;
 
 	(void)strlcpy(buf, "/tmp/file.XXXXXX", sizeof buf);
-#ifndef HAVE_MKSTEMP
-	{
-		char *ptr = mktemp(buf);
-		tfd = open(ptr, O_RDWR|O_TRUNC|O_EXCL|O_CREAT, 0600);
-		r = errno;
-		(void)unlink(ptr);
-		errno = r;
-	}
-#else
-	{
-		int te;
-		mode_t ou = umask(0);
-		tfd = mkstemp(buf);
-		(void)umask(ou);
-		te = errno;
-		(void)unlink(buf);
-		errno = te;
-	}
-#endif
+
+	int te;
+	mode_t ou = umask(0);
+	tfd = mkstemp(buf);
+	(void)umask(ou);
+	te = errno;
+	(void)unlink(buf);
+	errno = te;
 	if (tfd == -1) {
 		file_error(ms, errno,
 		    "cannot create temporary file for pipe copy");
@@ -510,8 +384,6 @@ file_pipe2file(struct magic_set *ms, int fd, const void *startbuf,
 	}
 	return fd;
 }
-#if HAVE_FORK
-#ifdef BUILTIN_DECOMPRESS
 
 #define FHCRC		(1 << 1)
 #define FEXTRA		(1 << 2)
@@ -595,9 +467,7 @@ err:
 	*n = strlen(RCAST(char *, *newch));
 	return ERRDATA;
 }
-#endif
 
-#ifdef BUILTIN_BZLIB
 private int
 uncompressbzlib(const unsigned char *old, unsigned char **newch,
     size_t bytes_max, size_t *n)
@@ -638,47 +508,7 @@ err:
 	*n = strlen(RCAST(char *, *newch));
 	return ERRDATA;
 }
-#endif
 
-#ifdef BUILTIN_XZLIB
-private int
-uncompressxzlib(const unsigned char *old, unsigned char **newch,
-    size_t bytes_max, size_t *n)
-{
-	int rc;
-	lzma_stream xz;
-
-	memset(&xz, 0, sizeof(xz));
-	rc = lzma_auto_decoder(&xz, UINT64_MAX, 0);
-	if (rc != LZMA_OK)
-		goto err;
-
-	if ((*newch = CAST(unsigned char *, malloc(bytes_max + 1))) == NULL)
-		return makeerror(newch, n, "No buffer, %s", strerror(errno));
-
-	xz.next_in = CCAST(const uint8_t *, old);
-	xz.avail_in = CAST(uint32_t, *n);
-	xz.next_out = RCAST(uint8_t *, *newch);
-	xz.avail_out = CAST(unsigned int, bytes_max);
-
-	rc = lzma_code(&xz, LZMA_RUN);
-	if (rc != LZMA_OK && rc != LZMA_STREAM_END)
-		goto err;
-
-	*n = CAST(size_t, xz.total_out);
-
-	lzma_end(&xz);
-
-	/* let's keep the nul-terminate tradition */
-	(*newch)[*n] = '\0';
-
-	return OKDATA;
-err:
-	snprintf(RCAST(char *, *newch), bytes_max, "unxz error %d", rc);
-	*n = strlen(RCAST(char *, *newch));
-	return ERRDATA;
-}
-#endif
 
 
 static int
@@ -788,20 +618,12 @@ private const char *
 methodname(size_t method)
 {
 	switch (method) {
-#ifdef BUILTIN_DECOMPRESS
 	case METH_FROZEN:
 	case METH_ZLIB:
 		return "zlib";
-#endif
-#ifdef BUILTIN_BZLIB
 	case METH_BZIP:
 		return "bzlib";
-#endif
-#ifdef BUILTIN_XZLIB
-	case METH_XZ:
-	case METH_LZMA:
-		return "xzlib";
-#endif
+
 	default:
 		return compr[method].argv[0];
 	}
@@ -819,21 +641,13 @@ uncompressbuf(int fd, size_t bytes_max, size_t method, const unsigned char *old,
 	ssize_t r;
 
 	switch (method) {
-#ifdef BUILTIN_DECOMPRESS
 	case METH_FROZEN:
 		return uncompressgzipped(old, newch, bytes_max, n);
 	case METH_ZLIB:
 		return uncompresszlib(old, newch, bytes_max, n, 1);
-#endif
-#ifdef BUILTIN_BZLIB
 	case METH_BZIP:
 		return uncompressbzlib(old, newch, bytes_max, n);
-#endif
-#ifdef BUILTIN_XZLIB
-	case METH_XZ:
-	case METH_LZMA:
-		return uncompressxzlib(old, newch, bytes_max, n);
-#endif
+
 	default:
 		break;
 	}
@@ -985,4 +799,3 @@ wait_err:
 
 	return rv;
 }
-#endif

@@ -1,39 +1,4 @@
-/*
- * Copyright (c) Ian F. Darwin 1986-1995.
- * Software written by Ian F. Darwin and others;
- * maintained 1995-present by Christos Zoulas and others.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
-/*
- * softmagic - interpret variable magic from MAGIC
- */
-
 #include "file.h"
-
-#ifndef	lint
-FILE_RCSID("@(#)$File: softmagic.c,v 1.311 2021/04/19 16:47:13 christos Exp $")
-#endif	/* lint */
 
 #include "magic.h"
 #include <assert.h>
@@ -140,8 +105,6 @@ file_softmagic(struct magic_set *ms, const struct buffer *b,
 	return 0;
 }
 
-#define FILE_FMTDEBUG
-#ifdef FILE_FMTDEBUG
 #define F(a, b, c) file_fmtcheck((a), (b), (c), __FILE__, __LINE__)
 
 private const char * __attribute__((__format_arg__(3)))
@@ -160,9 +123,7 @@ file_fmtcheck(struct magic_set *ms, const char *desc, const char *def,
 		    " with `%s'", file, line, desc, def);
 	return ptr;
 }
-#else
-#define F(a, b, c) fmtcheck((b), (c))
-#endif
+
 
 /*
  * Go through the whole list, stopping if you find a match.  Process all
@@ -344,13 +305,11 @@ flush:
 				    ms->c.li[cont_level - 1].off;
 			}
 
-#ifdef ENABLE_CONDITIONALS
 			if (m->cond == COND_ELSE ||
 			    m->cond == COND_ELIF) {
 				if (ms->c.li[cont_level].last_match == 1)
 					continue;
 			}
-#endif
 			switch (mget(ms, m, b, CAST(const unsigned char *,
 			    bb.fbuf), bb.flen, offset,
 			    cont_level, mode, text, flip, indir_count,
@@ -376,14 +335,10 @@ flush:
 			case -1:
 				return -1;
 			case 0:
-#ifdef ENABLE_CONDITIONALS
 				ms->c.li[cont_level].last_match = 0;
-#endif
 				break;
 			default:
-#ifdef ENABLE_CONDITIONALS
 				ms->c.li[cont_level].last_match = 1;
-#endif
 				if (m->type == FILE_CLEAR)
 					ms->c.li[cont_level].got_match = 0;
 				else if (ms->c.li[cont_level].got_match) {
@@ -499,27 +454,6 @@ check_fmt(struct magic_set *ms, const char *fmt)
 	return rv;
 }
 
-#if !defined(HAVE_STRNDUP) || defined(__aiws__) || defined(_AIX)
-# if defined(__aiws__) || defined(_AIX)
-#  define strndup aix_strndup	/* aix is broken */
-# endif
-char *strndup(const char *, size_t);
-
-char *
-strndup(const char *str, size_t n)
-{
-	size_t len;
-	char *copy;
-
-	for (len = 0; len < n && str[len]; len++)
-		continue;
-	if ((copy = malloc(len + 1)) == NULL)
-		return NULL;
-	(void)memcpy(copy, str, len);
-	copy[len] = '\0';
-	return copy;
-}
-#endif /* HAVE_STRNDUP */
 
 static int
 varexpand(struct magic_set *ms, char *buf, size_t len, const char *str)
@@ -964,10 +898,6 @@ moffset(struct magic_set *ms, struct magic *m, const struct buffer *b,
 	}
 
 	if (CAST(size_t, o) > nbytes) {
-#if 0
-		file_error(ms, 0, "Offset out of range %" SIZE_T_FORMAT
-		    "u > %" SIZE_T_FORMAT "u", (size_t)o, nbytes);
-#endif
 		return -1;
 	}
 	*op = o;
@@ -1589,9 +1519,7 @@ mget(struct magic_set *ms, struct magic *m, const struct buffer *b,
 		    *indir_count, *name_count);
 		mdebug(offset, RCAST(char *, RCAST(void *, p)),
 		    sizeof(union VALUETYPE));
-#ifndef COMPILE_ONLY
 		file_mdump(m);
-#endif
 	}
 
 	if (m->flag & INDIR) {
@@ -1751,9 +1679,7 @@ mget(struct magic_set *ms, struct magic *m, const struct buffer *b,
 		if ((ms->flags & MAGIC_DEBUG) != 0) {
 			mdebug(offset, RCAST(char *, RCAST(void *, p)),
 			    sizeof(union VALUETYPE));
-#ifndef COMPILE_ONLY
 			file_mdump(m);
-#endif
 		}
 	}
 
@@ -2150,7 +2076,6 @@ magiccheck(struct magic_set *ms, struct magic *m)
 		slen = MIN(m->vallen, sizeof(m->value.s));
 		l = 0;
 		v = 0;
-#ifdef HAVE_MEMMEM
 		if (slen > 0 && m->str_flags == 0) {
 			const char *found;
 			idx = m->str_range + slen;
@@ -2165,7 +2090,6 @@ magiccheck(struct magic_set *ms, struct magic *m)
 			ms->search.rm_len = ms->search.s_len - idx;
 			break;
 		}
-#endif
 
 		for (idx = 0; m->str_range == 0 || idx < m->str_range; idx++) {
 			if (slen + idx > ms->search.s_len)

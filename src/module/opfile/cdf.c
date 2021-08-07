@@ -1,69 +1,21 @@
-/*-
- * Copyright (c) 2008 Christos Zoulas
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-/*
- * Parse Composite Document Files, the format used in Microsoft Office
- * document files before they switched to zipped XML.
- * Info from: http://sc.openoffice.org/compdocfileformat.pdf
- *
- * N.B. This is the "Composite Document File" format, and not the
- * "Compound Document Format", nor the "Channel Definition Format".
- */
 
 #include "file.h"
 
-#ifndef lint
-FILE_RCSID("@(#)$File: cdf.c,v 1.116 2019/08/26 14:31:39 christos Exp $")
-#endif
-
 #include <assert.h>
-#ifdef CDF_DEBUG
-#include <err.h>
-#endif
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
 #include <limits.h>
-
-#ifndef EFTYPE
-#define EFTYPE EINVAL
-#endif
-
-#ifndef SIZE_T_MAX
-#define SIZE_T_MAX CAST(size_t, ~0ULL)
-#endif
-
 #include "cdf.h"
 
-#ifdef CDF_DEBUG
-#define DPRINTF(a) printf a, fflush(stdout)
-#else
+#define EFTYPE EINVAL
+
+#define SIZE_T_MAX CAST(size_t, ~0ULL)
+
 #define DPRINTF(a)
-#endif
 
 static union {
 	char s[4];
@@ -88,11 +40,44 @@ static union {
 #define CDF_MALLOC(n) cdf_malloc(__FILE__, __LINE__, (n))
 #define CDF_REALLOC(p, n) cdf_realloc(__FILE__, __LINE__, (p), (n))
 #define CDF_CALLOC(n, u) cdf_calloc(__FILE__, __LINE__, (n), (u))
+#define CDF_UNPACK(a)	\
+    (void)memcpy(&(a), &buf[len], sizeof(a)), len += sizeof(a)
+#define CDF_UNPACKA(a)	\
+    (void)memcpy((a), &buf[len], sizeof(a)), len += sizeof(a)
+#define CDF_SHLEN_LIMIT (UINT32_MAX / 64)
+#define CDF_PROP_LIMIT (UINT32_MAX / (64 * sizeof(cdf_property_info_t)))
+
+struct _vn{
+	uint32_t v;
+	const char *n;
+} ;
+
+struct _vn vn[] = {
+	{ CDF_PROPERTY_CODE_PAGE, "Code page" },
+	{ CDF_PROPERTY_TITLE, "Title" },
+	{ CDF_PROPERTY_SUBJECT, "Subject" },
+	{ CDF_PROPERTY_AUTHOR, "Author" },
+	{ CDF_PROPERTY_KEYWORDS, "Keywords" },
+	{ CDF_PROPERTY_COMMENTS, "Comments" },
+	{ CDF_PROPERTY_TEMPLATE, "Template" },
+	{ CDF_PROPERTY_LAST_SAVED_BY, "Last Saved By" },
+	{ CDF_PROPERTY_REVISION_NUMBER, "Revision Number" },
+	{ CDF_PROPERTY_TOTAL_EDITING_TIME, "Total Editing Time" },
+	{ CDF_PROPERTY_LAST_PRINTED, "Last Printed" },
+	{ CDF_PROPERTY_CREATE_TIME, "Create Time/Date" },
+	{ CDF_PROPERTY_LAST_SAVED_TIME, "Last Saved Time/Date" },
+	{ CDF_PROPERTY_NUMBER_OF_PAGES, "Number of Pages" },
+	{ CDF_PROPERTY_NUMBER_OF_WORDS, "Number of Words" },
+	{ CDF_PROPERTY_NUMBER_OF_CHARACTERS, "Number of Characters" },
+	{ CDF_PROPERTY_THUMBNAIL, "Thumbnail" },
+	{ CDF_PROPERTY_NAME_OF_APPLICATION, "Name of Creating Application" },
+	{ CDF_PROPERTY_SECURITY, "Security" },
+	{ CDF_PROPERTY_LOCALE_ID, "Locale ID" },
+};
 
 
 /*ARGSUSED*/
-static void *
-cdf_malloc(const char *file __attribute__((__unused__)),
+static void * cdf_malloc(const char *file __attribute__((__unused__)),
     size_t line __attribute__((__unused__)), size_t n)
 {
 	DPRINTF(("%s,%" SIZE_T_FORMAT "u: %s %" SIZE_T_FORMAT "u\n",
@@ -101,8 +86,7 @@ cdf_malloc(const char *file __attribute__((__unused__)),
 }
 
 /*ARGSUSED*/
-static void *
-cdf_realloc(const char *file __attribute__((__unused__)),
+static void * cdf_realloc(const char *file __attribute__((__unused__)),
     size_t line __attribute__((__unused__)), void *p, size_t n)
 {
 	DPRINTF(("%s,%" SIZE_T_FORMAT "u: %s %" SIZE_T_FORMAT "u\n",
@@ -111,8 +95,7 @@ cdf_realloc(const char *file __attribute__((__unused__)),
 }
 
 /*ARGSUSED*/
-static void *
-cdf_calloc(const char *file __attribute__((__unused__)),
+static void * cdf_calloc(const char *file __attribute__((__unused__)),
     size_t line __attribute__((__unused__)), size_t n, size_t u)
 {
 	DPRINTF(("%s,%" SIZE_T_FORMAT "u: %s %" SIZE_T_FORMAT "u %"
@@ -123,8 +106,7 @@ cdf_calloc(const char *file __attribute__((__unused__)),
 /*
  * swap a short
  */
-static uint16_t
-_cdf_tole2(uint16_t sv)
+static uint16_t _cdf_tole2(uint16_t sv)
 {
 	uint16_t rv;
 	uint8_t *s = RCAST(uint8_t *, RCAST(void *, &sv));
@@ -137,8 +119,7 @@ _cdf_tole2(uint16_t sv)
 /*
  * swap an int
  */
-static uint32_t
-_cdf_tole4(uint32_t sv)
+static uint32_t _cdf_tole4(uint32_t sv)
 {
 	uint32_t rv;
 	uint8_t *s = RCAST(uint8_t *, RCAST(void *, &sv));
@@ -153,8 +134,7 @@ _cdf_tole4(uint32_t sv)
 /*
  * swap a quad
  */
-static uint64_t
-_cdf_tole8(uint64_t sv)
+static uint64_t _cdf_tole8(uint64_t sv)
 {
 	uint64_t rv;
 	uint8_t *s = RCAST(uint8_t *, RCAST(void *, &sv));
@@ -174,33 +154,24 @@ _cdf_tole8(uint64_t sv)
  * grab a uint32_t from a possibly unaligned address, and return it in
  * the native host order.
  */
-static uint32_t
-cdf_getuint32(const uint8_t *p, size_t offs)
+static uint32_t cdf_getuint32(const uint8_t *p, size_t offs)
 {
 	uint32_t rv;
 	(void)memcpy(&rv, p + offs * sizeof(uint32_t), sizeof(rv));
 	return CDF_TOLE4(rv);
 }
 
-#define CDF_UNPACK(a)	\
-    (void)memcpy(&(a), &buf[len], sizeof(a)), len += sizeof(a)
-#define CDF_UNPACKA(a)	\
-    (void)memcpy((a), &buf[len], sizeof(a)), len += sizeof(a)
-
-uint16_t
-cdf_tole2(uint16_t sv)
+uint16_t cdf_tole2(uint16_t sv)
 {
 	return CDF_TOLE2(sv);
 }
 
-uint32_t
-cdf_tole4(uint32_t sv)
+uint32_t cdf_tole4(uint32_t sv)
 {
 	return CDF_TOLE4(sv);
 }
 
-uint64_t
-cdf_tole8(uint64_t sv)
+uint64_t cdf_tole8(uint64_t sv)
 {
 	return CDF_TOLE8(sv);
 }
@@ -873,9 +844,6 @@ cdf_find_stream(const cdf_dir_t *dir, const char *name, int type)
 	return 0;
 }
 
-#define CDF_SHLEN_LIMIT (UINT32_MAX / 64)
-#define CDF_PROP_LIMIT (UINT32_MAX / (64 * sizeof(cdf_property_info_t)))
-
 static const void *
 cdf_offset(const void *p, size_t l)
 {
@@ -1240,31 +1208,7 @@ cdf_print_classid(char *buf, size_t buflen, const cdf_classid_t *id)
 	    id->cl_six[5]);
 }
 
-static const struct {
-	uint32_t v;
-	const char *n;
-} vn[] = {
-	{ CDF_PROPERTY_CODE_PAGE, "Code page" },
-	{ CDF_PROPERTY_TITLE, "Title" },
-	{ CDF_PROPERTY_SUBJECT, "Subject" },
-	{ CDF_PROPERTY_AUTHOR, "Author" },
-	{ CDF_PROPERTY_KEYWORDS, "Keywords" },
-	{ CDF_PROPERTY_COMMENTS, "Comments" },
-	{ CDF_PROPERTY_TEMPLATE, "Template" },
-	{ CDF_PROPERTY_LAST_SAVED_BY, "Last Saved By" },
-	{ CDF_PROPERTY_REVISION_NUMBER, "Revision Number" },
-	{ CDF_PROPERTY_TOTAL_EDITING_TIME, "Total Editing Time" },
-	{ CDF_PROPERTY_LAST_PRINTED, "Last Printed" },
-	{ CDF_PROPERTY_CREATE_TIME, "Create Time/Date" },
-	{ CDF_PROPERTY_LAST_SAVED_TIME, "Last Saved Time/Date" },
-	{ CDF_PROPERTY_NUMBER_OF_PAGES, "Number of Pages" },
-	{ CDF_PROPERTY_NUMBER_OF_WORDS, "Number of Words" },
-	{ CDF_PROPERTY_NUMBER_OF_CHARACTERS, "Number of Characters" },
-	{ CDF_PROPERTY_THUMBNAIL, "Thumbnail" },
-	{ CDF_PROPERTY_NAME_OF_APPLICATION, "Name of Creating Application" },
-	{ CDF_PROPERTY_SECURITY, "Security" },
-	{ CDF_PROPERTY_LOCALE_ID, "Locale ID" },
-};
+
 
 int
 cdf_print_property_name(char *buf, size_t bufsiz, uint32_t p)
@@ -1322,334 +1266,3 @@ cdf_u16tos8(char *buf, size_t len, const uint16_t *p)
 	return buf;
 }
 
-#ifdef CDF_DEBUG
-void
-cdf_dump_header(const cdf_header_t *h)
-{
-	size_t i;
-
-#define DUMP(a, b) (void)fprintf(stderr, "%40.40s = " a "\n", # b, h->h_ ## b)
-#define DUMP2(a, b) (void)fprintf(stderr, "%40.40s = " a " (" a ")\n", # b, \
-    h->h_ ## b, 1 << h->h_ ## b)
-	DUMP("%d", revision);
-	DUMP("%d", version);
-	DUMP("%#x", byte_order);
-	DUMP2("%d", sec_size_p2);
-	DUMP2("%d", short_sec_size_p2);
-	DUMP("%d", num_sectors_in_sat);
-	DUMP("%d", secid_first_directory);
-	DUMP("%d", min_size_standard_stream);
-	DUMP("%d", secid_first_sector_in_short_sat);
-	DUMP("%d", num_sectors_in_short_sat);
-	DUMP("%d", secid_first_sector_in_master_sat);
-	DUMP("%d", num_sectors_in_master_sat);
-	for (i = 0; i < __arraycount(h->h_master_sat); i++) {
-		if (h->h_master_sat[i] == CDF_SECID_FREE)
-			break;
-		(void)fprintf(stderr, "%35.35s[%.3" SIZE_T_FORMAT "u] = %d\n",
-		    "master_sat", i, h->h_master_sat[i]);
-	}
-}
-
-void
-cdf_dump_sat(const char *prefix, const cdf_sat_t *sat, size_t size)
-{
-	size_t i, j, s = size / sizeof(cdf_secid_t);
-
-	for (i = 0; i < sat->sat_len; i++) {
-		(void)fprintf(stderr, "%s[%" SIZE_T_FORMAT "u]:\n%.6"
-		    SIZE_T_FORMAT "u: ", prefix, i, i * s);
-		for (j = 0; j < s; j++) {
-			(void)fprintf(stderr, "%5d, ",
-			    CDF_TOLE4(sat->sat_tab[s * i + j]));
-			if ((j + 1) % 10 == 0)
-				(void)fprintf(stderr, "\n%.6" SIZE_T_FORMAT
-				    "u: ", i * s + j + 1);
-		}
-		(void)fprintf(stderr, "\n");
-	}
-}
-
-void
-cdf_dump(const void *v, size_t len)
-{
-	size_t i, j;
-	const unsigned char *p = v;
-	char abuf[16];
-
-	(void)fprintf(stderr, "%.4x: ", 0);
-	for (i = 0, j = 0; i < len; i++, p++) {
-		(void)fprintf(stderr, "%.2x ", *p);
-		abuf[j++] = isprint(*p) ? *p : '.';
-		if (j == 16) {
-			j = 0;
-			abuf[15] = '\0';
-			(void)fprintf(stderr, "%s\n%.4" SIZE_T_FORMAT "x: ",
-			    abuf, i + 1);
-		}
-	}
-	(void)fprintf(stderr, "\n");
-}
-
-void
-cdf_dump_stream(const cdf_stream_t *sst)
-{
-	size_t ss = sst->sst_ss;
-	cdf_dump(sst->sst_tab, ss * sst->sst_len);
-}
-
-void
-cdf_dump_dir(const cdf_info_t *info, const cdf_header_t *h,
-    const cdf_sat_t *sat, const cdf_sat_t *ssat, const cdf_stream_t *sst,
-    const cdf_dir_t *dir)
-{
-	size_t i, j;
-	cdf_directory_t *d;
-	char name[__arraycount(d->d_name)];
-	cdf_stream_t scn;
-	struct timespec ts;
-
-	static const char *types[] = { "empty", "user storage",
-	    "user stream", "lockbytes", "property", "root storage" };
-
-	for (i = 0; i < dir->dir_len; i++) {
-		char buf[26];
-		d = &dir->dir_tab[i];
-		for (j = 0; j < sizeof(name); j++)
-			name[j] = (char)CDF_TOLE2(d->d_name[j]);
-		(void)fprintf(stderr, "Directory %" SIZE_T_FORMAT "u: %s\n",
-		    i, name);
-		if (d->d_type < __arraycount(types))
-			(void)fprintf(stderr, "Type: %s\n", types[d->d_type]);
-		else
-			(void)fprintf(stderr, "Type: %d\n", d->d_type);
-		(void)fprintf(stderr, "Color: %s\n",
-		    d->d_color ? "black" : "red");
-		(void)fprintf(stderr, "Left child: %d\n", d->d_left_child);
-		(void)fprintf(stderr, "Right child: %d\n", d->d_right_child);
-		(void)fprintf(stderr, "Flags: %#x\n", d->d_flags);
-		cdf_timestamp_to_timespec(&ts, d->d_created);
-		(void)fprintf(stderr, "Created %s", cdf_ctime(&ts.tv_sec, buf));
-		cdf_timestamp_to_timespec(&ts, d->d_modified);
-		(void)fprintf(stderr, "Modified %s",
-		    cdf_ctime(&ts.tv_sec, buf));
-		(void)fprintf(stderr, "Stream %d\n", d->d_stream_first_sector);
-		(void)fprintf(stderr, "Size %d\n", d->d_size);
-		switch (d->d_type) {
-		case CDF_DIR_TYPE_USER_STORAGE:
-			(void)fprintf(stderr, "Storage: %d\n", d->d_storage);
-			break;
-		case CDF_DIR_TYPE_USER_STREAM:
-			if (sst == NULL)
-				break;
-			if (cdf_read_sector_chain(info, h, sat, ssat, sst,
-			    d->d_stream_first_sector, d->d_size, &scn) == -1) {
-				warn("Can't read stream for %s at %d len %d",
-				    name, d->d_stream_first_sector, d->d_size);
-				break;
-			}
-			cdf_dump_stream(&scn);
-			free(scn.sst_tab);
-			break;
-		default:
-			break;
-		}
-
-	}
-}
-
-void
-cdf_dump_property_info(const cdf_property_info_t *info, size_t count)
-{
-	cdf_timestamp_t tp;
-	struct timespec ts;
-	char buf[64];
-	size_t i, j;
-
-	for (i = 0; i < count; i++) {
-		cdf_print_property_name(buf, sizeof(buf), info[i].pi_id);
-		(void)fprintf(stderr, "%" SIZE_T_FORMAT "u) %s: ", i, buf);
-		switch (info[i].pi_type) {
-		case CDF_NULL:
-			break;
-		case CDF_SIGNED16:
-			(void)fprintf(stderr, "signed 16 [%hd]\n",
-			    info[i].pi_s16);
-			break;
-		case CDF_SIGNED32:
-			(void)fprintf(stderr, "signed 32 [%d]\n",
-			    info[i].pi_s32);
-			break;
-		case CDF_UNSIGNED32:
-			(void)fprintf(stderr, "unsigned 32 [%u]\n",
-			    info[i].pi_u32);
-			break;
-		case CDF_FLOAT:
-			(void)fprintf(stderr, "float [%g]\n",
-			    info[i].pi_f);
-			break;
-		case CDF_DOUBLE:
-			(void)fprintf(stderr, "double [%g]\n",
-			    info[i].pi_d);
-			break;
-		case CDF_LENGTH32_STRING:
-			(void)fprintf(stderr, "string %u [%.*s]\n",
-			    info[i].pi_str.s_len,
-			    info[i].pi_str.s_len, info[i].pi_str.s_buf);
-			break;
-		case CDF_LENGTH32_WSTRING:
-			(void)fprintf(stderr, "string %u [",
-			    info[i].pi_str.s_len);
-			for (j = 0; j < info[i].pi_str.s_len - 1; j++)
-			    (void)fputc(info[i].pi_str.s_buf[j << 1], stderr);
-			(void)fprintf(stderr, "]\n");
-			break;
-		case CDF_FILETIME:
-			tp = info[i].pi_tp;
-			if (tp < 1000000000000000LL) {
-				cdf_print_elapsed_time(buf, sizeof(buf), tp);
-				(void)fprintf(stderr, "timestamp %s\n", buf);
-			} else {
-				char tbuf[26];
-				cdf_timestamp_to_timespec(&ts, tp);
-				(void)fprintf(stderr, "timestamp %s",
-				    cdf_ctime(&ts.tv_sec, tbuf));
-			}
-			break;
-		case CDF_CLIPBOARD:
-			(void)fprintf(stderr, "CLIPBOARD %u\n", info[i].pi_u32);
-			break;
-		default:
-			DPRINTF(("Don't know how to deal with %#x\n",
-			    info[i].pi_type));
-			break;
-		}
-	}
-}
-
-
-void
-cdf_dump_summary_info(const cdf_header_t *h, const cdf_stream_t *sst)
-{
-	char buf[128];
-	cdf_summary_info_header_t ssi;
-	cdf_property_info_t *info;
-	size_t count;
-
-	(void)&h;
-	if (cdf_unpack_summary_info(sst, h, &ssi, &info, &count) == -1)
-		return;
-	(void)fprintf(stderr, "Endian: %#x\n", ssi.si_byte_order);
-	(void)fprintf(stderr, "Os Version %d.%d\n", ssi.si_os_version & 0xff,
-	    ssi.si_os_version >> 8);
-	(void)fprintf(stderr, "Os %d\n", ssi.si_os);
-	cdf_print_classid(buf, sizeof(buf), &ssi.si_class);
-	(void)fprintf(stderr, "Class %s\n", buf);
-	(void)fprintf(stderr, "Count %d\n", ssi.si_count);
-	cdf_dump_property_info(info, count);
-	free(info);
-}
-
-
-void
-cdf_dump_catalog(const cdf_header_t *h, const cdf_stream_t *sst)
-{
-	cdf_catalog_t *cat;
-	cdf_unpack_catalog(h, sst, &cat);
-	const cdf_catalog_entry_t *ce = cat->cat_e;
-	struct timespec ts;
-	char tbuf[64], sbuf[256];
-	size_t i;
-
-	printf("Catalog:\n");
-	for (i = 0; i < cat->cat_num; i++) {
-		cdf_timestamp_to_timespec(&ts, ce[i].ce_timestamp);
-		printf("\t%d %s %s", ce[i].ce_num,
-		    cdf_u16tos8(sbuf, ce[i].ce_namlen, ce[i].ce_name),
-		    cdf_ctime(&ts.tv_sec, tbuf));
-	}
-	free(cat);
-}
-
-#endif
-
-#ifdef TEST
-int
-main(int argc, char *argv[])
-{
-	int i;
-	cdf_header_t h;
-	cdf_sat_t sat, ssat;
-	cdf_stream_t sst, scn;
-	cdf_dir_t dir;
-	cdf_info_t info;
-	const cdf_directory_t *root;
-#ifdef __linux__
-#define getprogname() __progname
-	extern char *__progname;
-#endif
-	if (argc < 2) {
-		(void)fprintf(stderr, "Usage: %s <filename>\n", getprogname());
-		return -1;
-	}
-
-	info.i_buf = NULL;
-	info.i_len = 0;
-	for (i = 1; i < argc; i++) {
-		if ((info.i_fd = open(argv[1], O_RDONLY)) == -1)
-			err(EXIT_FAILURE, "Cannot open `%s'", argv[1]);
-
-		if (cdf_read_header(&info, &h) == -1)
-			err(EXIT_FAILURE, "Cannot read header");
-#ifdef CDF_DEBUG
-		cdf_dump_header(&h);
-#endif
-
-		if (cdf_read_sat(&info, &h, &sat) == -1)
-			err(EXIT_FAILURE, "Cannot read sat");
-#ifdef CDF_DEBUG
-		cdf_dump_sat("SAT", &sat, CDF_SEC_SIZE(&h));
-#endif
-
-		if (cdf_read_ssat(&info, &h, &sat, &ssat) == -1)
-			err(EXIT_FAILURE, "Cannot read ssat");
-#ifdef CDF_DEBUG
-		cdf_dump_sat("SSAT", &ssat, CDF_SHORT_SEC_SIZE(&h));
-#endif
-
-		if (cdf_read_dir(&info, &h, &sat, &dir) == -1)
-			err(EXIT_FAILURE, "Cannot read dir");
-
-		if (cdf_read_short_stream(&info, &h, &sat, &dir, &sst, &root)
-		    == -1)
-			err(EXIT_FAILURE, "Cannot read short stream");
-#ifdef CDF_DEBUG
-		cdf_dump_stream(&sst);
-#endif
-
-#ifdef CDF_DEBUG
-		cdf_dump_dir(&info, &h, &sat, &ssat, &sst, &dir);
-#endif
-
-
-		if (cdf_read_summary_info(&info, &h, &sat, &ssat, &sst, &dir,
-		    &scn) == -1)
-			warn("Cannot read summary info");
-#ifdef CDF_DEBUG
-		else
-			cdf_dump_summary_info(&h, &scn);
-#endif
-		if (cdf_read_user_stream(&info, &h, &sat, &ssat, &sst,
-		    &dir, "Catalog", &scn) == -1)
-			warn("Cannot read catalog");
-#ifdef CDF_DEBUG
-		else
-			cdf_dump_catalog(&h, &scn);
-#endif
-
-		(void)close(info.i_fd);
-	}
-
-	return 0;
-}
-#endif

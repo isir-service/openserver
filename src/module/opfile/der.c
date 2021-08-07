@@ -1,46 +1,5 @@
-/*-
- * Copyright (c) 2016 Christos Zoulas
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
-/*
- * DER (Distinguished Encoding Rules) Parser
- *
- * Sources:
- * https://en.wikipedia.org/wiki/X.690
- * http://fm4dd.com/openssl/certexamples.htm
- * http://blog.engelke.com/2014/10/17/parsing-ber-and-der-encoded-asn-1-objects/
- */
-#ifndef TEST_DER
-#include "file.h"
 
-#ifndef lint
-FILE_RCSID("@(#)$File: der.c,v 1.21 2020/06/15 00:58:10 christos Exp $")
-#endif
-#else
-#define SIZE_T_FORMAT "z"
-#define CAST(a, b) ((a)(b))
-#endif
+#include "file.h"
 
 #include <sys/types.h>
 
@@ -50,14 +9,8 @@ FILE_RCSID("@(#)$File: der.c,v 1.21 2020/06/15 00:58:10 christos Exp $")
 #include <string.h>
 #include <ctype.h>
 
-#ifndef TEST_DER
 #include "magic.h"
 #include "der.h"
-#else
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <err.h>
-#endif
 
 #define DER_BAD	CAST(uint32_t, -1)
 
@@ -65,15 +18,10 @@ FILE_RCSID("@(#)$File: der.c,v 1.21 2020/06/15 00:58:10 christos Exp $")
 #define	DER_CLASS_APPLICATION	1
 #define	DER_CLASS_CONTEXT	2
 #define	DER_CLASS_PRIVATE	3
-#if defined(DEBUG_DER) || defined(TEST_DER)
-static const char der_class[] = "UACP";
-#endif
 
 #define DER_TYPE_PRIMITIVE	0
 #define DER_TYPE_CONSTRUCTED	1
-#if defined(DEBUG_DER) || defined(TEST_DER)
-static const char der_type[] = "PC";
-#endif
+
 
 #define	DER_TAG_EOC			0x00
 #define	DER_TAG_BOOLEAN			0x01
@@ -125,25 +73,8 @@ static const char *der__tag[] = {
 	"oid-iri", "rel-oid-iri",
 };
 
-#ifdef DEBUG_DER
-#define DPRINTF(a) printf a
-#else
+
 #define DPRINTF(a)
-#endif
-
-#ifdef TEST_DER
-static uint8_t
-getclass(uint8_t c)
-{
-	return c >> 6;
-}
-
-static uint8_t
-gettype(uint8_t c)
-{
-	return (c >> 5) & 1;
-}
-#endif
 
 static uint32_t
 gettag(const uint8_t *c, size_t *p, size_t l)
@@ -231,7 +162,6 @@ der_tag(char *buf, size_t len, uint32_t tag)
 	return buf;
 }
 
-#ifndef TEST_DER
 static int
 der_data(char *buf, size_t blen, uint32_t tag, const void *q, uint32_t len)
 {
@@ -282,11 +212,7 @@ der_offs(struct magic_set *ms, struct magic *m, size_t nbytes)
 
 	offs += ms->offset + m->offset;
 	DPRINTF(("cont_level = %d\n", m->cont_level));
-#ifdef DEBUG_DER
-	for (size_t i = 0; i < m->cont_level; i++)
-		printf("cont_level[%" SIZE_T_FORMAT "u] = %u\n", i,
-		    ms->c.li[i].off);
-#endif
+
 	if (m->cont_level != 0) {
 		if (offs + tlen > nbytes)
 			return -1;
@@ -367,5 +293,4 @@ val:
 	strlcpy(ms->ms_value.s, buf, sizeof(ms->ms_value.s));
 	return 1;
 }
-#endif
 

@@ -1,65 +1,25 @@
-/*
- * Copyright (c) Ian F. Darwin 1986-1995.
- * Software written by Ian F. Darwin and others;
- * maintained 1995-present by Christos Zoulas and others.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
-/*
- * ASCII magic -- try to detect text encoding.
- *
- * Extensively modified by Eric Fischer <enf@pobox.com> in July, 2000,
- * to handle character codes other than ASCII on a unified basis.
- */
 
 #include "file.h"
-
-#ifndef	lint
-FILE_RCSID("@(#)$File: ascmagic.c,v 1.109 2021/02/05 23:01:40 christos Exp $")
-#endif	/* lint */
 
 #include "magic.h"
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
-#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
+
 
 #define MAXLINELEN 300	/* longest sane line length */
 #define ISSPC(x) ((x) == ' ' || (x) == '\t' || (x) == '\r' || (x) == '\n' \
 		  || (x) == 0x85 || (x) == '\f')
 
-private unsigned char *encode_utf8(unsigned char *, size_t, file_unichar_t *,
-    size_t);
+private unsigned char *encode_utf8(unsigned char *, size_t, file_unichar_t *,size_t);
 private size_t trim_nuls(const unsigned char *, size_t);
 
 /*
  * Undo the NUL-termination kindly provided by process()
  * but leave at least one byte to look at
  */
-private size_t
-trim_nuls(const unsigned char *buf, size_t nbytes)
+private size_t trim_nuls(const unsigned char *buf, size_t nbytes)
 {
 	while (nbytes > 1 && buf[nbytes - 1] == '\0')
 		nbytes--;
@@ -67,8 +27,7 @@ trim_nuls(const unsigned char *buf, size_t nbytes)
 	return nbytes;
 }
 
-protected int
-file_ascmagic(struct magic_set *ms, const struct buffer *b, int text)
+protected int file_ascmagic(struct magic_set *ms, const struct buffer *b, int text)
 {
 	file_unichar_t *ubuf = NULL;
 	size_t ulen = 0;
@@ -101,8 +60,7 @@ file_ascmagic(struct magic_set *ms, const struct buffer *b, int text)
 	return rv;
 }
 
-protected int
-file_ascmagic_with_encoding(struct magic_set *ms, const struct buffer *b,
+protected int file_ascmagic_with_encoding(struct magic_set *ms, const struct buffer *b,
     file_unichar_t *ubuf, size_t ulen, const char *code, const char *type,
     int text)
 {
@@ -339,8 +297,7 @@ done:
  * Encode Unicode string as UTF-8, returning pointer to character
  * after end of string, or NULL if an invalid character is found.
  */
-private unsigned char *
-encode_utf8(unsigned char *buf, size_t len, file_unichar_t *ubuf, size_t ulen)
+private unsigned char * encode_utf8(unsigned char *buf, size_t len, file_unichar_t *ubuf, size_t ulen)
 {
 	size_t i;
 	unsigned char *end = buf + len;

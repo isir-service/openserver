@@ -370,7 +370,7 @@ libopfile_la_CFLAGS = -I$(top_srcdir)/src -I$(prefix)/include -W \
 	-Wsign-compare -Wpointer-arith -Winline -Werror -rdynamic \
 	-std=gnu99
 libopfile_la_LDFLAGS = -L$(prefix)/lib
-libopfile_la_LIBADD = -lm -lbz2
+libopfile_la_LIBADD = -lm -lbz2 -lbase -lopbox
 all: all-am
 
 .SUFFIXES:

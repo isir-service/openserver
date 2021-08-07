@@ -1,39 +1,8 @@
-/*-
- * Copyright (c) 2008 Christos Zoulas
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE FOUNDATION OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
 
 #include "file.h"
 
-#ifndef lint
-FILE_RCSID("@(#)$File: cdf_time.c,v 1.19 2019/03/12 20:43:05 christos Exp $")
-#endif
-
 #include <time.h>
-#ifdef TEST
-#include <err.h>
-#endif
+
 #include <string.h>
 
 #include "cdf.h"
@@ -99,9 +68,8 @@ int
 cdf_timestamp_to_timespec(struct timespec *ts, cdf_timestamp_t t)
 {
 	struct tm tm;
-#ifdef HAVE_STRUCT_TM_TM_ZONE
+
 	static char UTC[] = "UTC";
-#endif
 	int rdays;
 
 	/* Unit is 100's of nanoseconds */
@@ -127,12 +95,10 @@ cdf_timestamp_to_timespec(struct timespec *ts, cdf_timestamp_t t)
 	tm.tm_wday = 0;
 	tm.tm_yday = 0;
 	tm.tm_isdst = 0;
-#ifdef HAVE_STRUCT_TM_TM_GMTOFF
+
 	tm.tm_gmtoff = 0;
-#endif
-#ifdef HAVE_STRUCT_TM_TM_ZONE
+
 	tm.tm_zone = UTC;
-#endif
 	tm.tm_year -= 1900;
 	ts->tv_sec = mktime(&tm);
 	if (ts->tv_sec == -1) {
@@ -143,25 +109,12 @@ cdf_timestamp_to_timespec(struct timespec *ts, cdf_timestamp_t t)
 }
 
 int
-/*ARGSUSED*/
+
 cdf_timespec_to_timestamp(cdf_timestamp_t *t, const struct timespec *ts)
 {
-#ifndef __lint__
+
 	(void)&t;
 	(void)&ts;
-#endif
-#ifdef notyet
-	struct tm tm;
-	if (gmtime_r(&ts->ts_sec, &tm) == NULL) {
-		errno = EINVAL;
-		return -1;
-	}
-	*t = (ts->ts_nsec / 100) * CDF_TIME_PREC;
-	*t = tm.tm_sec;
-	*t += tm.tm_min * 60;
-	*t += tm.tm_hour * 60 * 60;
-	*t += tm.tm_mday * 60 * 60 * 24;
-#endif
 	return 0;
 }
 
@@ -176,23 +129,3 @@ cdf_ctime(const time_t *sec, char *buf)
 	return buf;
 }
 
-
-#ifdef TEST_TIME
-int
-main(int argc, char *argv[])
-{
-	struct timespec ts;
-	char buf[25];
-	static const cdf_timestamp_t tst = 0x01A5E403C2D59C00ULL;
-	static const char *ref = "Sat Apr 23 01:30:00 1977";
-	char *p, *q;
-
-	cdf_timestamp_to_timespec(&ts, tst);
-	p = cdf_ctime(&ts.tv_sec, buf);
-	if ((q = strchr(p, '\n')) != NULL)
-		*q = '\0';
-	if (strcmp(ref, p) != 0)
-		errx(1, "Error date %s != %s\n", ref, p);
-	return 0;
-}
-#endif

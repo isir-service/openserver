@@ -222,6 +222,7 @@ out:
 static int run_server(struct event_base *base)
 {
 	log_debug("run server\n");
+
 	if(event_base_loop(base, EVLOOP_NO_EXIT_ON_EMPTY) < 0) {
 		log_error ("opserver failed\n");
 		return -1;
@@ -233,7 +234,7 @@ static int run_server(struct event_base *base)
 int main(int argc, char*argv[])
 {
 	struct _opserver_struct_ *_op = NULL;
-	daemon(1,0);
+	//daemon(1,0);
 	signal(SIGUSR1, signal_handle);
 	signal(SIGPIPE, SIG_IGN);
 	srand(time(NULL));
@@ -241,6 +242,12 @@ int main(int argc, char*argv[])
 	_op = calloc(1, sizeof(struct _opserver_struct_));
 	if (!_op) {
 		printf("opserver calloc failed\n");
+		goto exit;
+	}
+
+	_op->base = event_base_new();
+	if (!_op->base) {
+		log_error("opserver event_base_new failed\n");
 		goto exit;
 	}
 
@@ -258,13 +265,6 @@ int main(int argc, char*argv[])
 	opserver_init(_op);
 
 	server_init(_op);
-
-	_op->base = event_base_new();
-	if (!_op->base) {
-		log_error("opserver event_base_new failed\n");
-		goto exit;
-	}
-
 
 	self = _op;
 

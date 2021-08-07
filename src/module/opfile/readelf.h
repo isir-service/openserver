@@ -1,42 +1,7 @@
-/*
- * Copyright (c) Christos Zoulas 2003.
- * All Rights Reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
-/*
- * @(#)Id: readelf.h,v 1.9 2002/05/16 18:45:56 christos Exp
- *
- * Provide elf data structures for non-elf machines, allowing file
- * non-elf hosts to determine if an elf binary is stripped.
- * Note: cobbled from the linux header file, with modifications
- */
 #ifndef __fake_elf_h__
 #define	__fake_elf_h__
 
-#if HAVE_STDINT_H
 #include <stdint.h>
-#endif
 
 typedef uint32_t	Elf32_Addr;
 typedef uint32_t	Elf32_Off;
@@ -369,9 +334,7 @@ typedef struct {
  */
 #define NT_FREEBSD_PROCSTAT_AUXV	16
 
-#if !defined(ELFSIZE) && defined(ARCH_ELFSIZE)
-#define ELFSIZE ARCH_ELFSIZE
-#endif
+
 /* SunOS 5.x hardware/software capabilities */
 typedef struct {
 	Elf32_Word	c_tag;

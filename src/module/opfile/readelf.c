@@ -1,50 +1,17 @@
-/*
- * Copyright (c) Christos Zoulas 2003.
- * All Rights Reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
 #include "file.h"
+#include "opbox/utils.h"
 
-#ifndef lint
-FILE_RCSID("@(#)$File: readelf.c,v 1.177 2021/04/09 20:40:56 christos Exp $")
-#endif
-
-#ifdef BUILTIN_ELF
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
-#ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
 
 #include "readelf.h"
 #include "magic.h"
 
-#ifdef	ELFCORE
+
 private int dophn_core(struct magic_set *, int, int, int, off_t, int, size_t,
     off_t, int *, uint16_t *);
-#endif
 private int dophn_exec(struct magic_set *, int, int, int, off_t, int, size_t,
     off_t, int, int *, uint16_t *);
 private int doshn(struct magic_set *, int, int, int, off_t, int, size_t,
@@ -249,16 +216,12 @@ getu64(int swap, uint64_t value)
 			 ? prpsoffsets32[i]			\
 			 : prpsoffsets64[i])
 
-#ifdef ELFCORE
 /*
  * Try larger offsets first to avoid false matches
  * from earlier data that happen to look like strings.
  */
 static const size_t	prpsoffsets32[] = {
-#ifdef USE_NT_PSINFO
-	104,		/* SunOS 5.x (command line) */
-	88,		/* SunOS 5.x (short name) */
-#endif /* USE_NT_PSINFO */
+
 
 	100,		/* SunOS 5.x (command line) */
 	84,		/* SunOS 5.x (short name) */
@@ -273,10 +236,6 @@ static const size_t	prpsoffsets32[] = {
 };
 
 static const size_t	prpsoffsets64[] = {
-#ifdef USE_NT_PSINFO
-	152,		/* SunOS 5.x (command line) */
-	136,		/* SunOS 5.x (short name) */
-#endif /* USE_NT_PSINFO */
 
 	136,		/* SunOS 5.x, 64-bit (command line) */
 	120,		/* SunOS 5.x, 64-bit (short name) */
@@ -419,7 +378,6 @@ dophn_core(struct magic_set *ms, int clazz, int swap, int fd, off_t off,
 	}
 	return 0;
 }
-#endif
 
 static int
 do_note_netbsd_version(struct magic_set *ms, int swap, void *v)
@@ -733,7 +691,6 @@ do_core_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
     int swap, uint32_t namesz, uint32_t descsz,
     size_t noff, size_t doff, int *flags, size_t size, int clazz)
 {
-#ifdef ELFCORE
 	char buf[256];
 	const char *name = RCAST(const char *, &nbuf[noff]);
 
@@ -929,7 +886,6 @@ do_core_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 		}
 		break;
 	}
-#endif
 	return 0;
 }
 
@@ -1009,7 +965,6 @@ do_auxv_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
     int *flags, size_t size __attribute__((__unused__)), int clazz,
     int fd, off_t ph_off, int ph_num, off_t fsize)
 {
-#ifdef ELFCORE
 	Aux32Info auxv32;
 	Aux64Info auxv64;
 	size_t elsize = xauxv_sizeof;
@@ -1026,16 +981,6 @@ do_auxv_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 		if (type != NT_AUXV)
 			return 0;
 		break;
-#ifdef notyet
-	case OS_STYLE_NETBSD:
-		if (type != NT_NETBSD_CORE_AUXV)
-			return 0;
-		break;
-	case OS_STYLE_FREEBSD:
-		if (type != NT_FREEBSD_PROCSTAT_AUXV)
-			return 0;
-		break;
-#endif
 	default:
 		return 0;
 	}
@@ -1103,9 +1048,7 @@ do_auxv_note(struct magic_set *ms, unsigned char *nbuf, uint32_t type,
 		}
 	}
 	return 1;
-#else
-	return 0;
-#endif
+
 }
 
 private size_t
@@ -1413,9 +1356,7 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 		/* Things we can determine before we seek */
 		switch (xsh_type) {
 		case SHT_SYMTAB:
-#if 0
-		case SHT_DYNSYM:
-#endif
+
 			stripped = 0;
 			break;
 		default:
@@ -1504,33 +1445,6 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 					return -1;
 				}
 				if (cbuf[0] == 'A') {
-#ifdef notyet
-					char *p = cbuf + 1;
-					uint32_t len, tag;
-					memcpy(&len, p, sizeof(len));
-					p += 4;
-					len = getu32(swap, len);
-					if (memcmp("gnu", p, 3) != 0) {
-					    if (file_printf(ms,
-						", unknown capability %.3s", p)
-						== -1)
-						return -1;
-					    break;
-					}
-					p += strlen(p) + 1;
-					tag = *p++;
-					memcpy(&len, p, sizeof(len));
-					p += 4;
-					len = getu32(swap, len);
-					if (tag != 1) {
-					    if (file_printf(ms, ", unknown gnu"
-						" capability tag %d", tag)
-						== -1)
-						return -1;
-					    break;
-					}
-					// gnu attributes
-#endif
 					break;
 				}
 				memcpy(xcap_addr, cbuf, xcap_sizeof);
@@ -1870,13 +1784,119 @@ file_tryelf(struct magic_set *ms, const struct buffer *b)
 #define elf_getu(a, b)	elf_getu32(a, b)
 #undef elfhdr
 #define elfhdr elf32hdr
-#include "elfclass.h"
+		if (nbytes <= sizeof(elfhdr))
+			return 0;
+
+		u.l = 1;
+		(void)memcpy(&elfhdr, buf, sizeof elfhdr);
+		swap = (u.c[sizeof(int32_t) - 1] + 1) != elfhdr.e_ident[EI_DATA];
+
+		type = elf_getu16(swap, elfhdr.e_type);
+		notecount = ms->elf_notes_max;
+		switch (type) {
+		case ET_CORE:
+			phnum = elf_getu16(swap, elfhdr.e_phnum);
+			if (phnum > ms->elf_phnum_max)
+				return toomany(ms, "program headers", phnum);
+			flags |= FLAGS_IS_CORE;
+			if (dophn_core(ms, clazz, swap, fd,
+				CAST(off_t, elf_getu(swap, elfhdr.e_phoff)), phnum,
+				CAST(size_t, elf_getu16(swap, elfhdr.e_phentsize)),
+				fsize, &flags, &notecount) == -1)
+				return -1;
+			break;
+		case ET_EXEC:
+		case ET_DYN:
+			phnum = elf_getu16(swap, elfhdr.e_phnum);
+			if (phnum > ms->elf_phnum_max)
+				return toomany(ms, "program", phnum);
+			shnum = elf_getu16(swap, elfhdr.e_shnum);
+			if (shnum > ms->elf_shnum_max)
+				return toomany(ms, "section", shnum);
+			if (dophn_exec(ms, clazz, swap, fd,
+				CAST(off_t, elf_getu(swap, elfhdr.e_phoff)), phnum,
+				CAST(size_t, elf_getu16(swap, elfhdr.e_phentsize)),
+				fsize, shnum, &flags, &notecount) == -1)
+				return -1;
+			/*FALLTHROUGH*/
+		case ET_REL:
+			shnum = elf_getu16(swap, elfhdr.e_shnum);
+			if (shnum > ms->elf_shnum_max)
+				return toomany(ms, "section headers", shnum);
+			if (doshn(ms, clazz, swap, fd,
+				CAST(off_t, elf_getu(swap, elfhdr.e_shoff)), shnum,
+				CAST(size_t, elf_getu16(swap, elfhdr.e_shentsize)),
+				fsize, elf_getu16(swap, elfhdr.e_machine),
+				CAST(int, elf_getu16(swap, elfhdr.e_shstrndx)),
+				&flags, &notecount) == -1)
+				return -1;
+			break;
+
+		default:
+			break;
+		}
+		if (notecount == 0)
+			return toomany(ms, "notes", ms->elf_notes_max);
+		return 1;
 	case ELFCLASS64:
 #undef elf_getu
 #define elf_getu(a, b)	elf_getu64(a, b)
 #undef elfhdr
 #define elfhdr elf64hdr
-#include "elfclass.h"
+		if (nbytes <= sizeof(elfhdr))
+			return 0;
+
+		u.l = 1;
+		(void)memcpy(&elfhdr, buf, sizeof elfhdr);
+		swap = (u.c[sizeof(int32_t) - 1] + 1) != elfhdr.e_ident[EI_DATA];
+
+		type = elf_getu16(swap, elfhdr.e_type);
+		notecount = ms->elf_notes_max;
+		switch (type) {
+		case ET_CORE:
+			phnum = elf_getu16(swap, elfhdr.e_phnum);
+			if (phnum > ms->elf_phnum_max)
+				return toomany(ms, "program headers", phnum);
+			flags |= FLAGS_IS_CORE;
+			if (dophn_core(ms, clazz, swap, fd,
+				CAST(off_t, elf_getu(swap, elfhdr.e_phoff)), phnum,
+				CAST(size_t, elf_getu16(swap, elfhdr.e_phentsize)),
+				fsize, &flags, &notecount) == -1)
+				return -1;
+			break;
+		case ET_EXEC:
+		case ET_DYN:
+			phnum = elf_getu16(swap, elfhdr.e_phnum);
+			if (phnum > ms->elf_phnum_max)
+				return toomany(ms, "program", phnum);
+			shnum = elf_getu16(swap, elfhdr.e_shnum);
+			if (shnum > ms->elf_shnum_max)
+				return toomany(ms, "section", shnum);
+			if (dophn_exec(ms, clazz, swap, fd,
+				CAST(off_t, elf_getu(swap, elfhdr.e_phoff)), phnum,
+				CAST(size_t, elf_getu16(swap, elfhdr.e_phentsize)),
+				fsize, shnum, &flags, &notecount) == -1)
+				return -1;
+			/*FALLTHROUGH*/
+		case ET_REL:
+			shnum = elf_getu16(swap, elfhdr.e_shnum);
+			if (shnum > ms->elf_shnum_max)
+				return toomany(ms, "section headers", shnum);
+			if (doshn(ms, clazz, swap, fd,
+				CAST(off_t, elf_getu(swap, elfhdr.e_shoff)), shnum,
+				CAST(size_t, elf_getu16(swap, elfhdr.e_shentsize)),
+				fsize, elf_getu16(swap, elfhdr.e_machine),
+				CAST(int, elf_getu16(swap, elfhdr.e_shstrndx)),
+				&flags, &notecount) == -1)
+				return -1;
+			break;
+
+		default:
+			break;
+		}
+		if (notecount == 0)
+			return toomany(ms, "notes", ms->elf_notes_max);
+		return 1;
 	default:
 	    if (file_printf(ms, ", unknown class %d", clazz) == -1)
 		    return -1;
@@ -1884,4 +1904,3 @@ file_tryelf(struct magic_set *ms, const struct buffer *b)
 	}
 	return 0;
 }
-#endif

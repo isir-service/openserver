@@ -1,34 +1,4 @@
-/*
- * Copyright (c) Christos Zoulas 2003.
- * All Rights Reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
- * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- */
 #include "file.h"
-
-#ifndef	lint
-FILE_RCSID("@(#)$File: funcs.c,v 1.121 2021/02/05 22:29:07 christos Exp $")
-#endif	/* lint */
 
 #include "magic.h"
 #include <assert.h>
@@ -36,20 +6,10 @@ FILE_RCSID("@(#)$File: funcs.c,v 1.121 2021/02/05 22:29:07 christos Exp $")
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#ifdef HAVE_UNISTD_H
 #include <unistd.h>	/* for pipe2() */
-#endif
-#if defined(HAVE_WCHAR_H)
 #include <wchar.h>
-#endif
-#if defined(HAVE_WCTYPE_H)
 #include <wctype.h>
-#endif
 #include <limits.h>
-
-#ifndef SIZE_MAX
-#define SIZE_MAX	((size_t)~0)
-#endif
 
 protected char *
 file_copystr(char *buf, size_t blen, size_t width, const char *str)
@@ -247,7 +207,6 @@ file_badread(struct magic_set *ms)
 	file_error(ms, errno, "error reading");
 }
 
-#ifndef COMPILE_ONLY
 #define FILE_SEPARATOR "\n- "
 
 protected int
@@ -344,22 +303,7 @@ file_buffer(struct magic_set *ms, int fd, struct stat *st,
 		    &code, &code_mime, &ftype);
 	}
 
-#ifdef __EMX__
-	if ((ms->flags & MAGIC_NO_CHECK_APPTYPE) == 0 && inname) {
-		m = file_os2_apptype(ms, inname, &b);
-		if ((ms->flags & MAGIC_DEBUG) != 0)
-			(void)fprintf(stderr, "[try os2_apptype %d]\n", m);
-		switch (m) {
-		case -1:
-			return -1;
-		case 0:
-			break;
-		default:
-			return 1;
-		}
-	}
-#endif
-#if HAVE_FORK
+
 	/* try compression stuff */
 	if ((ms->flags & MAGIC_NO_CHECK_COMPRESS) == 0) {
 		m = file_zmagic(ms, &b, inname);
@@ -369,7 +313,7 @@ file_buffer(struct magic_set *ms, int fd, struct stat *st,
 			goto done_encoding;
 		}
 	}
-#endif
+
 	/* Check if we have a tar file */
 	if ((ms->flags & MAGIC_NO_CHECK_TAR) == 0) {
 		m = file_is_tar(ms, &b);
@@ -413,7 +357,7 @@ file_buffer(struct magic_set *ms, int fd, struct stat *st,
 				goto done;
 		}
 	}
-#ifdef BUILTIN_ELF
+
 	if ((ms->flags & MAGIC_NO_CHECK_ELF) == 0 && nb > 5 && fd != -1) {
 		file_pushbuf_t *pb;
 		/*
@@ -438,7 +382,6 @@ file_buffer(struct magic_set *ms, int fd, struct stat *st,
 		if ((ms->flags & MAGIC_DEBUG) != 0)
 			(void)fprintf(stderr, "[try elf %d]\n", m);
 	}
-#endif
 
 	/* try soft magic tests */
 	if ((ms->flags & MAGIC_NO_CHECK_SOFT) == 0) {
@@ -494,7 +437,6 @@ simple:
 
 	return m;
 }
-#endif
 
 protected int
 file_reset(struct magic_set *ms, int checkloaded)
@@ -549,44 +491,40 @@ file_getbuffer(struct magic_set *ms)
 	}
 	ms->o.pbuf = pbuf;
 
-#if defined(HAVE_WCHAR_H) && defined(HAVE_MBRTOWC) && defined(HAVE_WCWIDTH)
-	{
-		mbstate_t state;
-		wchar_t nextchar;
-		int mb_conv = 1;
-		size_t bytesconsumed;
-		char *eop;
-		(void)memset(&state, 0, sizeof(mbstate_t));
+	mbstate_t state;
+	wchar_t nextchar;
+	int mb_conv = 1;
+	size_t bytesconsumed;
+	char *eop;
+	(void)memset(&state, 0, sizeof(mbstate_t));
 
-		np = ms->o.pbuf;
-		op = ms->o.buf;
-		eop = op + len;
+	np = ms->o.pbuf;
+	op = ms->o.buf;
+	eop = op + len;
 
-		while (op < eop) {
-			bytesconsumed = mbrtowc(&nextchar, op,
-			    CAST(size_t, eop - op), &state);
-			if (bytesconsumed == CAST(size_t, -1) ||
-			    bytesconsumed == CAST(size_t, -2)) {
-				mb_conv = 0;
-				break;
-			}
-
-			if (iswprint(nextchar)) {
-				(void)memcpy(np, op, bytesconsumed);
-				op += bytesconsumed;
-				np += bytesconsumed;
-			} else {
-				while (bytesconsumed-- > 0)
-					OCTALIFY(np, op);
-			}
+	while (op < eop) {
+		bytesconsumed = mbrtowc(&nextchar, op,
+		    CAST(size_t, eop - op), &state);
+		if (bytesconsumed == CAST(size_t, -1) ||
+		    bytesconsumed == CAST(size_t, -2)) {
+			mb_conv = 0;
+			break;
 		}
-		*np = '\0';
 
-		/* Parsing succeeded as a multi-byte sequence */
-		if (mb_conv != 0)
-			return ms->o.pbuf;
+		if (iswprint(nextchar)) {
+			(void)memcpy(np, op, bytesconsumed);
+			op += bytesconsumed;
+			np += bytesconsumed;
+		} else {
+			while (bytesconsumed-- > 0)
+				OCTALIFY(np, op);
+		}
 	}
-#endif
+	*np = '\0';
+
+	/* Parsing succeeded as a multi-byte sequence */
+	if (mb_conv != 0)
+		return ms->o.pbuf;
 
 	for (np = ms->o.pbuf, op = ms->o.buf; *op;) {
 		if (isprint(CAST(unsigned char, *op))) {
@@ -615,10 +553,8 @@ file_check_mem(struct magic_set *ms, unsigned int level)
 		}
 	}
 	ms->c.li[level].got_match = 0;
-#ifdef ENABLE_CONDITIONALS
 	ms->c.li[level].last_match = 0;
 	ms->c.li[level].last_cond = COND_NONE;
-#endif /* ENABLE_CONDITIONALS */
 	return 0;
 }
 
@@ -657,18 +593,11 @@ out:
 protected int
 file_regcomp(file_regex_t *rx, const char *pat, int flags)
 {
-#ifdef USE_C_LOCALE
 	rx->c_lc_ctype = newlocale(LC_CTYPE_MASK, "C", 0);
 	assert(rx->c_lc_ctype != NULL);
 	rx->old_lc_ctype = uselocale(rx->c_lc_ctype);
 	assert(rx->old_lc_ctype != NULL);
-#else
-	rx->old_lc_ctype = setlocale(LC_CTYPE, NULL);
-	assert(rx->old_lc_ctype != NULL);
-	rx->old_lc_ctype = strdup(rx->old_lc_ctype);
-	assert(rx->old_lc_ctype != NULL);
-	(void)setlocale(LC_CTYPE, "C");
-#endif
+
 	rx->pat = pat;
 
 	return rx->rc = regcomp(&rx->rx, pat, flags);
@@ -690,13 +619,9 @@ file_regfree(file_regex_t *rx)
 {
 	if (rx->rc == 0)
 		regfree(&rx->rx);
-#ifdef USE_C_LOCALE
 	(void)uselocale(rx->old_lc_ctype);
 	freelocale(rx->c_lc_ctype);
-#else
-	(void)setlocale(LC_CTYPE, rx->old_lc_ctype);
-	free(rx->old_lc_ctype);
-#endif
+
 }
 
 protected void
