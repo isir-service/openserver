@@ -424,7 +424,7 @@ protected int file_regexec(file_regex_t *, const char *, size_t, regmatch_t *,
 protected void file_regfree(file_regex_t *);
 protected void file_regerror(file_regex_t *, int, struct magic_set *);
 int file_main(int argc, char *argv[]);
-int compile_main(int argc, char *argv[]);
+int compile_main(char *magic_dir, char *magic_file);
 protected file_pushbuf_t *file_push_buffer(struct magic_set *);
 protected char  *file_pop_buffer(struct magic_set *, file_pushbuf_t *);
 const char *fmtcheck(const char *, const char *);

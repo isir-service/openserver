@@ -15,3 +15,5 @@ libbase_la_LDFLAGS += -L$(prefix)/lib
 libbase_la_LIBADD = -liniparser -lpthread -lopbox -levent -lodbcinst -lodbc
 libbase_ladir = $(prefix)/etc
 libbase_la_DATA=odbc.ini odbcinst.ini
+libbase_la1dir = $(prefix)/log/prog
+libbase_la1_DATA=.log

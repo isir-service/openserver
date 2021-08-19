@@ -129,6 +129,7 @@ am__uninstall_files_from_dir = { \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
 am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libbase_ladir)" \
+	"$(DESTDIR)$(libbase_la1dir)" \
 	"$(DESTDIR)$(libbase_la_includedir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libbase_la_DEPENDENCIES =
@@ -190,7 +191,7 @@ am__can_run_installinfo = \
     n|no|NO) false;; \
     *) (install-info --version) >/dev/null 2>&1;; \
   esac
-DATA = $(libbase_la_DATA)
+DATA = $(libbase_la_DATA) $(libbase_la1_DATA)
 HEADERS = $(libbase_la_include_HEADERS)
 am__tagged_files = $(HEADERS) $(SOURCES) $(TAGS_FILES) $(LISP)
 # Read a list of newline-separated strings from the standard input,
@@ -344,6 +345,8 @@ libbase_la_LDFLAGS = -L$(top_builddir)/src/opbox/.libs -L$(prefix)/lib
 libbase_la_LIBADD = -liniparser -lpthread -lopbox -levent -lodbcinst -lodbc
 libbase_ladir = $(prefix)/etc
 libbase_la_DATA = odbc.ini odbcinst.ini
+libbase_la1dir = $(prefix)/log/prog
+libbase_la1_DATA = .log
 all: all-am
 
 .SUFFIXES:
@@ -527,6 +530,27 @@ uninstall-libbase_laDATA:
 	@list='$(libbase_la_DATA)'; test -n "$(libbase_ladir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
 	dir='$(DESTDIR)$(libbase_ladir)'; $(am__uninstall_files_from_dir)
+install-libbase_la1DATA: $(libbase_la1_DATA)
+	@$(NORMAL_INSTALL)
+	@list='$(libbase_la1_DATA)'; test -n "$(libbase_la1dir)" || list=; \
+	if test -n "$$list"; then \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(libbase_la1dir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(libbase_la1dir)" || exit 1; \
+	fi; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(libbase_la1dir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(libbase_la1dir)" || exit $$?; \
+	done
+
+uninstall-libbase_la1DATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(libbase_la1_DATA)'; test -n "$(libbase_la1dir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	dir='$(DESTDIR)$(libbase_la1dir)'; $(am__uninstall_files_from_dir)
 install-libbase_la_includeHEADERS: $(libbase_la_include_HEADERS)
 	@$(NORMAL_INSTALL)
 	@list='$(libbase_la_include_HEADERS)'; test -n "$(libbase_la_includedir)" || list=; \
@@ -638,7 +662,7 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(LTLIBRARIES) $(DATA) $(HEADERS)
 installdirs:
-	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libbase_ladir)" "$(DESTDIR)$(libbase_la_includedir)"; do \
+	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(libbase_ladir)" "$(DESTDIR)$(libbase_la1dir)" "$(DESTDIR)$(libbase_la_includedir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -699,7 +723,7 @@ info: info-am
 
 info-am:
 
-install-data-am: install-libbase_laDATA \
+install-data-am: install-libbase_la1DATA install-libbase_laDATA \
 	install-libbase_la_includeHEADERS
 
 install-dvi: install-dvi-am
@@ -751,8 +775,8 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-libLTLIBRARIES uninstall-libbase_laDATA \
-	uninstall-libbase_la_includeHEADERS
+uninstall-am: uninstall-libLTLIBRARIES uninstall-libbase_la1DATA \
+	uninstall-libbase_laDATA uninstall-libbase_la_includeHEADERS
 
 .MAKE: install-am install-strip
 
@@ -763,14 +787,16 @@ uninstall-am: uninstall-libLTLIBRARIES uninstall-libbase_laDATA \
 	html-am info info-am install install-am install-data \
 	install-data-am install-dvi install-dvi-am install-exec \
 	install-exec-am install-html install-html-am install-info \
-	install-info-am install-libLTLIBRARIES install-libbase_laDATA \
-	install-libbase_la_includeHEADERS install-man install-pdf \
-	install-pdf-am install-ps install-ps-am install-strip \
-	installcheck installcheck-am installdirs maintainer-clean \
-	maintainer-clean-generic mostlyclean mostlyclean-compile \
-	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
-	tags tags-am uninstall uninstall-am uninstall-libLTLIBRARIES \
-	uninstall-libbase_laDATA uninstall-libbase_la_includeHEADERS
+	install-info-am install-libLTLIBRARIES install-libbase_la1DATA \
+	install-libbase_laDATA install-libbase_la_includeHEADERS \
+	install-man install-pdf install-pdf-am install-ps \
+	install-ps-am install-strip installcheck installcheck-am \
+	installdirs maintainer-clean maintainer-clean-generic \
+	mostlyclean mostlyclean-compile mostlyclean-generic \
+	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-am uninstall \
+	uninstall-am uninstall-libLTLIBRARIES \
+	uninstall-libbase_la1DATA uninstall-libbase_laDATA \
+	uninstall-libbase_la_includeHEADERS
 
 .PRECIOUS: Makefile
 

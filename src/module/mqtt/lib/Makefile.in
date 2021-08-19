@@ -433,8 +433,8 @@ util_mosq.c \
 util_topic.c \
 will_mosq.c
 
-libmqttbase_la_CFLAGS = -I$(top_srcdir)/src/module/mqtt/include \
-	-I$(top_srcdir)/src/module/mqtt/lib -I$(top_srcdir)/src/base/ \
+libmqttbase_la_CFLAGS = -I$(top_srcdir)/src/module/mqtt/mqtt \
+	-I$(top_srcdir)/src/module/mqtt/lib -I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/module/mqtt -I$(prefix)/include -g -W \
 	-Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit \
 	-Wmissing-braces -Wno-error=unused-result -Wparentheses \

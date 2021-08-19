@@ -508,16 +508,17 @@ mqtt_SOURCES = mosquitto.c \
 mqtt_LDFLAGS = -L$(prefix)/lib -L$(top_builddir)/src/base/.libs \
 	-L$(top_builddir)/src/opbox/.libs
 mqtt_LDADD = -lpthread  -ldl -lbase -liniparser -lopbox
-A = $(top_srcdir)/src/module/mqtt/include
+A = $(top_srcdir)/src/module/mqtt/mqtt
 mqtt_includedir = $(prefix)/include/module/mqtt
 mqtt_include_HEADERS = $(A)/mosquitto_broker.h $(A)/mosquitto.h $(A)/mosquitto_plugin.h  $(A)/mqtt_protocol.h
-mqtt_CFLAGS = -I$(top_srcdir)/src/module/mqtt/include \
+mqtt_CFLAGS = -I$(top_srcdir)/src/module/mqtt/mqtt \
 	-I$(top_srcdir)/src/module/mqtt/lib \
-	-I$(top_srcdir)/src/module/mqtt -I$(prefix)/include -g \
-	-DWITH_BROKER -W -Wall -Wchar-subscripts -Wcomment -Wformat \
-	-Wimplicit -Wmissing-braces -Wno-error=unused-result \
-	-Wparentheses -Wswitch -Wno-unused-parameter -Wfloat-equal \
-	-Wsign-compare -Wpointer-arith -Winline -rdynamic -std=gnu99
+	-I$(top_srcdir)/src/module/mqtt -I$(top_srcdir)/src/ \
+	-I$(prefix)/include -g -DWITH_BROKER -W -Wall \
+	-Wchar-subscripts -Wcomment -Wformat -Wimplicit \
+	-Wmissing-braces -Wno-error=unused-result -Wparentheses \
+	-Wswitch -Wno-unused-parameter -Wfloat-equal -Wsign-compare \
+	-Wpointer-arith -Winline -rdynamic -std=gnu99
 mqttetcdir = $(prefix)/etc/mqtt
 mqttetc_DATA = mqtt.conf 
 mqtt1etcdir = $(prefix)/log/mqtt

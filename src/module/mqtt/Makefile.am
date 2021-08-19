@@ -83,13 +83,14 @@ mqtt_LDFLAGS +=-L$(top_builddir)/src/base/.libs
 mqtt_LDFLAGS +=-L$(top_builddir)/src/opbox/.libs
 mqtt_LDADD = -lpthread  -ldl -lbase -liniparser -lopbox
 
-A=$(top_srcdir)/src/module/mqtt/include
+A=$(top_srcdir)/src/module/mqtt/mqtt
 mqtt_includedir=$(prefix)/include/module/mqtt
 mqtt_include_HEADERS = $(A)/mosquitto_broker.h $(A)/mosquitto.h $(A)/mosquitto_plugin.h  $(A)/mqtt_protocol.h
 
-mqtt_CFLAGS  = -I$(top_srcdir)/src/module/mqtt/include
+mqtt_CFLAGS  = -I$(top_srcdir)/src/module/mqtt/mqtt
 mqtt_CFLAGS  += -I$(top_srcdir)/src/module/mqtt/lib
 mqtt_CFLAGS  += -I$(top_srcdir)/src/module/mqtt
+mqtt_CFLAGS  += -I$(top_srcdir)/src/
 mqtt_CFLAGS += -I$(prefix)/include
 mqtt_CFLAGS += -g -DWITH_BROKER -W -Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wmissing-braces \
 	-Wno-error=unused-result -Wparentheses -Wswitch -Wno-unused-parameter  -Wfloat-equal -Wsign-compare -Wpointer-arith -Winline  -rdynamic -std=gnu99

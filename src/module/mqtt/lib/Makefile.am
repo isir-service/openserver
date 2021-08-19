@@ -48,9 +48,9 @@ util_topic.c \
 will_mosq.c
 
 
-libmqttbase_la_CFLAGS  = -I$(top_srcdir)/src/module/mqtt/include
+libmqttbase_la_CFLAGS  = -I$(top_srcdir)/src/module/mqtt/mqtt
 libmqttbase_la_CFLAGS  += -I$(top_srcdir)/src/module/mqtt/lib
-libmqttbase_la_CFLAGS  += -I$(top_srcdir)/src/base/
+libmqttbase_la_CFLAGS  += -I$(top_srcdir)/src
 libmqttbase_la_CFLAGS  += -I$(top_srcdir)/src/module/mqtt
 libmqttbase_la_CFLAGS += -I$(prefix)/include
 libmqttbase_la_CFLAGS += -g  -W -Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wmissing-braces \

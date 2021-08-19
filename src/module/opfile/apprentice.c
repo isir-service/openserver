@@ -10,6 +10,7 @@
 #include <sys/mman.h>
 #include <dirent.h>
 #include <limits.h>
+#include "base/oplog.h"
 
 #define	EATAB {while (isascii(CAST(unsigned char, *l)) && \
 		isspace(CAST(unsigned char, *l)))  ++l;}
@@ -107,29 +108,18 @@ struct _bang bang[] = {
 	{ NULL, 0, NULL }
 };
 
-int compile_main(int argc, char *argv[])
+int compile_main(char *magic_dir, char *magic_file)
 {
 	int ret;
 	struct magic_set *ms;
-	char *progname;
-
-	if ((progname = strrchr(argv[0], '/')) != NULL)
-		progname++;
-	else
-		progname = argv[0];
-
-	if (argc != 2) {
-		(void)fprintf(stderr, "Usage: %s file\n", progname);
-		return 1;
-	}
 
 	if ((ms = magic_open(MAGIC_CHECK)) == NULL) {
-		(void)fprintf(stderr, "%s: %s\n", progname, strerror(errno));
+		log_warn_ex("%s: %s\n", "file compile", strerror(errno));
 		return 1;
 	}
-	ret = magic_compile(ms, argv[1]) == -1 ? 1 : 0;
+	ret = magic_compile(ms, magic_dir) == -1 ? 1 : 0;
 	if (ret == 1)
-		(void)fprintf(stderr, "%s: %s\n", progname, magic_error(ms));
+		log_warn_ex("%s: %s\n", "file compile", magic_error(ms));
 	magic_close(ms);
 	return ret;
 }
@@ -1281,6 +1271,9 @@ private struct magic_map * apprentice_load(struct magic_set *ms, const char *fn,
 			errs++;
 			goto out;
 		}
+
+		
+		log_debug_ex("file magic dir:%s\n", fn);
 		while ((d = readdir(dir)) != NULL) {
 			if (d->d_name[0] == '.')
 				continue;
@@ -3020,7 +3013,7 @@ private int apprentice_compile(struct magic_set *ms, struct magic_map *map, cons
 	} hdr;
 
 	dbname = mkdbname(ms, fn, 1);
-
+	log_debug_ex("mkdbname:%s\n", dbname);
 	if (dbname == NULL)
 		goto out;
 

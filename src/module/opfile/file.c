@@ -46,7 +46,9 @@ int file_main(int argc, char *argv[])
 
 	int flags = 0;
 	struct magic_set *magic = NULL;
-	const char *magicfile = "/home/isir/developer/tmp/file-master/magic/magic.mgc";
+	
+	
+	const char *magicfile = "/home/isir/developer/build/Magdir.mgc";
 	if (!(magic = load(magicfile, flags))) {
 		log_warn_ex("file main load failed\n");
 		return 1;

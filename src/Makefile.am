@@ -17,12 +17,13 @@ opserver_LDFLAGS+=-L$(prefix)/lib
 
 opserver_LDADD = -lopbox -liniparser -lbase -levent -lopmgr -lop4g -ltimer -lspider -louter -lpcap -lmqttbase -lopfile -ldl  -lpthread -lz
 CFLAGS="-g"
-opserver_CFLAGS = -I$(top_srcdir)/src/module/opmgr
+opserver_CFLAGS = -I$(top_srcdir)/src
+opserver_CFLAGS += -I$(top_srcdir)/src/module/opmgr
 opserver_CFLAGS += -I$(top_srcdir)/src/module/op4g
 opserver_CFLAGS += -I$(top_srcdir)/src/module/timer_service
 opserver_CFLAGS += -I$(top_srcdir)/src/module/spider
 opserver_CFLAGS += -I$(top_srcdir)/src/module/outer
-opserver_CFLAGS += -I$(top_srcdir)/src/module/mqtt/include
+opserver_CFLAGS += -I$(top_srcdir)/src/module/mqtt/
 opserver_CFLAGS += -I$(top_srcdir)/src/module/opfile
 opserver_CFLAGS += -I$(prefix)/include
 opserver_CFLAGS += -I$(prefix)/include/module

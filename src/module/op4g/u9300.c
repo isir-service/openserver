@@ -9,11 +9,11 @@
 #include "event.h"
 #include "u9300.h"
 #include "base/oplog.h"
-#include "base/opbus_type.h"
 #include "opbox/list.h"
 #include "opbox/utils.h"
 #include "_4g_pdu.h"
 
+#define _4G_WAIT_MS 3000
 struct _4g_timer {
 	struct event *at_cmd;
 	struct event *at_no_response;
@@ -388,7 +388,7 @@ static int u9300_send_message(char *phone, char *message)
 	int ret = 0;
 	
 	gettimeofday(&now, NULL);
-	abstime.tv_sec = now.tv_sec + _BUS_WAIT_MS/1000;
+	abstime.tv_sec = now.tv_sec + _4G_WAIT_MS/1000;
 	abstime.tv_nsec = now.tv_usec * 1000;
 
 	log_debug("u9300 try send message,phone:%s, message=%s\n", phone, message);

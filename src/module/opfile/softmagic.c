@@ -8,6 +8,7 @@
 #include <time.h>
 #include "der.h"
 #include <math.h>
+#include "base/oplog.h"
 
 private int match(struct magic_set *, struct magic *, uint32_t,
     const struct buffer *, size_t, int, int, int, uint16_t *,
@@ -202,6 +203,7 @@ flush:
 			goto flush;
 		ms->line = m->lineno;
 
+
 		/* if main entry matches, print it... */
 		switch (mget(ms, m, b, CAST(const unsigned char *, bb.fbuf),
 		    bb.flen, offset, cont_level,
@@ -209,11 +211,14 @@ flush:
 		    printed_something, need_separator, returnval, found_match))
 		{
 		case -1:
+			
 			return -1;
 		case 0:
+			
 			flush = m->reln != '!';
 			break;
 		default:
+			
 			if (m->type == FILE_INDIRECT) {
 				*found_match = 1;
 				*returnval = 1;
@@ -252,7 +257,9 @@ flush:
 		 * If we are going to print something, we'll need to print
 		 * a blank before we print something else.
 		 */
+		 
 		if (*m->desc) {
+			
 			*found_match = 1;
 			*returnval = 1;
 			if (print) {
@@ -323,6 +330,7 @@ flush:
 				flush = 1;
 				break;
 			default:
+				
 				if (m->type == FILE_INDIRECT) {
 					*found_match = 1;
 					*returnval = 1;
@@ -333,11 +341,13 @@ flush:
 
 			switch (flush ? 1 : magiccheck(ms, m)) {
 			case -1:
+				
 				return -1;
 			case 0:
 				ms->c.li[cont_level].last_match = 0;
 				break;
 			default:
+				
 				ms->c.li[cont_level].last_match = 1;
 				if (m->type == FILE_CLEAR)
 					ms->c.li[cont_level].got_match = 0;
