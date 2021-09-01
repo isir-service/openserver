@@ -13,12 +13,13 @@
 #include <utime.h>
 
 #include <unistd.h>	/* for read() */
+#include "base/opmem.h"
 
 private void close_and_restore(const struct magic_set *, const char *, int,
     const struct stat *);
 private int unreadable_info(struct magic_set *, mode_t, const char *);
 private const char* get_default_magic(void);
-private const char *file_or_fd(struct magic_set *, const char *, int);
+private const char *file_or_fd(struct magic_set *, const char *, int,struct magic *magic);
 
 #define	STDIN_FILENO	0
 
@@ -193,22 +194,22 @@ magic_descriptor(struct magic_set *ms, int fd)
 {
 	if (ms == NULL)
 		return NULL;
-	return file_or_fd(ms, NULL, fd);
+	return file_or_fd(ms, NULL, fd,NULL);
 }
 
 /*
  * find type of named file
  */
 public const char *
-magic_file(struct magic_set *ms, const char *inname)
+magic_file(struct magic_set *ms, const char *inname,struct magic *magic_info )
 {
 	if (ms == NULL)
 		return NULL;
-	return file_or_fd(ms, inname, STDIN_FILENO);
+	return file_or_fd(ms, inname, STDIN_FILENO, magic_info);
 }
 
 private const char *
-file_or_fd(struct magic_set *ms, const char *inname, int fd)
+file_or_fd(struct magic_set *ms, const char *inname, int fd,  struct magic *magic_info)
 {
 	int	rv = -1;
 	unsigned char *buf;
@@ -226,7 +227,7 @@ file_or_fd(struct magic_set *ms, const char *inname, int fd)
 	 * some overlapping space for matches near EOF
 	 */
 #define SLOP (1 + sizeof(union VALUETYPE))
-	if ((buf = CAST(unsigned char *, malloc(ms->bytes_max + SLOP))) == NULL)
+	if ((buf = CAST(unsigned char *, op_malloc(ms->bytes_max + SLOP))) == NULL)
 		return NULL;
 
 	switch (file_fsmagic(ms, inname, &sb)) {
@@ -299,11 +300,11 @@ file_or_fd(struct magic_set *ms, const char *inname, int fd)
 	}
 
 	(void)memset(buf + nbytes, 0, SLOP); /* NUL terminate */
-	if (file_buffer(ms, fd, okstat ? &sb : NULL, inname, buf, CAST(size_t, nbytes)) == -1)
+	if (file_buffer(ms, fd, okstat ? &sb : NULL, inname, buf, CAST(size_t, nbytes), magic_info) == -1)
 		goto done;
 	rv = 0;
 done:
-	free(buf);
+	op_free(buf);
 	if (fd != -1) {
 		if (pos != CAST(off_t, -1))
 			(void)lseek(fd, pos, SEEK_SET);
@@ -325,7 +326,7 @@ magic_buffer(struct magic_set *ms, const void *buf, size_t nb)
 	 * The main work is done here!
 	 * We have the file name and/or the data buffer to be identified.
 	 */
-	if (file_buffer(ms, -1, NULL, NULL, buf, nb) == -1) {
+	if (file_buffer(ms, -1, NULL, NULL, buf, nb,NULL) == -1) {
 		return NULL;
 	}
 	return file_getbuffer(ms);

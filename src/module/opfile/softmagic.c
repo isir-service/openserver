@@ -12,7 +12,7 @@
 
 private int match(struct magic_set *, struct magic *, uint32_t,
     const struct buffer *, size_t, int, int, int, uint16_t *,
-    uint16_t *, int *, int *, int *, int *);
+    uint16_t *, int *, int *, int *, int *,struct magic *magic);
 private int mget(struct magic_set *, struct magic *, const struct buffer *,
     const unsigned char *, size_t,
     size_t, unsigned int, int, int, int, uint16_t *,
@@ -82,12 +82,12 @@ private int cvt_64(union VALUETYPE *, const struct magic *);
 /*ARGSUSED1*/		/* nbytes passed for regularity, maybe need later */
 protected int
 file_softmagic(struct magic_set *ms, const struct buffer *b,
-    uint16_t *indir_count, uint16_t *name_count, int mode, int text)
+    uint16_t *indir_count, uint16_t *name_count, int mode, int text, struct magic *magic_info)
 {
 	struct mlist *ml;
 	int rv, printed_something = 0, need_separator = 0;
 	uint16_t nc, ic;
-
+	int find = 0;
 	if (name_count == NULL) {
 		nc = 0;
 		name_count = &nc;
@@ -100,7 +100,7 @@ file_softmagic(struct magic_set *ms, const struct buffer *b,
 	for (ml = ms->mlist[0]->next; ml != ms->mlist[0]; ml = ml->next)
 		if ((rv = match(ms, ml->magic, ml->nmagic, b, 0, mode,
 		    text, 0, indir_count, name_count,
-		    &printed_something, &need_separator, NULL, NULL)) != 0)
+		    &printed_something, &need_separator, NULL, &find, magic_info)) != 0)
 			return rv;
 
 	return 0;
@@ -158,7 +158,7 @@ match(struct magic_set *ms, struct magic *magic, uint32_t nmagic,
     const struct buffer *b, size_t offset, int mode, int text,
     int flip, uint16_t *indir_count, uint16_t *name_count,
     int *printed_something, int *need_separator, int *returnval,
-    int *found_match)
+    int *found_match, struct magic *magic_info)
 {
 	uint32_t magindex = 0;
 	unsigned int cont_level = 0;
@@ -222,6 +222,8 @@ flush:
 			if (m->type == FILE_INDIRECT) {
 				*found_match = 1;
 				*returnval = 1;
+				if(magic_info)
+					memcpy(magic_info, m, sizeof(struct magic));
 			}
 
 			switch (magiccheck(ms, m)) {
@@ -250,6 +252,8 @@ flush:
 			*need_separator = 1;
 			*printed_something = 1;
 			*returnval = 1;
+			if(magic_info)
+				memcpy(magic_info, m, sizeof(struct magic));
 			return e;
 		}
 
@@ -261,6 +265,8 @@ flush:
 		if (*m->desc) {
 			
 			*found_match = 1;
+			if(magic_info)
+				memcpy(magic_info, m, sizeof(struct magic));
 			*returnval = 1;
 			if (print) {
 				*need_separator = 1;
@@ -333,6 +339,8 @@ flush:
 				
 				if (m->type == FILE_INDIRECT) {
 					*found_match = 1;
+					if(magic_info)
+						memcpy(magic_info, m, sizeof(struct magic));
 					*returnval = 1;
 				}
 				flush = 0;
@@ -360,6 +368,8 @@ flush:
 				if ((e = handle_annotation(ms, m, firstline))
 				    != 0) {
 					*found_match = 1;
+					if(magic_info)
+						memcpy(magic_info, m, sizeof(struct magic));
 					*need_separator = 1;
 					*printed_something = 1;
 					*returnval = 1;
@@ -367,6 +377,8 @@ flush:
 				}
 				if (*m->desc) {
 					*found_match = 1;
+					if(magic_info)
+						memcpy(magic_info, m, sizeof(struct magic));
 					*returnval = 1;
 				}
 				if (print && *m->desc) {
@@ -424,6 +436,8 @@ flush:
 			firstline = 0;
 		}
 		if (*found_match) {
+			if(magic_info)
+				memcpy(magic_info, m, sizeof(struct magic));
 			if ((ms->flags & MAGIC_CONTINUE) == 0)
 				goto out;
 			// So that we print a separator
@@ -1772,7 +1786,7 @@ mget(struct magic_set *ms, struct magic *m, const struct buffer *b,
 			if ((rv = match(ms, mlp->magic, mlp->nmagic, &bb, 0,
 			    BINTEST, text, 0, indir_count, name_count,
 			    printed_something, need_separator, NULL,
-			    NULL)) != 0)
+			    NULL,NULL)) != 0)
 				break;
 		}
 
@@ -1825,7 +1839,7 @@ mget(struct magic_set *ms, struct magic *m, const struct buffer *b,
 		rv = match(ms, ml.magic, ml.nmagic, b, offset + o,
 		    mode, text, flip, indir_count, name_count,
 		    printed_something, need_separator, returnval,
-		    &nfound_match);
+		    &nfound_match,NULL);
 		ms->ms_value.q = nfound_match;
 		(*name_count)--;
 		*found_match |= nfound_match;

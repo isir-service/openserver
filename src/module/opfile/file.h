@@ -33,7 +33,7 @@
 #define	__GNUC_PREREQ__(x, y)	0
 #define FD_CLOEXEC 1
 #define FILE_BADSIZE CAST(size_t, ~0ul)
-#define MAXDESC	64		
+#define MAXDESC	64
 #define MAXMIME	80		
 #define MAXstring 128	
 #define MAGICNO		0xF11E041C
@@ -361,7 +361,7 @@ protected const char *file_fmttime(char *, size_t, uint64_t, int);
 protected struct magic_set *file_ms_alloc(int);
 protected void file_ms_free(struct magic_set *);
 protected int file_default(struct magic_set *, size_t);
-protected int file_buffer(struct magic_set *, int, struct stat *, const char *,const void *, size_t);
+protected int file_buffer(struct magic_set *, int, struct stat *, const char *,const void *, size_t,struct magic *magic);
 protected int file_fsmagic(struct magic_set *, const char *, struct stat *);
 protected int file_pipe2file(struct magic_set *, int, const void *, size_t);
 protected int file_vprintf(struct magic_set *, const char *, va_list ap);
@@ -391,7 +391,7 @@ protected int file_is_json(struct magic_set *, const struct buffer *);
 protected int file_is_csv(struct magic_set *, const struct buffer *, int);
 protected int file_is_tar(struct magic_set *, const struct buffer *);
 protected int file_softmagic(struct magic_set *, const struct buffer *,
-		uint16_t *, uint16_t *, int, int);
+		uint16_t *, uint16_t *, int, int,struct magic *magic);
 protected int file_apprentice(struct magic_set *, const char *, int);
 protected int buffer_apprentice(struct magic_set *, struct magic **,size_t *, size_t);
 protected int file_magicfind(struct magic_set *, const char *, struct mlist *);
@@ -423,10 +423,11 @@ protected int file_regexec(file_regex_t *, const char *, size_t, regmatch_t *,
     int);
 protected void file_regfree(file_regex_t *);
 protected void file_regerror(file_regex_t *, int, struct magic_set *);
-int file_main(int argc, char *argv[]);
+struct magic_set * file_init(char *magic_file);
 int compile_main(char *magic_dir, char *magic_file);
 protected file_pushbuf_t *file_push_buffer(struct magic_set *);
 protected char  *file_pop_buffer(struct magic_set *, file_pushbuf_t *);
 const char *fmtcheck(const char *, const char *);
+const char *file_magic_check(struct magic_set *ms,char *path, struct magic *magic);
 
 #endif /* __file_h__ */

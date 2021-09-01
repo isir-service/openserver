@@ -217,7 +217,7 @@ file_zmagic(struct magic_set *ms, const struct buffer *b, const char *name)
 			if (urv == ERRDATA)
 				prv = format_decompression_error(ms, i, newbuf);
 			else
-				prv = file_buffer(ms, -1, NULL, name, newbuf, nsz);
+				prv = file_buffer(ms, -1, NULL, name, newbuf, nsz,NULL);
 			if (prv == -1)
 				goto error;
 			rv = 1;
@@ -234,7 +234,7 @@ file_zmagic(struct magic_set *ms, const struct buffer *b, const char *name)
 			 * XXX: If file_buffer fails here, we overwrite
 			 * the compressed text. FIXME.
 			 */
-			if (file_buffer(ms, -1, NULL, NULL, buf, nbytes) == -1) {
+			if (file_buffer(ms, -1, NULL, NULL, buf, nbytes,NULL) == -1) {
 				if (file_pop_buffer(ms, pb) != NULL)
 					abort();
 				goto error;

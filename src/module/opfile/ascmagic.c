@@ -112,7 +112,7 @@ protected int file_ascmagic_with_encoding(struct magic_set *ms, const struct buf
 		    CAST(size_t, utf8_end - utf8_buf));
 
 		if ((rv = file_softmagic(ms, &bb, NULL, NULL,
-		    TEXTTEST, text)) == 0)
+		    TEXTTEST, text,NULL)) == 0)
 			rv = -1;
 		else
 			need_separator = 1;

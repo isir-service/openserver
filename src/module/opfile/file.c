@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include <wchar.h>
 #include "base/oplog.h"
+#include "base/opmem.h"
+
 struct _pm{
 	const char *name;
 	int tag;
@@ -36,31 +38,32 @@ struct _pm pm[] = {
 	    "length limit for REGEX searches" },
 };
 
-private int process(struct magic_set *ms, const char *, int);
+private const char* process(struct magic_set *ms, const char *, int,struct magic *magic);
 private struct magic_set *load(const char *, int);
 
 private void applyparam(magic_t magic);
 
-int file_main(int argc, char *argv[])
+struct magic_set * file_init(char *magic_file)
 {
 
 	int flags = 0;
 	struct magic_set *magic = NULL;
 	
-	
-	const char *magicfile = "/home/isir/developer/build/Magdir.mgc";
-	if (!(magic = load(magicfile, flags))) {
+	if (!(magic = load(magic_file, flags))) {
 		log_warn_ex("file main load failed\n");
-		return 1;
+		return NULL;
 	}
 
 	applyparam(magic);
-	process(magic, "/home/isir/developer/doc/U9300_1_9x07平台_AT手册_V5.3.9.pdf", 0);
 
-	if (magic)
-		magic_close(magic);
-	log_warn_ex("file main over\n");
-	return 0;
+	return magic;
+	
+	//process(magic, "/home/isir/developer/doc/U9300_1_9x07平台_AT手册_V5.3.9.pdf", 0);
+
+	//if (magic)
+		//magic_close(magic);
+	//log_warn_ex("file main over\n");
+	//return 0;
 }
 
 private void applyparam(magic_t magic)
@@ -97,16 +100,31 @@ private struct magic_set *load(const char *magicfile, int flags)
 }
 
 
-private int process(struct magic_set *ms, const char *inname, int wid)
+const char *process(struct magic_set *ms, const char *inname, int wid, struct magic *magic)
 {
 	const char *type = NULL;
-
-	type = magic_file(ms, inname);
-
-	if (!type)
+	struct magic *magic_info = op_calloc(1, sizeof(struct magic));
+	if (!magic_info) {
+		log_warn_ex("op_calloc failed\n");
+		return NULL;
+	}
+	
+	type = magic_file(ms, inname, magic_info);
+	if (!type) {
 		log_warn_ex("ERROR: %s\n", magic_error(ms));
-	else
-		log_debug_ex("%s\n", type);
-	return type == NULL;
+		op_free(magic_info);
+		return NULL;
+	} else {
+		if (magic)
+			memcpy(magic, magic_info, sizeof(struct magic));
+		return type;
+	}
 }
+
+
+const char *file_magic_check(struct magic_set *ms,char *path, struct magic *magic)
+{
+	return process(ms, path, 0, magic);
+}
+
 

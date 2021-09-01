@@ -277,8 +277,9 @@ file_default(struct magic_set *ms, size_t nb)
 protected int
 file_buffer(struct magic_set *ms, int fd, struct stat *st,
     const char *inname __attribute__ ((__unused__)),
-    const void *buf, size_t nb)
+    const void *buf, size_t nb, struct magic *magic_info)
 {
+
 	int m = 0, rv = 0, looks_text = 0;
 	const char *code = NULL;
 	const char *code_mime = "binary";
@@ -385,7 +386,7 @@ file_buffer(struct magic_set *ms, int fd, struct stat *st,
 
 	/* try soft magic tests */
 	if ((ms->flags & MAGIC_NO_CHECK_SOFT) == 0) {
-		m = file_softmagic(ms, &b, NULL, NULL, BINTEST, looks_text);
+		m = file_softmagic(ms, &b, NULL, NULL, BINTEST, looks_text,magic_info);
 		if ((ms->flags & MAGIC_DEBUG) != 0)
 			(void)fprintf(stderr, "[try softmagic %d]\n", m);
 		if (m == 1 && rbuf) {
