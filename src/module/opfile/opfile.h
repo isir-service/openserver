@@ -4,7 +4,7 @@
 struct file_info {
 	char ext[64];
 	char desc[128];
-	unsigned type_id;
+	unsigned id;
 };
 
 void *opfile_init(void);
