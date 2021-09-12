@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+	<magic ext="pdf">
+		<express desc="desc">a</express>
+		<express>b</express>
+	</magic>
+	<magic ext="zip">
+		<express>c</express>
+		<express>d</express>
+	</magic>
+</root>

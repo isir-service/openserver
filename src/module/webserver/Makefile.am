@@ -138,7 +138,7 @@ webserver_CFLAGS += -I$(top_srcdir)/src/module/webserver/http
 webserver_CFLAGS += -I$(top_srcdir)/src/module/webserver/http/modules
 webserver_CFLAGS += -I$(prefix)/include
 webserver_CFLAGS += -g -W -Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wmissing-braces \
-	-Wno-error=unused-result -Wparentheses -Wswitch -Wno-unused-parameter  -Wfloat-equal -Wsign-compare -Wpointer-arith -Winline -Werror  -rdynamic -std=gnu99
+	-Wno-error=unused-result -Wparentheses -Wswitch -Wno-unused-parameter  -Wfloat-equal -Wsign-compare -Wpointer-arith -Winline -Werror -Wno-error=deprecated-declarations -Wno-deprecated-declarations  -rdynamic -std=gnu99 
 webserver_LDFLAGS = -L$(top_builddir)/src/opbox/.libs
 webserver_LDFLAGS += -L$(top_builddir)/src/base/.libs
 webserver_LDFLAGS += -L$(prefix)/lib
@@ -148,7 +148,6 @@ webserveretcdir = $(prefix)/etc/webserver
 webserveretc_DATA=webserver.conf 
 
 webserver1etcdir = $(prefix)/etc/webserver/conf
-webserver1etc_DATA=conf/fastcgi.conf conf/fastcgi_params  conf/koi-utf  conf/koi-win  conf/mime.types \
-	conf/nginx.conf  conf/scgi_params  conf/uwsgi_params  conf/win-utf conf/server.key conf/server.crt
+webserver1etc_DATA=conf/fastcgi.conf conf/fastcgi_params  conf/koi-utf  conf/koi-win  conf/mime.types  conf/scgi_params  conf/uwsgi_params  conf/win-utf conf/server.key conf/server.crt
 webserver2etcdir = $(prefix)/log/webserver
 webserver2etc_DATA=.log

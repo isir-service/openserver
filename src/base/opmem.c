@@ -43,9 +43,9 @@ struct mem_alloc_ele {
 };
 
 static struct mem_alloc_ele op_mem_ele[OP_MEM_ELE_MAX] = {
-	[OP_MEM_ELE_16] = {.name="16B pool",.size=16, .num=20},
-	[OP_MEM_ELE_32] = {.name="32B pool",.size=32, .num=40},
-	[OP_MEM_ELE_64] = {.name="64B pool",.size=64, .num=80},
+	[OP_MEM_ELE_16] = {.name="16B pool",.size=16, .num=80},
+	[OP_MEM_ELE_32] = {.name="32B pool",.size=32, .num=160},
+	[OP_MEM_ELE_64] = {.name="64B pool",.size=64, .num=160},
 	[OP_MEM_ELE_128] = {.name="128B pool",.size=128, .num=160},
 	[OP_MEM_ELE_256] = {.name="256B pool",.size=256, .num=320},
 	[OP_MEM_ELE_512] = {.name="512B pool",.size=512, .num=320},

@@ -13,4 +13,7 @@ libopfile_la_CFLAGS += -g -W -DHAVE_CONFIG_H -Wall -Wchar-subscripts -Wcomment -
 libopfile_la_LDFLAGS = -L$(top_builddir)/src/base/.libs
 libopfile_la_LDFLAGS += -L$(top_builddir)/src/opbox/.libs
 libopfile_la_LDFLAGS += -L$(prefix)/lib
-libopfile_la_LIBADD = -lm -lbz2 -lbase -lopbox
+libopfile_la_LIBADD = -lm -lbz2 -lbase -lopbox -lxml2 -liniparser -lhs -lhs_runtime
+
+libopfileetcdir = $(prefix)/etc/
+libopfileetc_DATA=opfile_magic.xml

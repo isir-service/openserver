@@ -2,7 +2,7 @@
 
 #ubuntu 依赖包
 
-libpcre3-dev libbz2-dev libxml2-dev openssl libssl-dev
+libpcre3-dev libbz2-dev libxml2-dev ragel libsqlite3-dev doxygen libpcap-dev sphinxsearch sphinx-common
 
 #安装模块
 #modprobe tipc

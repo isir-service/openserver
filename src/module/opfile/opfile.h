@@ -1,10 +1,17 @@
 #ifndef _OPFILE_H__
 #define _OPFILE_H__
+enum {
+	FILE_TYPE_unknow = 0,
+	FILE_TYPE_acoro,
+	FILE_TYPE_pdf,
+	FILE_TYPE_zip,
+	FILE_TYPE_max,
+};
 
 struct file_info {
+	unsigned int file_type;
 	char ext[64];
-	char desc[128];
-	unsigned id;
+	char desc[256];
 };
 
 void *opfile_init(void);
