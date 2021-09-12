@@ -101,7 +101,6 @@ out:
 int main(int argc, char* argv[])
 {
 	signal(SIGPIPE, SIG_IGN);
-	op_daemon();
 	nginx_main_start(OPSERVER_CONF);
 	return 0;
 }

@@ -298,7 +298,6 @@ static int file_magic_compare (const void *node_src, const void *node_dest)
 	return !(magic_src->express_id == magic_dest->express_id);
 }
 
-
 void *opfile_init(void)
 {
 	struct opfile_info *opfile = NULL;

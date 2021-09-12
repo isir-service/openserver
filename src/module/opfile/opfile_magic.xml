@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root>
 	<magic ext="pdf">
-		<express desc="desc">a</express>
-		<express>b</express>
+		<express desc="desc">s[ab]\001\002\003</express>
+		<express>bxx</express>
 	</magic>
 	<magic ext="zip">
-		<express>c</express>
-		<express>d</express>
+		<express>cxx</express>
+		<express>dxx</express>
 	</magic>
 </root>
