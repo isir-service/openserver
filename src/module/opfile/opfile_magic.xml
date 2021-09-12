@@ -1,11 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <root>
-	<magic ext="pdf">
-		<express desc="desc">s[ab]\001\002\003</express>
-		<express>bxx</express>
+	<magic ext="zz">
+		<express desc="desc">^ZZ0</express>
 	</magic>
-	<magic ext="zip">
-		<express>cxx</express>
-		<express>dxx</express>
+
+	<magic ext="paq">
+		<express>^\xaa\x40\x5f\x77\x1f\xe5\x82\x0d</express>
 	</magic>
+
+	<magic ext="arj">
+		<express desc="leshort">^\xea\x60</express>
+	</magic>
+
+	<magic ext="rar">
+		<express>^Rar!\x1a\x07\x00</express>
+		<express>^Rar!\x1a\x07\x01\x00</express>
+		<express>^RE\x7e\x5e</express>		
+	</magic>
+
 </root>
