@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #include "opfile.h"
 #include "base/oplog.h"
@@ -10,8 +13,11 @@
 #include "opbox/utils.h"
 #include "opbox/hash.h"
 #include "hs/hs.h"
+#include "opfile_text.h"
 
+#define OPFILE_MAX_CHECK_SIZE 8192 /*8k*/
 #define OPFILE_MAGIC_PATH "opfile:magic_path"
+#define OPFILE_MAX_HS_SCAN 20
 
 #define OPFILE_SUPPORT_MAX_EXPRESS_SIZE 10000
 
@@ -34,6 +40,12 @@ struct file_magic {
 	unsigned file_type;
 };
 
+struct file_magic_ex {
+
+	struct file_magic *magic[OPFILE_MAX_HS_SCAN];
+	unsigned int matched_num;
+};
+
 struct hs_magic {
     hs_database_t *db;
     hs_scratch_t *scratch;
@@ -49,11 +61,33 @@ struct file_type_map {
 	char *ext;
 };
 
+typedef struct file_to_text  *(*file_text_cb)(char *, unsigned int );
+
+struct file_text_map {
+	unsigned int file_type;
+	file_text_cb cb;
+};
+
 static struct file_type_map magic_file_type[FILE_TYPE_max] = {
-	[FILE_TYPE_acoro] = {.file_type = FILE_TYPE_acoro, .ext="acoro"},
 	[FILE_TYPE_pdf] = {.file_type = FILE_TYPE_pdf, .ext="pdf"},
 	[FILE_TYPE_zip] = {.file_type = FILE_TYPE_zip, .ext="zip"},
+	[FILE_TYPE_rar] = {.file_type = FILE_TYPE_zip, .ext="rar"},
+	[FILE_TYPE_elf] = {.file_type = FILE_TYPE_zip, .ext="elf"},
+	[FILE_TYPE_jpeg] = {.file_type = FILE_TYPE_zip, .ext="jpeg"},
+	[FILE_TYPE_jpg] = {.file_type = FILE_TYPE_zip, .ext="jpg"},
+	[FILE_TYPE_lua] = {.file_type = FILE_TYPE_zip, .ext="lua"},
+	[FILE_TYPE_mk] = {.file_type = FILE_TYPE_zip, .ext="mk"},
+	[FILE_TYPE_db] = {.file_type = FILE_TYPE_zip, .ext="db"},
+	[FILE_TYPE_docx] = {.file_type = FILE_TYPE_zip, .ext="docx"},
+	[FILE_TYPE_xlsx] = {.file_type = FILE_TYPE_zip, .ext="xlsx"},
+	[FILE_TYPE_pptx] = {.file_type = FILE_TYPE_zip, .ext="pptx"},
+	[FILE_TYPE_visio] = {.file_type = FILE_TYPE_zip, .ext="vd"},
 };
+
+static struct file_text_map magic_file_text[FILE_TYPE_max] = {
+	[FILE_TYPE_pdf] = {.file_type = FILE_TYPE_pdf, .cb= NULL},
+};
+
 
 static struct opfile_info *self = NULL;
 
@@ -167,6 +201,8 @@ static int opfile_parse_magic(char *magic_path)
 	unsigned int express_id = 100;
 	struct opfile_info *opfile = self;
 	struct file_magic *magic = NULL;
+	
+	struct file_magic *magic_find = NULL;
 	unsigned int i = 0;
 	unsigned int len = 0;
 	
@@ -239,13 +275,17 @@ static int opfile_parse_magic(char *magic_path)
 			if (i >= len)
 				magic->file_type = FILE_TYPE_unknow;
 
-			if (op_hash_retrieve(opfile->magic_hash, magic)) {
-				log_warn_ex("magic dup, ext[%s], express[%s], desc[%s]\n", magic->ext, magic->express, magic->desc?magic->desc:"null");
+			log_debug_ex("magic express id:%u\n", magic->express_id);
+			magic_find = op_hash_retrieve(opfile->magic_hash, magic);
+			if (magic_find) {
+				log_warn_ex("magic dup, src ext[%s], express[%s], desc[%s], express_id:%u\n", magic->ext, magic->express, magic->desc?magic->desc:"null",magic->express_id);
+				
+				log_warn_ex("magic dup, dest ext[%s], express[%s], desc[%s], express_id:%u\n", magic_find->ext, magic_find->express, magic_find->desc?magic_find->desc:"null", magic_find->express_id);
 				op_free(magic);
 				magic = NULL;
 				goto failed;
 			}
-
+			
 			op_hash_insert(opfile->magic_hash, magic);		
 			magic = NULL;
 		}
@@ -291,7 +331,7 @@ static unsigned long file_magic_hash (const void *node)
 static int file_magic_compare (const void *node_src, const void *node_dest)
 {
 	struct file_magic *magic_src = (struct file_magic*)node_src;
-	struct file_magic *magic_dest = (struct file_magic*)node_src;
+	struct file_magic *magic_dest = (struct file_magic*)node_dest;
 	if (!magic_src || !magic_dest)
 		return 1;
 
@@ -344,6 +384,12 @@ void *opfile_init(void)
 		goto out;
 	}
 
+
+	opfile_check_path("/home/isir/developer/ddf.docx");
+
+	opfile_check_path("/home/isir/developer/ddf.xlsx");
+	opfile_check_path("/home/isir/developer/ddf.pptx");
+
 	return opfile;
 out:
 	if (dict)
@@ -364,7 +410,7 @@ void opfile_exit(void *file)
 static int opfile_magic_hs_process(unsigned int id,unsigned long long from,unsigned long long to,unsigned int flags,void *context)
 {
 	struct opfile_info *opfile = self;
-	struct file_magic **magic = (struct file_magic **)context;
+	struct file_magic_ex *magic = (struct file_magic_ex *)context;
 	struct file_magic *_magic = NULL;
 	struct file_magic magic_compare;
 	if (!opfile)
@@ -375,18 +421,26 @@ static int opfile_magic_hs_process(unsigned int id,unsigned long long from,unsig
 	if (!_magic)
 		log_warn_ex("we should find magic by id[%u],but we not find actually\n", id);
 
-	*magic = _magic;
+	if (magic->matched_num >= OPFILE_MAX_HS_SCAN)
+		return HS_SCAN_TERMINATED;
+
+	magic->magic[magic->matched_num++] =  _magic;
 
 	/* matchd one time */
-	return HS_SCAN_TERMINATED;
+	return HS_SUCCESS;
 }
 
-struct file_info * opfile_check_mem(char *file_buf, unsigned int size)
+struct file_ext_info * opfile_check_mem(char *file_buf, unsigned int size)
 {
 	struct opfile_info *opfile = self;
-	struct file_info *file = NULL;
+	struct file_ext_info *file = NULL;
+	struct file_magic_ex *magic_ex = NULL;
 	struct file_magic *magic = NULL;
-
+	int ret = 0;
+	unsigned int i = 0;
+	unsigned int max_index = 0;
+	char *max_express = NULL;
+	unsigned int hs_check_size = 0;
 	if (!opfile)
 		return NULL;
 
@@ -395,17 +449,43 @@ struct file_info * opfile_check_mem(char *file_buf, unsigned int size)
 		log_warn_ex("op calooc failed\n");
 		goto failed;
 	}
-	
-	hs_scan(opfile->hs.db, file_buf, size, 0, opfile->hs.scratch, opfile_magic_hs_process, &magic);
-	
-	if (!magic)
+
+	magic_ex = op_calloc(1, sizeof(*magic_ex));
+	if (!magic_ex) {
+		log_warn_ex("op calooc failed\n");
+		goto failed;
+	}
+
+	hs_check_size = size > OPFILE_MAX_CHECK_SIZE?OPFILE_MAX_CHECK_SIZE:size;
+	ret = hs_scan(opfile->hs.db, file_buf, hs_check_size, 0, opfile->hs.scratch, opfile_magic_hs_process, magic_ex);
+	if (ret != HS_SUCCESS && ret != HS_SCAN_TERMINATED)
 		goto failed;
 	
-	log_debug_ex("match:ext[%s], express[%s], desc[%s], express_id:%u, file_type=%u\n", magic->ext, magic->express, magic->desc?magic->desc:"null", magic->express_id, magic->file_type);
+	if (!magic_ex->matched_num || !magic_ex->magic[0] || !magic_ex->magic[0]->express) /* not matchd*/ {
+		/*try check by size*/
+		goto failed;
+	}
+
+	max_index = 0;
+	max_express = magic_ex->magic[0]->express;
+	for (i = 1; i < magic_ex->matched_num; i++) {
+		if (!magic_ex->magic[i] || !magic_ex->magic[i]->express)
+			continue;
+
+		if (strlen(magic_ex->magic[i]->express) > strlen(max_express)) {
+			max_index = i;
+			max_express = magic_ex->magic[i]->express;
+		}
+	}
+
+	magic = magic_ex->magic[max_index];
+	
+	log_debug_ex("match[%u]:ext[%s], express[%s], desc[%s], express_id:%u, file_type=%u\n",
+			magic_ex->matched_num,magic->ext, magic->express, magic->desc?magic->desc:"null", magic->express_id, magic->file_type);
 	file->file_type = magic->file_type;
 	strlcpy(file->ext, magic->ext, sizeof(file->ext));
 	strlcpy(file->desc, magic->desc, sizeof(file->desc));
-
+	op_free(magic_ex);
 	return file;
 failed:
 	if (file)
@@ -413,9 +493,59 @@ failed:
 	return NULL;
 }
 
-struct file_info * opfile_check_path(char *file_path)
+struct file_ext_info * opfile_check_path(char *file_path)
 {
+	char *buf = NULL;
+	int fd = 0;
+	int size = 0;
+	struct file_ext_info *file = NULL;
+
+	if (!file_path)
+		return NULL;
+
+	if (access(file_path, F_OK) < 0) {
+		log_warn_ex("can not find %s\n", file_path);
+		return NULL;
+	}
+
+	buf = op_calloc(1, OPFILE_MAX_CHECK_SIZE);
+	if (!buf) {
+		log_warn_ex("op calloc failed\n");
+		return NULL;
+	}
+
+	fd = open(file_path, O_RDWR);
+	if (fd < 0) {
+		op_free(buf);
+		log_warn_ex("open %s failed, errno=%d\n", file_path, errno);
+		return NULL;
+	}
+
+	size = read(fd, buf, OPFILE_MAX_CHECK_SIZE);
+	if (size <= 0) {
+		log_warn_ex("read %s failed,ret=%d erno=%d\n", file_path, size,errno);
+		op_free(buf);
+		close(fd);
+		return NULL;
+	}
+
+	close(fd);
+	log_debug_ex("check %s magic\n", file_path);
+	file = opfile_check_mem(buf, size);
+	op_free(buf);
+	return file;
+}
+
+struct file_to_text *opfile_to_text(char *file_buf, unsigned int size, unsigned int file_type)
+{
+	if (file_type > FILE_TYPE_unknow && file_type < FILE_TYPE_max) {
+		if (!magic_file_text[file_type].cb)
+			return NULL;
+
+		return magic_file_text[file_type].cb(file_buf, size);
+	}
 
 	return NULL;
 }
+
 

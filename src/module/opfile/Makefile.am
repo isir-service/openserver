@@ -3,9 +3,9 @@ ACLOCAL_AMFLAGS = -I m4
 AUTOMAKE_OPTIONS=foreign
 lib_LTLIBRARIES=libopfile.la
 
-libopfile_la_SOURCES=opfile.c
+libopfile_la_SOURCES=opfile.c opfile_text.c
 libopfile_la_includedir=$(prefix)/include/module
-libopfile_la_include_HEADERS=opfile.h
+libopfile_la_include_HEADERS=opfile.h opfile_pub.h
 
 libopfile_la_CFLAGS  = -I$(top_srcdir)/src
 libopfile_la_CFLAGS += -I$(prefix)/include
