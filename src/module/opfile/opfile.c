@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include "opfile.h"
 #include "base/oplog.h"
@@ -61,11 +63,11 @@ struct file_type_map {
 	char *ext;
 };
 
-typedef struct file_to_text  *(*file_text_cb)(char *, unsigned int );
+typedef struct file_to_text  *(*opfile_text_cb)(char *, unsigned int );
 
 struct file_text_map {
 	unsigned int file_type;
-	file_text_cb cb;
+	opfile_text_cb text_cb;
 };
 
 static struct file_type_map magic_file_type[FILE_TYPE_max] = {
@@ -85,7 +87,7 @@ static struct file_type_map magic_file_type[FILE_TYPE_max] = {
 };
 
 static struct file_text_map magic_file_text[FILE_TYPE_max] = {
-	[FILE_TYPE_pdf] = {.file_type = FILE_TYPE_pdf, .cb= NULL},
+	[FILE_TYPE_pdf] = {.file_type = FILE_TYPE_pdf, .text_cb= pdf_to_text},
 };
 
 
@@ -384,11 +386,7 @@ void *opfile_init(void)
 		goto out;
 	}
 
-
-	opfile_check_path("/home/isir/developer/ddf.docx");
-
-	opfile_check_path("/home/isir/developer/ddf.xlsx");
-	opfile_check_path("/home/isir/developer/ddf.pptx");
+	//opfile_to_text_path("/home/isir/developer/dd.pdf", -1);
 
 	return opfile;
 out:
@@ -538,14 +536,71 @@ struct file_ext_info * opfile_check_path(char *file_path)
 
 struct file_to_text *opfile_to_text(char *file_buf, unsigned int size, unsigned int file_type)
 {
+	struct file_ext_info *info = NULL;
+	unsigned int type = 0;
 	if (file_type > FILE_TYPE_unknow && file_type < FILE_TYPE_max) {
-		if (!magic_file_text[file_type].cb)
+		if (!magic_file_text[file_type].text_cb)
 			return NULL;
 
-		return magic_file_text[file_type].cb(file_buf, size);
+		return magic_file_text[file_type].text_cb(file_buf, size);
 	}
 
+	info = opfile_check_mem(file_buf, size);
+	if (!info || (info->file_type <= FILE_TYPE_unknow || info->file_type >= FILE_TYPE_max)) {
+		if (info)
+			op_free(info);
+
+		goto out;
+	}
+
+	type = info->file_type;
+	op_free(info);
+
+	if (!magic_file_text[type].text_cb)
+		goto out;
+	
+	return magic_file_text[type].text_cb(file_buf, size);
+
+out:
 	return NULL;
+}
+
+struct file_to_text *opfile_to_text_path(char *file_path, unsigned int file_type)
+{
+	struct stat st;
+	char *file = NULL;
+	int fd = 0;
+	struct file_to_text * text = NULL;
+
+	if (stat(file_path, &st)  < 0) {
+		log_warn_ex("file %s not find\n", file_path);
+		return NULL;
+	}
+
+	file = op_calloc(1, st.st_size);
+	if (!file) {
+		log_warn_ex("calloc failed, errno=%d\n", errno);
+		return NULL;
+	}
+
+	fd = open(file_path, O_RDONLY);
+	if (fd < 0) {
+		log_warn_ex("open failed, errno=%d\n", errno);
+		goto out;
+	}
+
+	read(fd, file, st.st_size);
+	close(fd);
+	
+	text = opfile_to_text(file, st.st_size, file_type);
+	op_free(file);
+	return text;
+
+out:
+	if (file)
+		op_free(file);
+	return NULL;
+
 }
 
 

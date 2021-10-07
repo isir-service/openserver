@@ -28,6 +28,7 @@ struct file_ext_info {
 struct file_to_text {
 	unsigned char *text;
 	unsigned int size;
+	unsigned int flag_encrypt:1;
 };
 
 #endif
