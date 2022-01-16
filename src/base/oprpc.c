@@ -542,7 +542,7 @@ static int _op_tipc_send(unsigned int module,unsigned int type, unsigned char *r
 
 	copy_size = response_size < ret?response_size:ret;
 
-	if (copy_size)
+	if (copy_size > response_size)
 		log_warn_ex("copy size truncate\n");
 
 	memcpy(response, res, copy_size);

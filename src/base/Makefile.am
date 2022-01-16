@@ -8,7 +8,7 @@ libbase_la_include_HEADERS=oplog.h oprpc.h opcli.h opsql.h sql_name.h opmem.h ti
 libbase_la_CFLAGS = -I$(top_srcdir)/src
 
 libbase_la_CFLAGS += -I$(prefix)/include
-libbase_la_CFLAGS += -W -Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wmissing-braces -Wparentheses -Wswitch -Wno-unused-parameter  -Wfloat-equal -Wsign-compare -Wpointer-arith -Winline -Werror  -rdynamic -std=gnu99
+libbase_la_CFLAGS += -W -Wall -Wchar-subscripts -Wcomment -Wformat -Wimplicit -Wmissing-braces -Wparentheses -Wswitch -Wno-unused-parameter  -Wfloat-equal -Wsign-compare -Wpointer-arith -Winline -Werror  -rdynamic -std=gnu99 -g
 
 libbase_la_LDFLAGS = -L$(top_builddir)/src/opbox/.libs
 libbase_la_LDFLAGS += -L$(prefix)/lib

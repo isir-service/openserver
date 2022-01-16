@@ -164,7 +164,7 @@ exit:
 	return NULL;
 }
 
-void op4g_tipc_register (void)
+void op4g_rpc_register (void)
 {
 	op_tipc_register(tipc_opserver_send_quotes,_4g_send_quotes);
 
@@ -265,7 +265,7 @@ void *op4g_init(void)
 		goto exit;
 	}
 
-	op4g_tipc_register();
+	op4g_rpc_register();
 
 	module_param.base = _4g->base;
 	module_param.thread_id = _4g->thread.thread_id;

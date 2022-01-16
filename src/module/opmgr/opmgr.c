@@ -215,14 +215,26 @@ int bus_get_mem_pool_infrmation(unsigned char *req, int req_size, unsigned char 
 	return src_size;
 }
 
+int bus_get_mem_pool_father_node_infrmation(unsigned char *req, int req_size, unsigned char *response, int res_size)
+{
+	int src_size = 0;
+	src_size = op_mem_father_node_information((char*)response, res_size);
 
-static void _mgr_tipc_register(void)
+	if (src_size > res_size)
+		log_warn("mem pool, message truncate[src_size=%d, res_size=%d]\n", src_size, res_size);
+
+	return src_size;
+}
+
+static void _mgr_rpc_register(void)
 {
 	op_tipc_register(tipc_opserver_cup_usage,bus_get_cpu_usage);
 	op_tipc_register(tipc_opserver_show_mem_poll,bus_get_mem_pool_infrmation);
+	op_tipc_register(tipc_opserver_show_mem_poll_father_node,bus_get_mem_pool_father_node_infrmation);
 
 	op_local_register(tipc_opserver_cup_usage,bus_get_cpu_usage);
 	op_local_register(tipc_opserver_show_mem_poll,bus_get_mem_pool_infrmation);
+	op_local_register(tipc_opserver_show_mem_poll_father_node,bus_get_mem_pool_father_node_infrmation);
 	return;
 }
 
@@ -240,6 +252,7 @@ static void opmgr_on_connect(struct mosquitto *mosq, void *obj, int reason_code)
 		mosquitto_disconnect(mosq);
 	}
 
+	
 	return;
 }
 
@@ -259,6 +272,7 @@ static void opmgr_on_subscribe(struct mosquitto *mosq, void *obj, int mid, int q
 		mosquitto_disconnect(mosq);
 	}
 
+	
 	return;
 }
 
@@ -300,7 +314,6 @@ void mqtt_cb_init(struct _opmgr_struct *mgr)
 		log_error ("opmgr pthread_create faild\n");
 		goto out;
 	}
-
 out:
 	return;
 }
@@ -332,7 +345,7 @@ void *opmgr_init(void)
 
 	_get_cpu_info_by_file(mgr->_cpu_info.usage , mgr->_cpu_info.cpu_num, 500);
 
-	_mgr_tipc_register();
+	_mgr_rpc_register();
 	opmgr_cmd_init();
 
 	mgr->timer.cpu_usage = event_new(mgr->base, -1, EV_PERSIST, _mgr_cpu_usage_period, mgr->_cpu_info.usage);
@@ -360,7 +373,6 @@ void *opmgr_init(void)
 	}
 
 	mqtt_cb_init(mgr);
-
 	log_debug ("opmgr thread_id[%x]\n", (unsigned int)mgr->thread.thread_id);
 
 	return mgr;

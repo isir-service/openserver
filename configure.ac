@@ -2,12 +2,12 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([opserver], [1.00], [itel@sina.com])
+AC_INIT([opserver],[1.00],[itel@sina.com])
 AM_INIT_AUTOMAKE([subdir-objects foreign])
 AC_CONFIG_HEADERS([config.h])
 # Checks for programs.
 AC_PROG_CC
-AC_PROG_LIBTOOL 
+LT_INIT 
 # Checks for libraries.
 # Checks for header files.
 
@@ -34,4 +34,5 @@ src/tools/Makefile
 src/tools/pbus/Makefile
 src/tools/file_compile/Makefile
 ])
-AC_OUTPUT([Makefile])
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT

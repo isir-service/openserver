@@ -15,6 +15,9 @@
 #include "pcap.h"
 #include "config.h"
 #include "iniparser.h"
+#include "eth.h"
+#include "skb_buff.h"
+#include "proto_decode.h"
 
 #define DPDK_PACKET_MAX_SIZE 65535
 #define OPDPDK_INTERFACE "opdpdk:interface"
@@ -36,10 +39,35 @@ static struct opdpdk_info *self = NULL;
 
 static void opdpdk_packet_process(u_char *arg, const struct pcap_pkthdr* pkthdr, const u_char* packet)
 {
-	static int i =0;
-	printf("get packet(%d) \n", i++);
-	printf("data len:%u\n", pkthdr->caplen); //抓到时的数据长度
-	printf("packet size:%u\n", pkthdr->len); //数据包实际的长度
+	struct op_skb_buff *skb = NULL;
+	struct eth_proto_decode *eth = NULL;
+	if (pkthdr->len <= 0)
+	{
+		goto out;
+	}
+
+	skb = op_calloc(1, sizeof(struct op_skb_buff));
+	if (!skb) {
+		log_warn_ex("skb buff calloc failed\n");
+		goto out;
+	}
+
+	skb->frame = (u_char*)packet;
+	skb->frame_len = pkthdr->len;
+	if (eth_decode(skb) < 0)
+		goto out;
+
+	eth = get_eth_decode(skb->eth_type);
+	if (!eth)
+		goto out;
+
+	if (eth->cb(skb) < 0)
+		goto out;
+
+out:
+	if (skb)
+		op_free(skb);
+
 	return;
 }
 
@@ -59,7 +87,7 @@ int main(int argc, char* argv[])
 	char errbuf[256];
 	dictionary *dict;
 	const char *str;
-	op_daemon();
+	//op_daemon();
 	opmem_init();
 	log_debug_ex("opdpdk init\n");
 	dpdk = op_calloc(1, sizeof(struct opdpdk_info));

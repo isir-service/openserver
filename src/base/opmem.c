@@ -35,11 +35,18 @@ struct mem_alloc_ele {
 	size_t size;
 	int num; /*default*/
 
-	struct list_head *list;
+	struct list_head list;
 	unsigned int can_used_num;
 	unsigned int all_num;
 	unsigned long long op_malloc_num;
 	unsigned long long op_free_num;
+};
+
+struct mem_father_node {
+	size_t size;
+	void *ptr;
+	size_t used_size;
+	struct list_head list;
 };
 
 static struct mem_alloc_ele op_mem_ele[OP_MEM_ELE_MAX] = {
@@ -76,6 +83,7 @@ struct op_mem_info {
 	pthread_mutexattr_t attr;
 	void *hash;
 	struct op_mem_statistic statistic;
+	struct list_head father_node_list;
 };
 
 struct op_mem_node {
@@ -83,6 +91,7 @@ struct op_mem_node {
 	void *ptr;
 	size_t size;
 	int index;
+	struct mem_father_node *father;
 };
 
 static struct mem_alloc_ele * op_mem_get_list(size_t size)
@@ -127,11 +136,9 @@ int op_mem_compare(const void *src_node, const void *dest_node)
 void *opmem_init(void)
 {
 	int i = 0, j = 0;
-	void *ptr = NULL;
-	
-	struct list_head *mem_list = NULL;
-	struct op_mem_node *mem_node = NULL;
 
+	struct op_mem_node *mem_node = NULL;
+	struct mem_father_node *father = NULL;
 	struct op_mem_info *mem = calloc(1, sizeof(struct op_mem_info));
 	if (!mem) {
 		printf("%s %d opmem init mem failed, errno = %d\n", __FILE__,__LINE__, errno);
@@ -148,36 +155,48 @@ void *opmem_init(void)
 		goto exit;
 	}
 
+	INIT_LIST_HEAD(&mem->father_node_list);
+
 	for (i = OP_MEM_ELE_NO+1; i< OP_MEM_ELE_MAX; i++) {
-		mem_list = calloc(1, sizeof (struct list_head));
-		if (!mem_list) {
-			printf("%s %d opmem init mem failed, errno = %d\n", __FILE__,__LINE__, errno);
-			goto exit;
-		}
 
-		INIT_LIST_HEAD(mem_list);
+		INIT_LIST_HEAD(&op_mem_ele[i].list);
 
-		op_mem_ele[i].list = mem_list;
 		if (!op_mem_ele[i].size || !op_mem_ele[i].num)
 			continue;
 
-		ptr = calloc(op_mem_ele[i].size, op_mem_ele[i].num);
-		if (!ptr) {
+		father = calloc(1, sizeof(struct mem_father_node));
+		if (!father)
+		{
+			return NULL;
+		}
+
+		INIT_LIST_HEAD(&father->list);
+		father->ptr = calloc(op_mem_ele[i].size, op_mem_ele[i].num);
+		if (!father->ptr) {
 			printf("%s %d opmem init mem failed, errno = %d\n", __FILE__,__LINE__, errno);
 			goto exit;
 		}
+
+		list_add_tail(&father->list, &mem->father_node_list);
+
+		father->size = op_mem_ele[i].size * op_mem_ele[i].num;
+		father->used_size = 0;
 
 		for (j = 0; j < op_mem_ele[i].num; j++) {
 			mem_node = calloc(1, sizeof(struct op_mem_node));
 			if (!mem_node) {
+				free(father->ptr);
+				free(father);
 				printf("%s %d opmem init mem failed, errno = %d\n", __FILE__,__LINE__, errno);
 				goto exit;
 			}
 			INIT_LIST_HEAD(&mem_node->list);
 			mem_node->index = j;
-			mem_node->ptr = (char*)ptr+(j*op_mem_ele[i].size);
+			mem_node->ptr = (char*)(father->ptr)+(j*op_mem_ele[i].size);
+
 			mem_node->size = op_mem_ele[i].size;
-			list_add_tail(&mem_node->list, op_mem_ele[i].list);
+			mem_node->father = father;
+			list_add_tail(&mem_node->list, &op_mem_ele[i].list);
 			op_mem_ele[i].can_used_num++;
 			op_mem_ele[i].all_num++;
 			mem->statistic.pool_alloc += mem_node->size;
@@ -225,7 +244,7 @@ void *op_malloc(size_t size)
 		INIT_LIST_HEAD(&mem_node->list);
 		pthread_mutex_lock(&self->lock);
 		op_hash_insert(self->hash, mem_node);
-		list_add_tail(&mem_node->list,op_mem_ele[op_MEM_ELE_SYS].list);
+		list_add_tail(&mem_node->list, &op_mem_ele[op_MEM_ELE_SYS].list);
 		self->statistic.system_alloc += mem_node->size;
 		self->statistic.system_alloc_used += mem_node->size;
 		pthread_mutex_unlock(&self->lock);
@@ -238,26 +257,41 @@ void *op_malloc(size_t size)
 
 	pthread_mutex_lock(&self->lock);
 
-	if(list_empty(ele->list)) {
-		ptr = calloc(ele->size, ele->num);
-		if (!ptr) {
+	if(list_empty(&ele->list)) {
+		struct mem_father_node *father = calloc(1, sizeof(struct mem_father_node));
+		if (father == NULL)
+		{
 			pthread_mutex_unlock(&self->lock);
 			return NULL;
 		}
+		INIT_LIST_HEAD(&father->list);
+		list_add_tail(&father->list, &self->father_node_list);
+
+		father->ptr = calloc(ele->size, ele->num);
+		if (!father->ptr) {
+			free(father);
+			pthread_mutex_unlock(&self->lock);
+			return NULL;
+		}
+
+		father->size = ele->size * ele->num;
+		father->used_size = 0;
 		
 		for (i = 0; i < ele->num; i++) {
 			mem_node = calloc(1, sizeof(struct op_mem_node));
 			if (!mem_node) {
-				free(ptr);
+				free(father->ptr);
+				free(father);
 				pthread_mutex_unlock(&self->lock);
 				return NULL;
 			}
 
 			INIT_LIST_HEAD(&mem_node->list);
 			mem_node->index = i;
-			mem_node->ptr = (char*)ptr+(i*ele->size);
+			mem_node->ptr = (char*)(father->ptr)+(i*ele->size);
 			mem_node->size = ele->size;
-			list_add_tail(&mem_node->list, ele->list);
+			mem_node->father = father;
+			list_add_tail(&mem_node->list, &ele->list);
 			ele->can_used_num++;
 			ele->all_num++;
 			self->statistic.pool_alloc += mem_node->size;
@@ -266,17 +300,18 @@ void *op_malloc(size_t size)
 		
 	}
 
-	mem_node = list_first_entry(ele->list, struct op_mem_node , list);
+	mem_node = list_first_entry(&ele->list, struct op_mem_node , list);
 	ele->can_used_num--;
 	
 	list_del_init(&mem_node->list);
 
 	op_hash_insert(self->hash, mem_node);
-	
+	mem_node->father->used_size += mem_node->size;
 	self->statistic.pool_alloc_noused -= mem_node->size;
 	self->statistic.pool_alloc_used += mem_node->size;
-	pthread_mutex_unlock(&self->lock);
+
 	ele->op_malloc_num++;
+	pthread_mutex_unlock(&self->lock);
 	return mem_node->ptr;
 }
 
@@ -349,7 +384,8 @@ void op_free(void *ptr)
 		goto out;
 
 	op_hash_delete(self->hash, p_node);
-	list_add_tail(&p_node->list, ele->list);
+	list_add_tail(&p_node->list, &ele->list);
+	p_node->father->used_size -= p_node->size;
 	ele->can_used_num++;
 	self->statistic.pool_alloc_noused += p_node->size;
 	self->statistic.pool_alloc_used -= p_node->size;
@@ -366,6 +402,53 @@ void opmem_exit(void *mem)
 		return;
 
 	return;
+}
+int op_mem_father_node_information (char *buf, int size)
+{
+	int index = 0;
+	int ret = 0;
+	struct mem_father_node *father = NULL;
+	unsigned long long total_size = 0;
+	unsigned long long total_used_size = 0;
+
+	ret = snprintf(buf+index, size -index, "===============memory father_node pool ==============\r\n");
+	if (ret < 0)
+		return index;
+
+	index += ret;
+
+	pthread_mutex_lock(&self->lock);
+	if(list_empty(&self->father_node_list)) {
+		ret = snprintf(buf+index, size -index, "===============no father node infrmation ==============\r\n");
+		if (ret < 0)
+			goto out;
+		index += ret;
+		goto out;
+	}
+
+	list_for_each_entry(father, &self->father_node_list, list) {
+		ret = snprintf(buf+index, size -index, "father:%10p, size = %10luB, used_size=%10luB\r\n", father, father->size, father->used_size);
+		if (ret < 0)
+			goto out;
+		index += ret;
+		total_size += father->size;
+		total_used_size += father->used_size;
+	}
+
+	ret = snprintf(buf+index, size -index, "===============total father_node pool information==============\r\n");
+	if (ret < 0)
+		return index;
+
+	index += ret;
+
+	ret = snprintf(buf+index, size -index, "all size = %10lluB,all_used_size=%10lluB\r\n", total_size, total_used_size);
+	if (ret < 0)
+		goto out;
+	index += ret;
+
+out:
+	pthread_mutex_unlock(&self->lock);
+	return index;
 }
 
 int op_mem_information (char *buf, int size)

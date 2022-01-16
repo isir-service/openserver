@@ -11,4 +11,6 @@ void *op_realloc(void *ptr, size_t size);
 void op_free(void *ptr);
 
 int op_mem_information (char *buf, int size);
+int op_mem_father_node_information (char *buf, int size);
+
 #endif

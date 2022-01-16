@@ -8,9 +8,10 @@
 #include "event.h"
 #include "base/oplog.h"
 #include "opbox/list.h"
+#include "opbox/utils.h"
 #include "base/opsql.h"
 #include "base/oprpc.h"
-
+#include "base/opmem.h"
 #include "op4g.h"
 
 struct _spider_thread_ 
@@ -29,10 +30,9 @@ struct _spider_struct {
 
 struct _spider_monitor {
 	struct list_head list;
-	int stock_code;
+	char stock_code[20];
 	double buy_price;
 	double sale_price;
-	int send_type; /*0 is buy 1 is sale*/
 };
 
 static struct _spider_struct *self = NULL;
@@ -74,7 +74,7 @@ int spider_check_stock(unsigned char *req, int req_size, unsigned char *response
 			goto out;
 		}
 
-		snprintf(sql, sizeof(sql),"select closing_price from stock_info where stock_code=%d order by sdate;", item->stock_code);
+		snprintf(sql, sizeof(sql),"select closing_price from stock_info where stock_code='%s' order by sdate;", item->stock_code);
 		log_debug("sql:%s\n",sql);
 		count = opsql_query(handle, sql);
 		if (count <= 0) {
@@ -90,15 +90,13 @@ int spider_check_stock(unsigned char *req, int req_size, unsigned char *response
 			log_warn("opsql_fetch_scroll failed[%d]\n", count);
 			goto out;
 		}
-		log_debug("stock_code=%d,buy_price=%lf, sale_price=%lf, closing_price=%lf\n", item->stock_code, item->buy_price, item->sale_price, closing_price);
-		if (item->buy_price >= closing_price && !item->send_type) {
+		log_debug("stock_code=%s,buy_price=%lf, sale_price=%lf, closing_price=%lf\n", item->stock_code, item->buy_price, item->sale_price, closing_price);
+		if (item->buy_price >= closing_price) {
 			op4g_send_message_ex("18519127396", "购买股票: %d， 上一交易日收盘价:%lf 【露国宠儿】", item->stock_code, closing_price);
-			item->send_type = 1;
 		}
 
-		if (item->sale_price <= closing_price && item->send_type) {
+		if (item->sale_price <= closing_price) {
 			op4g_send_message_ex("18519127396", "出售股票: %d， 上一交易日收盘价:%lf 【露国宠儿】", item->stock_code, closing_price);
-			item->send_type = 0;
 		}
 
 		opsql_free(handle);
@@ -118,7 +116,7 @@ void spider_stock_load(struct list_head *head)
 	void *handle = NULL;
 	int count = 0;
 	char sql[OPSQL_LEN];
-	int stock_code = 0;
+	char stock_code[20] = {};
 	double buy_price = 0.0;
 	double sale_price = 0.0;
 	int ret = 0;
@@ -157,7 +155,7 @@ void spider_stock_load(struct list_head *head)
 	log_debug("sql:%s\n",sql);
 	log_debug("count=%d\n", count);
 
-	opsql_bind_col(handle, 1, OPSQL_INTEGER, &stock_code, sizeof(stock_code));
+	opsql_bind_col(handle, 1, OPSQL_CHAR, stock_code, sizeof(stock_code));
 	opsql_bind_col(handle, 2, OPSQL_DOUBLE, &buy_price, sizeof(buy_price));
 	opsql_bind_col(handle, 3, OPSQL_DOUBLE, &sale_price, sizeof(sale_price));
 
@@ -168,14 +166,14 @@ void spider_stock_load(struct list_head *head)
 			goto out;
 		}
 
-		item = calloc(1, sizeof(*item));
+		item = op_calloc(1, sizeof(*item));
 		if (!item) {
 			log_warn("calloc failed[%d]\n", errno);
 			goto out;
 		}
 
 		INIT_LIST_HEAD(&item->list);
-		item->stock_code = stock_code;
+		strlcpy(item->stock_code , stock_code, sizeof(item->stock_code));
 		item->buy_price = buy_price;
 		item->sale_price = sale_price;
 		
@@ -183,7 +181,7 @@ void spider_stock_load(struct list_head *head)
 		list_add_tail(&item->list, head);
 		pthread_mutex_unlock(&spider->lock);
 
-		log_debug("stock_code=%d,buy_price=%lf, sale_price=%lf\n", stock_code, buy_price, sale_price);
+		log_debug("stock_code=%s,buy_price=%lf, sale_price=%lf\n", stock_code, buy_price, sale_price);
 	}
 
 out:
@@ -205,7 +203,7 @@ void *spider_init(void)
 {
 	struct _spider_struct *spider = NULL;
 
-	spider = calloc(1, sizeof(*spider));
+	spider = op_calloc(1, sizeof(*spider));
 	if (!spider) {
 		log_error("calloc failed[%d]\n", errno);
 		goto exit;

@@ -20,6 +20,7 @@ enum {
 	tipc_opserver_show_mem_poll,
 	tipc_opserver_send_quotes,
 	tipc_opserver_check_stock,
+	tipc_opserver_show_mem_poll_father_node,
 	tipc_opserver_max,
 };
 

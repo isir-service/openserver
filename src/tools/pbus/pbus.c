@@ -58,6 +58,8 @@ struct _pbus_struct pbus_map [tipc_opserver_max] = {
 	[tipc_opserver_send_quotes] = {.module=rpc_tipc_module_opserver,.help = "send_quotes", .cb = pbus_send_busd},
 	[tipc_opserver_check_stock] = {.module=rpc_tipc_module_opserver,.help = "check_stock", .cb = pbus_send_busd},
 	[tipc_opserver_show_mem_poll] = {.module=rpc_tipc_module_opserver,.help = "memory_pool_info", .cb = pbus_send_busd, .format_cb = format_mem_pool_usage},
+	[tipc_opserver_show_mem_poll_father_node] = {.module=rpc_tipc_module_opserver,.help = "memory_pool_info_father_node", .cb = pbus_send_busd, .format_cb = format_mem_pool_usage},
+
 };
 
 static char *pbus_string = "h";
@@ -94,7 +96,7 @@ void pbus_handle (char *help, unsigned char *req, int req_size) {
 
 	
 	for (i = 0; i < tipc_opserver_max; i++) {
-		if (!pbus_map[i].help || strncmp(pbus_map[i].help, help, strlen(pbus_map[i].help)))
+		if (!pbus_map[i].help || strcmp(pbus_map[i].help, help))
 			continue;
 		if (pbus_map[i].use_req)
 			ret = pbus_map[i].cb(pbus_map[i].module, i, req, req_size, g_response, RPC_RESPONSE_SIZE);

@@ -248,7 +248,6 @@ static int interruptible_sleep(struct mosquitto *mosq, time_t reconnect_delay)
 	return MOSQ_ERR_SUCCESS;
 }
 
-
 int mosquitto_loop_forever(struct mosquitto *mosq, int timeout, int max_packets)
 {
 	int run = 1;

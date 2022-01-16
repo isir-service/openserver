@@ -231,7 +231,7 @@ static int run_server(struct event_base *base)
 int main(int argc, char*argv[])
 {
 	struct _opserver_struct_ *_op = NULL;
-	//daemon(1,0);
+	daemon(1,0);
 	signal(SIGUSR1, signal_handle);
 	signal(SIGPIPE, SIG_IGN);
 	srand(time(NULL));
