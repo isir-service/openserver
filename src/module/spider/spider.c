@@ -173,7 +173,7 @@ void spider_stock_load(struct list_head *head)
 		}
 
 		INIT_LIST_HEAD(&item->list);
-		strlcpy(item->stock_code , stock_code, sizeof(item->stock_code));
+		op_strlcpy(item->stock_code , stock_code, sizeof(item->stock_code));
 		item->buy_price = buy_price;
 		item->sale_price = sale_price;
 		

@@ -149,7 +149,7 @@ static int _get_cpu_info_by_file(struct cpu_info_usage *cpu_usage, int cpu_num, 
 				cpu_after[i].softirq+cpu_after[i].steal+cpu_after[i].guest) - 
 				(cpu_pre[i].user+cpu_pre[i].nice+cpu_pre[i].system+cpu_pre[i].idle+cpu_pre[i].iowait+cpu_pre[i].irq+cpu_pre[i].softirq+
 				cpu_pre[i].steal+cpu_pre[i].guest))*1.0;
-		strlcpy(cpu_usage[i].cpu_name, cpu_pre[i].cpu_name, sizeof(cpu_usage[i].cpu_name));
+		op_strlcpy(cpu_usage[i].cpu_name, cpu_pre[i].cpu_name, sizeof(cpu_usage[i].cpu_name));
 		cpu_usage[i].user = (cpu_after[i].user - cpu_pre[i].user)/total *100.0;
 		cpu_usage[i].nice = (cpu_after[i].nice - cpu_pre[i].nice)/total *100.0;
 		cpu_usage[i].system = (cpu_after[i].system - cpu_pre[i].system)/total *100.0;

@@ -203,7 +203,7 @@ void *op4g_init(void)
 
 	log_info("op4g: dev(%s)\n",str);
 
-	strlcpy(_4g->uart.dev_name, str, sizeof(_4g->uart.dev_name));
+	op_strlcpy(_4g->uart.dev_name, str, sizeof(_4g->uart.dev_name));
 
 	if(!(str = iniparser_getstring(dict,_4G_CENTER_MESSAGE,NULL))) {
 		log_error ("iniparser_getstring faild[%s]\n", _4G_CENTER_MESSAGE);
@@ -211,7 +211,7 @@ void *op4g_init(void)
 		goto exit;
 	}
 
-	strlcpy(_4g->center_message, str, sizeof(_4g->center_message));
+	op_strlcpy(_4g->center_message, str, sizeof(_4g->center_message));
 	iniparser_freedict(dict);
 
 	_4g->uart.fd = uart_open(_4g->uart.dev_name);

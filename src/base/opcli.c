@@ -438,7 +438,7 @@ void *opcli_init(void)
 		goto exit;
 	}
 
-	strlcpy(cli->sock.ip, str, sizeof(cli->sock.ip));
+	op_strlcpy(cli->sock.ip, str, sizeof(cli->sock.ip));
 	if ((str_int =iniparser_getint(dict,CLI_PORT,-1)) < 0) {
 		printf ("%s %d iniparser_getint faild[%s]\n",__FILE__,__LINE__, CLI_PORT);
 		iniparser_freedict(dict);

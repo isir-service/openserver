@@ -52,14 +52,14 @@ void nginx_main_start(char *opserver_conf_path)
 		goto out;
 	}
 	
-	strlcpy(web_prefix, str,sizeof(web_prefix));
+	op_strlcpy(web_prefix, str,sizeof(web_prefix));
 
 	if(!(str = iniparser_getstring(dict,WEBSERVER_CONF_ERROR_LOG,NULL))) {
 		log_error_ex ("iniparser_getstring faild[%s]\n", WEBSERVER_CONF_ERROR_LOG);
 		goto out;
 	}
 
-	strlcpy(error_log, str, sizeof(error_log));
+	op_strlcpy(error_log, str, sizeof(error_log));
 	iniparser_freedict(dict);
 
 	argv = calloc(1, sizeof(char*) * WEBSERVER_ARGV_NUM);
@@ -76,13 +76,13 @@ void nginx_main_start(char *opserver_conf_path)
 		}
 	}
 
-	strlcpy(argv[0],"webserver", WEBSERVER_ARGV_ELE_LENGTH);
-	strlcpy(argv[1],"-c", WEBSERVER_ARGV_ELE_LENGTH);
-	strlcpy(argv[2],web_conf_file, WEBSERVER_ARGV_ELE_LENGTH);
-	strlcpy(argv[3],"-p", WEBSERVER_ARGV_ELE_LENGTH);
-	strlcpy(argv[4],web_prefix, WEBSERVER_ARGV_ELE_LENGTH);
-	strlcpy(argv[5],"-e", WEBSERVER_ARGV_ELE_LENGTH);
-	strlcpy(argv[6],error_log, WEBSERVER_ARGV_ELE_LENGTH);
+	op_strlcpy(argv[0],"webserver", WEBSERVER_ARGV_ELE_LENGTH);
+	op_strlcpy(argv[1],"-c", WEBSERVER_ARGV_ELE_LENGTH);
+	op_strlcpy(argv[2],web_conf_file, WEBSERVER_ARGV_ELE_LENGTH);
+	op_strlcpy(argv[3],"-p", WEBSERVER_ARGV_ELE_LENGTH);
+	op_strlcpy(argv[4],web_prefix, WEBSERVER_ARGV_ELE_LENGTH);
+	op_strlcpy(argv[5],"-e", WEBSERVER_ARGV_ELE_LENGTH);
+	op_strlcpy(argv[6],error_log, WEBSERVER_ARGV_ELE_LENGTH);
 
 	argc = WEBSERVER_ARGV_NUM;
 

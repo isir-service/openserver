@@ -47,9 +47,9 @@ int main(int argc, char *argv[])
 			}
 		}
 	
-		strlcpy(argv_str[0],"mqtt", MQTT_ARGV_ELE_LENGTH);
-		strlcpy(argv_str[1],"-c", MQTT_ARGV_ELE_LENGTH);
-		strlcpy(argv_str[2],mqtt_conf_file, MQTT_ARGV_ELE_LENGTH);
+		op_strlcpy(argv_str[0],"mqtt", MQTT_ARGV_ELE_LENGTH);
+		op_strlcpy(argv_str[1],"-c", MQTT_ARGV_ELE_LENGTH);
+		op_strlcpy(argv_str[2],mqtt_conf_file, MQTT_ARGV_ELE_LENGTH);
 
 	
 		argc_int = MQTT_ARGV_NUM;

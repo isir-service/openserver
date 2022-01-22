@@ -67,7 +67,7 @@ void *opmail_init(void)
 	}
 
 	log_debug("%s=%s\n", TAB_VALUE_STMP_KEY,value);
-	strlcpy(mail->smtp_auth_code, value, sizeof(mail->smtp_auth_code));
+	op_strlcpy(mail->smtp_auth_code, value, sizeof(mail->smtp_auth_code));
 	opsql_free(handle);
 	self = mail;
 	return mail;

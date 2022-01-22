@@ -55,7 +55,7 @@ void *opsql_init(char *conf_path)
 		goto exit;
 	}
 
-	strlcpy(_sql->path, str, sizeof(_sql->path));
+	op_strlcpy(_sql->path, str, sizeof(_sql->path));
 
 	iniparser_freedict(dict);
 

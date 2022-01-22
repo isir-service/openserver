@@ -666,9 +666,9 @@ void *timer_service_init(void)
 		log_error ("iniparser_getstring faild[%s]\n", _TIMER_SERVICE_CRON);
 		goto exit;
 	}
-	strlcpy(service->g.crontab_dir_name, str, sizeof(service->g.crontab_dir_name));
 
-	
+	op_strlcpy(service->g.crontab_dir_name, str, sizeof(service->g.crontab_dir_name));
+
 	log_debug("dir_name:%s\n", service->g.crontab_dir_name);
 
 	iniparser_freedict(dict);

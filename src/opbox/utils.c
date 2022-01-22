@@ -41,103 +41,6 @@
 
 #define BACKTRACE_SIZE   20
 
-#define C_PTR_ALIGN	(sizeof(size_t))
-#define C_PTR_MASK	(-C_PTR_ALIGN)
-
-#ifdef LIBUBOX_COMPAT_CLOCK_GETTIME
-#include <mach/mach_host.h>		/* host_get_clock_service() */
-#include <mach/mach_port.h>		/* mach_port_deallocate() */
-#include <mach/mach_init.h>		/* mach_host_self(), mach_task_self() */
-#include <mach/clock.h>			/* clock_get_time() */
-
-static clock_serv_t clock_realtime;
-static clock_serv_t clock_monotonic;
-
-static void __constructor clock_name_init(void)
-{
-	mach_port_t host_self = mach_host_self();
-
-	host_get_clock_service(host_self, CLOCK_REALTIME, &clock_realtime);
-	host_get_clock_service(host_self, CLOCK_MONOTONIC, &clock_monotonic);
-}
-
-static void __destructor clock_name_dealloc(void)
-{
-	mach_port_t self = mach_task_self();
-
-	mach_port_deallocate(self, clock_realtime);
-	mach_port_deallocate(self, clock_monotonic);
-}
-
-int clock_gettime(int type, struct timespec *tv)
-{
-	int retval = -1;
-	mach_timespec_t mts;
-
-	switch (type) {
-		case CLOCK_REALTIME:
-			retval = clock_get_time(clock_realtime, &mts);
-			break;
-		case CLOCK_MONOTONIC:
-			retval = clock_get_time(clock_monotonic, &mts);
-			break;
-		default:
-			goto out;
-	}
-
-	tv->tv_sec = mts.tv_sec;
-	tv->tv_nsec = mts.tv_nsec;
-out:
-	return retval;
-}
-
-#endif
-
-void *cbuf_alloc(unsigned int order)
-{
-	char path[] = "/tmp/cbuf-XXXXXX";
-	unsigned long size = cbuf_size(order);
-	void *ret = NULL;
-	int fd;
-
-	fd = mkstemp(path);
-	if (fd < 0)
-		return NULL;
-
-	if (unlink(path))
-		goto close;
-
-	if (ftruncate(fd, cbuf_size(order)))
-		goto close;
-
-#ifndef MAP_ANONYMOUS
-#define MAP_ANONYMOUS MAP_ANON
-#endif
-
-	ret = mmap(NULL, size * 2, PROT_NONE, MAP_ANON | MAP_PRIVATE, -1, 0);
-	if (ret == MAP_FAILED) {
-		ret = NULL;
-		goto close;
-	}
-
-	if (mmap(ret, size, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_SHARED,
-		 fd, 0) != ret ||
-	    mmap((char*)ret + size, size, PROT_READ | PROT_WRITE,
-		 MAP_FIXED | MAP_SHARED, fd, 0) != (char*)ret + size) {
-		munmap(ret, size * 2);
-		ret = NULL;
-	}
-
-close:
-	close(fd);
-	return ret;
-}
-
-void cbuf_free(void *ptr, unsigned int order)
-{
-	munmap(ptr, cbuf_size(order) * 2);
-}
-
 int isipv4(const char *ip)
 {
 	int dots = 0;
@@ -277,7 +180,7 @@ char * uinttoipv4(unsigned int ip)
 }
 
 
-int strlcpy(char *dest, const char *src, unsigned int dest_size)
+int op_strlcpy(char *dest, const char *src, unsigned int dest_size)
 {
 
 	unsigned int size_copy = 0;
@@ -354,9 +257,9 @@ void signal_segvdump(void)
 	signal(SIGSEGV, dump_trace);
 	return;
 }
-void signal_action(void)
+void signal_ignore(int sig)
 {
-	signal(SIGPIPE, SIG_IGN);
+	signal(sig, SIG_IGN);
 	return;
 
 }

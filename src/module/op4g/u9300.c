@@ -236,7 +236,7 @@ int u9300_init(int fd, char*center_message, struct _4g_module_init * param)
 	self = u;
 
 	memcpy(&u->param, param, sizeof(u->param));
-	strlcpy(u->center_message,center_message, sizeof(u->center_message));
+	op_strlcpy(u->center_message,center_message, sizeof(u->center_message));
 	if(pthread_mutexattr_init(&u->attr)) {
 		log_error ("pthread_mutexattr_init faild\n");
 		goto exit;

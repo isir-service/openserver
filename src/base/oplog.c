@@ -514,7 +514,7 @@ void *oplog_init(void)
 		goto exit;
 	}
 
-	strlcpy(_op->prog.root_path, str, sizeof(_op->prog.root_path));
+	op_strlcpy(_op->prog.root_path, str, sizeof(_op->prog.root_path));
 	
 	_op->sock.sock_fd = usock(USOCK_IPV4ONLY|USOCK_UDP|USOCK_SERVER, ip, usock_port(_op->sock.port));
 	if (_op->sock.sock_fd < 0) {
@@ -718,8 +718,8 @@ void oplog_print(int log_type, char *file, const char *function, int line, int l
 	va_start(args, fmt);
 	pthread_mutex_lock(&self->send.lock);
 	head = (struct _log_send_header *)self->send.buf_send;
-	strlcpy(head->file, file, sizeof(head->file));
-	strlcpy(head->function, function, sizeof(head->function));
+	op_strlcpy(head->file, file, sizeof(head->file));
+	op_strlcpy(head->function, function, sizeof(head->function));
 	head->line = htonl(line);
 	head->level = htonl(level);
 	head->type = htonl(log_type);
@@ -751,8 +751,8 @@ void oplog_print_ex(int log_type, char *file, const char *function, int line, in
 	va_start(args, fmt);
 	pthread_mutex_lock(&log_send_ex.lock);
 	head = (struct _log_send_header *)log_send_ex.buf_send;
-	strlcpy(head->file, file, sizeof(head->file));
-	strlcpy(head->function, function, sizeof(head->function));
+	op_strlcpy(head->file, file, sizeof(head->file));
+	op_strlcpy(head->function, function, sizeof(head->function));
 	head->line = htonl(line);
 	head->level = htonl(level);
 	head->type = htonl(log_type);

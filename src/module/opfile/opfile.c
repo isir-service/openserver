@@ -242,20 +242,20 @@ static int opfile_parse_magic(char *magic_path)
 				goto failed;
 			}
 
-			strlcpy(magic->ext, (char*)ext, sizeof(magic->ext));
+			op_strlcpy(magic->ext, (char*)ext, sizeof(magic->ext));
 
 			express = xmlNodeGetContent(magic_child);
 			if (!express) {
 				log_warn_ex("magic, express is unvalid\n");
 				goto failed;
 			}
-			strlcpy(magic->express, (char*)express, sizeof(magic->express));
+			op_strlcpy(magic->express, (char*)express, sizeof(magic->express));
 			xmlFree(express);
 			express = NULL;
 
 			desc = xmlGetProp(magic_child, BAD_CAST"desc");
 			if (desc) {
-				strlcpy(magic->desc, (char*)desc, sizeof(magic->desc));
+				op_strlcpy(magic->desc, (char*)desc, sizeof(magic->desc));
 				xmlFree(desc);
 				desc = NULL;
 			}
@@ -371,7 +371,7 @@ void *opfile_init(void)
 		goto out;
 	}
 
-	strlcpy(magic_path, str, sizeof(magic_path));
+	op_strlcpy(magic_path, str, sizeof(magic_path));
 	iniparser_freedict(dict);
 	dict = NULL;
 
@@ -481,8 +481,8 @@ struct file_ext_info * opfile_check_mem(char *file_buf, unsigned int size)
 	log_debug_ex("match[%u]:ext[%s], express[%s], desc[%s], express_id:%u, file_type=%u\n",
 			magic_ex->matched_num,magic->ext, magic->express, magic->desc?magic->desc:"null", magic->express_id, magic->file_type);
 	file->file_type = magic->file_type;
-	strlcpy(file->ext, magic->ext, sizeof(file->ext));
-	strlcpy(file->desc, magic->desc, sizeof(file->desc));
+	op_strlcpy(file->ext, magic->ext, sizeof(file->ext));
+	op_strlcpy(file->desc, magic->desc, sizeof(file->desc));
 	op_free(magic_ex);
 	return file;
 failed:

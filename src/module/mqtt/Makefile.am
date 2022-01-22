@@ -78,9 +78,10 @@ mqtt_SOURCES=mosquitto.c \
 		xtreport.c \
 		mqtt.c
 
-mqtt_LDFLAGS = -L$(prefix)/lib 
-mqtt_LDFLAGS +=-L$(top_builddir)/src/base/.libs
+mqtt_LDFLAGS =-L$(top_builddir)/src/base/.libs
 mqtt_LDFLAGS +=-L$(top_builddir)/src/opbox/.libs
+mqtt_LDFLAGS += -L$(prefix)/lib 
+
 mqtt_LDADD = -lpthread  -ldl -lbase -liniparser -lopbox
 
 A=$(top_srcdir)/src/module/mqtt/mqtt
