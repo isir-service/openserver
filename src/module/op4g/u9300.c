@@ -331,7 +331,7 @@ int u9300_uart_handle(int fd, unsigned int event_type, struct _4g_uart_handle *h
 		ret = u->current->at_cmd_cb(u->current, handle->resp, handle->resp_size);
 
 	if (ret < 0) {
-		log_warn("add timer wait timeout for cmd:%s\n",u->current->at);
+		log_debug("add timer wait timeout for cmd:%s\n",u->current->at);
 		tv.tv_sec = _4G_WAIT_RESPONSE_ERROR/1000;
 		tv.tv_usec = 0;
 		event_add(u->timer.at_cmd, &tv);

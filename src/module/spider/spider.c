@@ -31,8 +31,12 @@ struct _spider_struct {
 struct _spider_monitor {
 	struct list_head list;
 	char stock_code[20];
+	char name[20];
 	double buy_price;
 	double sale_price;
+#define STAT_BUY 0
+#define STAT_SALE 1
+	int stat;
 };
 
 static struct _spider_struct *self = NULL;
@@ -63,7 +67,6 @@ int spider_check_stock(unsigned char *req, int req_size, unsigned char *response
 
 	pthread_mutex_lock(&spider->lock);
 	if (list_empty(&spider->head)) {
-		pthread_mutex_unlock(&spider->lock);
 		goto out;
 	}
 
@@ -74,11 +77,10 @@ int spider_check_stock(unsigned char *req, int req_size, unsigned char *response
 			goto out;
 		}
 
-		snprintf(sql, sizeof(sql),"select closing_price from stock_info where stock_code='%s' order by sdate;", item->stock_code);
+		snprintf(sql, sizeof(sql),"select closing_price from stock_info where stock_code='%s' order by sdate desc limit 1;", item->stock_code);
 		log_debug("sql:%s\n",sql);
 		count = opsql_query(handle, sql);
 		if (count <= 0) {
-			pthread_mutex_unlock(&spider->lock);
 			log_warn("opsql_query failed\n");
 			continue;
 		}
@@ -86,26 +88,39 @@ int spider_check_stock(unsigned char *req, int req_size, unsigned char *response
 		log_debug("count=%d\n", count);
 		opsql_bind_col(handle, 1, OPSQL_DOUBLE, &closing_price, sizeof(closing_price));
 		if(opsql_fetch_scroll(handle, count) < 0) {
-			pthread_mutex_unlock(&spider->lock);
 			log_warn("opsql_fetch_scroll failed[%d]\n", count);
 			goto out;
 		}
 		log_debug("stock_code=%s,buy_price=%lf, sale_price=%lf, closing_price=%lf\n", item->stock_code, item->buy_price, item->sale_price, closing_price);
-		if (item->buy_price >= closing_price) {
-			op4g_send_message_ex("18519127396", "购买股票: %d， 上一交易日收盘价:%lf 【露国宠儿】", item->stock_code, closing_price);
+		if (item->buy_price >= closing_price && item->stat != STAT_SALE) {
+			item->stat = STAT_SALE;
+			snprintf(sql, sizeof(sql),"update stock_spider set sta='%d' where stock_code='%s';", STAT_SALE, item->stock_code);
+			if(opsql_exe_single(sql) < 0) {
+				log_warn("opsql_exe_single[%s]\n", sql);
+				goto out;
+			}
+
+			op4g_send_message_ex("18519127396", "购买股票: %s(%s)， 上一交易日收盘价:%lf 【露国宠儿】", item->stock_code, item->name,closing_price);
 		}
 
-		if (item->sale_price <= closing_price) {
-			op4g_send_message_ex("18519127396", "出售股票: %d， 上一交易日收盘价:%lf 【露国宠儿】", item->stock_code, closing_price);
+		if (item->sale_price <= closing_price && item->stat != STAT_BUY) {
+			item->stat = STAT_BUY;
+
+			snprintf(sql, sizeof(sql),"update stock_spider set sta='%d' where stock_code='%s';", STAT_BUY, item->stock_code);
+			if(opsql_exe_single(sql) < 0) {
+				log_warn("opsql_exe_single[%s]\n", sql);
+				goto out;
+			}
+
+			op4g_send_message_ex("18519127396", "出售股票: %s(%s)， 上一交易日收盘价:%lf 【露国宠儿】", item->stock_code, item->name, closing_price);
 		}
 
 		opsql_free(handle);
 		handle = NULL;
 	}
 
-	pthread_mutex_unlock(&spider->lock);
-
 out:
+	pthread_mutex_unlock(&spider->lock);
 	if (handle)
 		opsql_free(handle);
 	return 0;
@@ -117,8 +132,10 @@ void spider_stock_load(struct list_head *head)
 	int count = 0;
 	char sql[OPSQL_LEN];
 	char stock_code[20] = {};
+	char note_code[20] = {};
 	double buy_price = 0.0;
 	double sale_price = 0.0;
+	int status = 0;
 	int ret = 0;
 	struct _spider_struct *spider = NULL;
 	struct _spider_monitor *item = NULL;
@@ -145,7 +162,7 @@ void spider_stock_load(struct list_head *head)
 		goto out;
 	}
 
-	snprintf(sql, sizeof(sql),"select stock_code,buy_price,sale_price from stock_spider;");
+	snprintf(sql, sizeof(sql),"select stock_code,buy_price,sale_price,note,sta from stock_spider;");
 	count = opsql_query(handle, sql);
 	if (count <= 0) {
 		log_warn("opsql_query failed\n");
@@ -158,7 +175,8 @@ void spider_stock_load(struct list_head *head)
 	opsql_bind_col(handle, 1, OPSQL_CHAR, stock_code, sizeof(stock_code));
 	opsql_bind_col(handle, 2, OPSQL_DOUBLE, &buy_price, sizeof(buy_price));
 	opsql_bind_col(handle, 3, OPSQL_DOUBLE, &sale_price, sizeof(sale_price));
-
+	opsql_bind_col(handle, 4, OPSQL_CHAR, note_code, sizeof(note_code));
+	opsql_bind_col(handle, 5, OPSQL_INTEGER, &status, sizeof(status));
 	while(count--){
 		ret = opsql_fetch(handle);
 		if (ret < 0) {
@@ -174,9 +192,10 @@ void spider_stock_load(struct list_head *head)
 
 		INIT_LIST_HEAD(&item->list);
 		op_strlcpy(item->stock_code , stock_code, sizeof(item->stock_code));
+		op_strlcpy(item->name , note_code, sizeof(item->name));
 		item->buy_price = buy_price;
 		item->sale_price = sale_price;
-		
+		item->stat = status;
 		pthread_mutex_lock(&spider->lock);
 		list_add_tail(&item->list, head);
 		pthread_mutex_unlock(&spider->lock);

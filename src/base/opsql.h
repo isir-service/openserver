@@ -32,6 +32,8 @@ int opsql_query(void *handle,char *sql);
 int opsql_fetch(void *handle);
 
 int opsql_fetch_scroll(void *handle, int row);
+int opsql_exe(void *handle,char *sql);
 
+int opsql_exe_single(char *sql);
 
 #endif

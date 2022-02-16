@@ -208,6 +208,39 @@ failed:
 	return -1;
 }
 
+int opsql_exe(void *handle,char *sql)
+{
+	SQLRETURN rcode = 0;
+
+	rcode = SQLExecDirect(handle, (SQLCHAR*)sql, SQL_NTS);
+	if(rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
+		printf("%s %d SQLExecDirect [%s] failed!\n", __FUNCTION__, __LINE__, sql);
+		goto failed;
+	}
+
+	return 0;
+failed:
+	return -1;
+}
+
+int opsql_exe_single(char *sql)
+{
+	SQLRETURN rcode = 0;
+
+	void *handle = opsql_alloc();
+	if (!handle)
+		return -1;
+	rcode  = opsql_exe(handle, sql);
+	if(rcode != SQL_SUCCESS && rcode != SQL_SUCCESS_WITH_INFO) {
+		printf("%s %d SQLExecDirect [%s] failed!\n", __FUNCTION__, __LINE__, sql);
+		goto failed;
+	}
+	opsql_free(handle);
+	return 0;
+failed:
+	return -1;
+}
+
 int opsql_fetch(void *handle)
 {
 	SQLRETURN rcode = 0;
