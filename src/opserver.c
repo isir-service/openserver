@@ -47,6 +47,7 @@ struct _opserver_struct_ {
 	struct list_head process_list;
 	struct event_base *base;
 	struct event *process_watchd;
+	struct event *opmem_watchd;
 };
 
 struct _opserver_struct_ *self = NULL;
@@ -83,6 +84,17 @@ out:
 	return;
 }
 
+static void opserver_opmem_watchd(evutil_socket_t fd , short what, void *arg)
+{
+	struct timeval tv;
+
+	tv.tv_sec = 60;
+	tv.tv_usec = 0;
+	op_mem_release_check(arg);
+	event_add(self->opmem_watchd, &tv);
+	return;
+}
+
 int opserver_init(struct _opserver_struct_ *server)
 {
 
@@ -106,6 +118,16 @@ int opserver_init(struct _opserver_struct_ *server)
 	tv.tv_sec = 1;
 	tv.tv_usec = 0;
 	event_add(server->process_watchd, &tv);
+
+	server->opmem_watchd = evtimer_new(server->base, opserver_opmem_watchd, server->mem);
+	if (!server->opmem_watchd) {
+		log_warn("process opmem failed\n");
+		return 0;
+	}
+
+	tv.tv_sec = 60;
+	tv.tv_usec = 0;
+	event_add(server->opmem_watchd, &tv);
 	return 0;
 }
 
@@ -242,6 +264,8 @@ int main(int argc, char*argv[])
 		goto exit;
 	}
 
+	self = _op;
+
 	_op->base = event_base_new();
 	if (!_op->base) {
 		log_error("opserver event_base_new failed\n");
@@ -262,8 +286,6 @@ int main(int argc, char*argv[])
 	opserver_init(_op);
 
 	server_init(_op);
-
-	self = _op;
 
 	if (run_server(_op->base) < 0)
 		goto exit;

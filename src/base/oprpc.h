@@ -11,16 +11,21 @@ typedef int (*rpc_cb)(unsigned char *req, int req_size, unsigned char *response,
 enum {
 	rpc_tipc_module_none = 1000,
 	rpc_tipc_module_opserver,
+	rpc_tipc_module_opdpdk,
 	rpc_tipc_module_max,
 };
 
 enum {
+	// opserver
 	tipc_opserver_none,
 	tipc_opserver_cup_usage,
 	tipc_opserver_show_mem_poll,
 	tipc_opserver_send_quotes,
 	tipc_opserver_check_stock,
 	tipc_opserver_show_mem_poll_father_node,
+	// opdpdk
+	tipc_opdpdk_show_mem_poll,
+	tipc_opdpdk_show_mem_poll_father_node,
 	tipc_opserver_max,
 };
 

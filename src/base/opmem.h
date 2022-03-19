@@ -13,4 +13,7 @@ void op_free(void *ptr);
 int op_mem_information (char *buf, int size);
 int op_mem_father_node_information (char *buf, int size);
 
+void op_mem_release_check(void *mem);
+
+
 #endif

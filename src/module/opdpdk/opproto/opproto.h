@@ -3,20 +3,21 @@
 
 #include <sys/time.h>
 #include <time.h>
+#include "opbox/oplist.h"
 
 #define OP_ETH_ALEN 6
 #define OP_ETH_TYPE_MAX 65536
-#define IPV4_HEADER_NORMAL_SIZE 20
 #define OP_IP_MAX_SIZE  65535
 #define IP_FRAG_CONTINUE 1
 #define IP_FRAG_OVER 2
-#define IP_FRAG_TIMEOUT_S 60
+#define IP_FRAG_TIMEOUT_CHECK_S 10
+#define IP_FRAG_TIMEOUT 20
 
 #define OP_IP_PROTO_MAX 256
 
 struct op_skb_buff;
 
-typedef int (*eth_type_cb)(struct op_skb_buff *);
+typedef struct op_skb_buff *(*eth_type_cb)(struct op_skb_buff *, int);
 typedef int (*ip_proto_cb)(struct op_skb_buff *);
 
 struct op_ethhder {
@@ -46,17 +47,23 @@ struct op_iphdr {
 	unsigned int daddr;
 }__attribute__((packed));
 
-struct ip_frag_info {
-	unsigned char ip_df:1,
-				  ip_mf:1;
-	unsigned short ip_frag_offset;
+struct ip_frag_data {
+	unsigned char *data;
+	unsigned short data_len;
+	unsigned short offset;
+	struct ip_frag_data *next;
+};
 
-//private
+struct ip_frag_info {
+	unsigned char frag:1,
+				 over:1,
+				 first_find:1,
+				last_pkt:1;
+	unsigned short last_pkt_offlen;
 	unsigned short frag_write_size;
-	unsigned char *frag_buf_l4;
-	unsigned short frag_buf_size;
-	unsigned short last_offset;
-	unsigned short last_length;
+	struct ip_frag_data *data_head;
+	struct ip_frag_data *data_tail;
+	unsigned int time;
 };
 
 struct op_skb_buff
@@ -67,13 +74,19 @@ struct op_skb_buff
 	unsigned int eth_len;
 	unsigned short eth_type;
 	struct op_iphdr *iphdr;
-	unsigned int iphdr_len;
+	unsigned char iphdr_len;
 	unsigned char *ip_option;
-	unsigned int ip_option_length;
+	unsigned char ip_option_length;
 	struct ip_frag_info ip_frag;
 
 	//private
 	struct timeval ts;
+	void *work_thread;
+};
+
+struct ip_frag_timeout {
+	struct op_skb_buff *skb;
+	struct oplist_head list;
 };
 
 #endif

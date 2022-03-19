@@ -563,12 +563,12 @@ void *oplog_init(void)
 	}
 
 	if(pthread_condattr_init(&_op->recv.cont_attr)) {
-		printf ("%s %d oplog pthread_rwlockattr_init faild\n",__FILE__,__LINE__);
+		printf ("%s %d oplog pthread_condattr_init faild\n",__FILE__,__LINE__);
 		goto exit;
 	}
 
 	if(pthread_cond_init(&_op->recv.cont, &_op->recv.cont_attr)) {
-		printf ("%s %d oplog pthread_rwlock_init faild\n",__FILE__,__LINE__);
+		printf ("%s %d oplog pthread_cond_init faild\n",__FILE__,__LINE__);
 		goto exit;
 	}
 

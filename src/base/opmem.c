@@ -46,7 +46,11 @@ struct mem_father_node {
 	size_t size;
 	void *ptr;
 	size_t used_size;
+#define OPMEM_CAN_FREE    1
+#define OPMEM_CANNOT_FREE 2
+	int type;
 	struct list_head list;
+	struct mem_alloc_ele *ele;
 };
 
 static struct mem_alloc_ele op_mem_ele[OP_MEM_ELE_MAX] = {
@@ -170,6 +174,8 @@ void *opmem_init(void)
 			return NULL;
 		}
 
+		father->ele = &op_mem_ele[i];
+		father->type = OPMEM_CANNOT_FREE;
 		INIT_LIST_HEAD(&father->list);
 		father->ptr = calloc(op_mem_ele[i].size, op_mem_ele[i].num);
 		if (!father->ptr) {
@@ -264,6 +270,9 @@ void *op_malloc(size_t size)
 			pthread_mutex_unlock(&self->lock);
 			return NULL;
 		}
+
+		father->ele = ele;
+		father->type = OPMEM_CAN_FREE;
 		INIT_LIST_HEAD(&father->list);
 		list_add_tail(&father->list, &self->father_node_list);
 
@@ -387,6 +396,7 @@ void op_free(void *ptr)
 	list_add_tail(&p_node->list, &ele->list);
 	p_node->father->used_size -= p_node->size;
 	ele->can_used_num++;
+	
 	self->statistic.pool_alloc_noused += p_node->size;
 	self->statistic.pool_alloc_used -= p_node->size;
 	ele->op_free_num++;
@@ -403,6 +413,39 @@ void opmem_exit(void *mem)
 
 	return;
 }
+
+void op_mem_release_check(void *mem)
+{
+	struct mem_father_node *father = NULL;
+	struct mem_father_node *father_tmp = NULL;
+	struct op_mem_node *mem_node = NULL;
+	struct op_mem_node *mem_node_tmp = NULL;
+	pthread_mutex_lock(&self->lock);
+	list_for_each_entry_safe(father, father_tmp, &self->father_node_list, list) {
+		if (father->type == OPMEM_CANNOT_FREE || father->used_size > 0 || !father->ele)
+			continue;
+
+		list_for_each_entry_safe(mem_node, mem_node_tmp, &father->ele->list, list) {
+			if (mem_node->father != father)
+				continue;
+
+			list_del(&mem_node->list);
+			father->ele->can_used_num--;
+			father->ele->all_num--;
+			self->statistic.pool_alloc -= mem_node->size;
+			self->statistic.pool_alloc_noused -= mem_node->size;
+
+			free(mem_node);
+		}
+
+		list_del(&father->list);
+		free(father);
+	}
+
+	pthread_mutex_unlock(&self->lock);
+	return;
+}
+
 int op_mem_father_node_information (char *buf, int size)
 {
 	int index = 0;
@@ -427,7 +470,8 @@ int op_mem_father_node_information (char *buf, int size)
 	}
 
 	list_for_each_entry(father, &self->father_node_list, list) {
-		ret = snprintf(buf+index, size -index, "father:%10p, size = %10luB, used_size=%10luB\r\n", father, father->size, father->used_size);
+		ret = snprintf(buf+index, size -index, "father:%10p, size = %10luB, used_size=%10luB, type=%s\r\n",
+				father, father->size, father->used_size, father->type==OPMEM_CAN_FREE?"can free":"can not free");
 		if (ret < 0)
 			goto out;
 		index += ret;
