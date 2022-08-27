@@ -2,10 +2,6 @@ AUTOMAKE_OPTIONS=foreign
 bin_PROGRAMS=opdpdk
 
 opdpdk_SOURCES=opdpdk.c \
-opproto/eth.c \
-opproto/skb_buff.c \
-opproto/ip.c \
-opproto/proto_decode.c \
 suricate/alert-debuglog.c \
 suricate/alert-fastlog.c \
 suricate/alert-prelude.c \

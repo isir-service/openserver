@@ -1003,14 +1003,12 @@ static void SCInstanceInit(SCInstance *suri, const char *progname)
 
     suri->keyword_info = NULL;
     suri->runmode_custom_mode = NULL;
-#ifndef OS_WIN32
     suri->user_name = NULL;
     suri->group_name = NULL;
     suri->do_setuid = FALSE;
     suri->do_setgid = FALSE;
     suri->userid = 0;
     suri->groupid = 0;
-#endif /* OS_WIN32 */
     suri->delayed_detect = 0;
     suri->daemon = 0;
     suri->offline = 0;
@@ -1885,35 +1883,6 @@ static TmEcode ParseCommandLine(int argc, char** argv, SCInstance *suri)
     return TM_ECODE_OK;
 }
 
-#ifdef OS_WIN32
-static int WindowsInitService(int argc, char **argv)
-{
-    if (SCRunningAsService()) {
-        char path[MAX_PATH];
-        char *p = NULL;
-        strlcpy(path, argv[0], MAX_PATH);
-        if ((p = strrchr(path, '\\'))) {
-            *p = '\0';
-        }
-        if (!SetCurrentDirectory(path)) {
-            SCLogError(SC_ERR_FATAL, "Can't set current directory to: %s", path);
-            return -1;
-        }
-        SCLogInfo("Current directory is set to: %s", path);
-        SCServiceInit(argc, argv);
-    }
-
-    /* Windows socket subsystem initialization */
-    WSADATA wsaData;
-    if (0 != WSAStartup(MAKEWORD(2, 2), &wsaData)) {
-        SCLogError(SC_ERR_FATAL, "Can't initialize Windows sockets: %d", WSAGetLastError());
-        return -1;
-    }
-
-    return 0;
-}
-#endif /* OS_WIN32 */
-
 static int MayDaemonize(SCInstance *suri)
 {
     if (suri->daemon == 1 && suri->pid_filename == NULL) {
@@ -2711,13 +2680,12 @@ int InitGlobal(void) {
      * once we're done launching threads. The goal is to either die
      * completely or handle any and all SIGUSR2s correctly.
      */
-#ifndef OS_WIN32
+
     UtilSignalHandlerSetup(SIGUSR2, SIG_IGN);
     if (UtilSignalBlock(SIGUSR2)) {
         SCLogError(SC_ERR_INITIALIZATION, "SIGUSR2 initialization error");
         return EXIT_FAILURE;
     }
-#endif
 
     ParseSizeInit();
     RunModeRegisterRunModes();
@@ -2735,13 +2703,6 @@ int SuricataMain(int argc, char **argv)
     if (InitGlobal() != 0) {
         exit(EXIT_FAILURE);
     }
-
-#ifdef OS_WIN32
-    /* service initialization */
-    if (WindowsInitService(argc, argv) != 0) {
-        exit(EXIT_FAILURE);
-    }
-#endif /* OS_WIN32 */
 
     if (ParseCommandLine(argc, argv, &suricata) != TM_ECODE_OK) {
         exit(EXIT_FAILURE);

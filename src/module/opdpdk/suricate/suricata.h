@@ -132,14 +132,12 @@ typedef struct SCInstance_ {
 
     char *keyword_info;
     char *runmode_custom_mode;
-#ifndef OS_WIN32
     const char *user_name;
     const char *group_name;
     uint8_t do_setuid;
     uint8_t do_setgid;
     uint32_t userid;
     uint32_t groupid;
-#endif /* OS_WIN32 */
 
     bool system;
     bool set_logdir;

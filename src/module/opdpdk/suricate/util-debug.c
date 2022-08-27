@@ -1530,10 +1530,6 @@ void SCLogDeInitLogModule(void)
     /* de-init the FG filters */
     SCLogReleaseFGFilters();
 
-#if defined (OS_WIN32)
-    SCMutexDestroy(&sc_log_stream_lock);
-#endif /* OS_WIN32 */
-
     return;
 }
 

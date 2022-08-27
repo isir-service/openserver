@@ -31,8 +31,14 @@ class stock_store():
            print ("get stock info failed")
     def get_stock_info(self, start, end, compare):
         for code in self.code_list:
-           url = 'http://quotes.money.163.com/service/chddata.html?code=1%s'%(code)+\
+           url=""
+           if code[0] == '0':
+                url = 'http://quotes.money.163.com/service/chddata.html?code=1%s'%(code)+\
                     '&start='+start+'&end='+end+'&fields=TCLOSE;HIGH;LOW;TOPEN;LCLOSE;CHG;PCHG;TURNOVER;VOTURNOVER;VATURNOVER;TCAP;MCAP'
+           else:
+                url = 'http://quotes.money.163.com/service/chddata.html?code=0%s'%(code)+\
+                    '&start='+start+'&end='+end+'&fields=TCLOSE;HIGH;LOW;TOPEN;LCLOSE;CHG;PCHG;TURNOVER;VOTURNOVER;VATURNOVER;TCAP;MCAP'
+
            path = self.tmp_file_path+'%s'%code+'.csv'
            print(start)
            print(url)

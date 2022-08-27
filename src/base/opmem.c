@@ -521,8 +521,8 @@ int op_mem_information (char *buf, int size)
 
 		ele_size = (unsigned int)op_mem_ele[i].size;
 		used_num = op_mem_ele[i].can_used_num;
-		ret = snprintf(buf+index, size -index, "[%10s] ele size(B): %10u, all_num: %10d, can_used_num: %10d, total size: %10uB = %10.2lfkB=%10.2lfMB, op_malloc_num : %10llu, op_free_num:%10llu\r\n", 
-				op_mem_ele[i].name, ele_size, op_mem_ele[i].all_num , used_num, ele_size*used_num, ele_size*used_num/1204.0, ele_size*used_num/1024.0/1024.0,
+		ret = snprintf(buf+index, size -index, "[%10s] ele size(B): %10u, all_num: %10d, can_used_num: %10d, total size: %10uB, op_malloc_num : %10llu, op_free_num:%10llu\r\n", 
+				op_mem_ele[i].name, ele_size, op_mem_ele[i].all_num , used_num, ele_size*used_num, 
 				op_mem_ele[i].op_malloc_num, op_mem_ele[i].op_free_num);
 
 		if (ret < 0)
@@ -534,8 +534,8 @@ int op_mem_information (char *buf, int size)
 	if (size - index <=0)
 		return index;
 
-	ret = snprintf(buf+index, size -index, "[%30s]: %10lluB = %10.2lfkB = %10.2lfMB\r\n","pool alloc total size",
-			self->statistic.pool_alloc , self->statistic.pool_alloc/1204.0, self->statistic.pool_alloc/1024.0/1024.0);
+	ret = snprintf(buf+index, size -index, "[%30s]: %10lluB\r\n","pool alloc total size",
+			self->statistic.pool_alloc);
 
 	if (ret < 0)
 		return index;
@@ -545,8 +545,8 @@ int op_mem_information (char *buf, int size)
 	if (size - index <=0)
 		return index;
 
-	ret = snprintf(buf+index, size -index, "[%30s]: %10lluB = %10.2lfkB = %10.2lfMB\r\n","pool alloc used total size",
-			self->statistic.pool_alloc_used , self->statistic.pool_alloc_used/1204.0, self->statistic.pool_alloc_used/1024.0/1024.0);
+	ret = snprintf(buf+index, size -index, "[%30s]: %10lluB\r\n","pool alloc used total size",
+			self->statistic.pool_alloc_used );
 	if (ret < 0)
 		return index;
 	index += ret;
@@ -554,8 +554,8 @@ int op_mem_information (char *buf, int size)
 	if (size - index <=0)
 		return index;
 
-	ret = snprintf(buf+index, size -index, "[%30s]: %10lluB = %10.2lfkB = %10.2lfMB\r\n","pool alloc noused total size",
-			self->statistic.pool_alloc_noused , self->statistic.pool_alloc_noused/1204.0, self->statistic.pool_alloc_noused/1024.0/1024.0);
+	ret = snprintf(buf+index, size -index, "[%30s]: %10lluB\r\n","pool alloc noused total size",
+			self->statistic.pool_alloc_noused);
 	if (ret < 0)
 		return index;
 	index += ret;
@@ -572,8 +572,8 @@ int op_mem_information (char *buf, int size)
 	if (size - index <=0)
 		return index;
 
-	ret = snprintf(buf+index, size -index, "[%30s] : %10lluB = %10.2lfkB = %10.2lfMB\r\n", "system alloc total size",
-			self->statistic.system_alloc , self->statistic.system_alloc/1204.0, self->statistic.system_alloc/1024.0/1024.0);
+	ret = snprintf(buf+index, size -index, "[%30s] : %10lluB\r\n", "system alloc total size",
+			self->statistic.system_alloc );
 	if (ret < 0)
 		return index;
 	index += ret;
@@ -581,8 +581,8 @@ int op_mem_information (char *buf, int size)
 	if (size - index <=0)
 		return index;
 
-	ret = snprintf(buf+index, size -index, "[%30s] : %10lluB = %10.2lfkB = %10.2lfMB\r\n", "system alloc used total size",
-			self->statistic.system_alloc_used , self->statistic.system_alloc_used/1204.0, self->statistic.system_alloc_used/1024.0/1024.0);
+	ret = snprintf(buf+index, size -index, "[%30s] : %10lluB\r\n", "system alloc used total size",
+			self->statistic.system_alloc_used);
 	if (ret < 0)
 		return index;
 	index += ret;
