@@ -70,7 +70,7 @@ int HostStorageRegister(const char *name, const unsigned int size, void *(*Alloc
 
 int HostSetStorageById(Host *h, int id, void *ptr)
 {
-    return StorageSetById((Storage *)((char *)h + sizeof(Host)), STORAGE_HOST, id, ptr);
+    return StorageSetById((Storage *)((void *)h + sizeof(Host)), STORAGE_HOST, id, ptr);
 }
 
 /**
@@ -83,7 +83,7 @@ int HostSetStorageById(Host *h, int id, void *ptr)
 
 void *HostGetStorageById(Host *h, int id)
 {
-    return StorageGetById((Storage *)((char *)h + sizeof(Host)), STORAGE_HOST, id);
+    return StorageGetById((Storage *)((void *)h + sizeof(Host)), STORAGE_HOST, id);
 }
 
 /**
@@ -94,18 +94,18 @@ void *HostGetStorageById(Host *h, int id)
 
 void *HostAllocStorageById(Host *h, int id)
 {
-    return StorageAllocByIdPrealloc((Storage *)((char *)h + sizeof(Host)), STORAGE_HOST, id);
+    return StorageAllocByIdPrealloc((Storage *)((void *)h + sizeof(Host)), STORAGE_HOST, id);
 }
 
 void HostFreeStorageById(Host *h, int id)
 {
-    StorageFreeById((Storage *)((char *)h + sizeof(Host)), STORAGE_HOST, id);
+    StorageFreeById((Storage *)((void *)h + sizeof(Host)), STORAGE_HOST, id);
 }
 
 void HostFreeStorage(Host *h)
 {
     if (HostStorageSize() > 0)
-        StorageFreeAll((Storage *)((char *)h + sizeof(Host)), STORAGE_HOST);
+        StorageFreeAll((Storage *)((void *)h + sizeof(Host)), STORAGE_HOST);
 }
 
 

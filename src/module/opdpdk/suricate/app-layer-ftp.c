@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2020 Open Information Security Foundation
+/* Copyright (C) 2007-2022 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -57,6 +57,7 @@
 #include "util-memrchr.h"
 #include "util-mem.h"
 #include "util-misc.h"
+#include "util-validate.h"
 
 #include "output-json.h"
 #include "rust.h"
@@ -125,6 +126,7 @@ const FtpCommand FtpCommands[FTP_COMMAND_MAX + 1] = {
     { FTP_COMMAND_UNKNOWN, NULL, 0}
 };
 uint64_t ftp_config_memcap = 0;
+uint32_t ftp_max_line_len = 4096;
 
 SC_ATOMIC_DECLARE(uint64_t, ftp_memuse);
 SC_ATOMIC_DECLARE(uint64_t, ftp_memcap);
@@ -152,6 +154,14 @@ static void FTPParseMemcap(void)
 
     SC_ATOMIC_INIT(ftp_memuse);
     SC_ATOMIC_INIT(ftp_memcap);
+
+    if ((ConfGet("app-layer.protocols.ftp.max-line-length", &conf_val)) == 1) {
+        if (ParseSizeStringU32(conf_val, &ftp_max_line_len) < 0) {
+            SCLogError(SC_ERR_SIZE_PARSE, "Error parsing ftp.max-line-length from conf file - %s.",
+                    conf_val);
+        }
+        SCLogConfig("FTP max line length: %" PRIu32, ftp_max_line_len);
+    }
 }
 
 static void FTPIncrMemuse(uint64_t size)
@@ -350,6 +360,7 @@ static int FTPGetLineForDirection(FtpState *state, FtpLineState *line_state)
         /* we have seen the lf for the previous line.  Clear the parser
          * details to parse new line */
         line_state->current_line_lf_seen = 0;
+        state->current_line_truncated = false;
         if (line_state->current_line_db == 1) {
             line_state->current_line_db = 0;
             FTPFree(line_state->db, line_state->db_len);
@@ -359,6 +370,9 @@ static int FTPGetLineForDirection(FtpState *state, FtpLineState *line_state)
             state->current_line_len = 0;
         }
     }
+
+    /* Should be guaranteed by the caller. */
+    DEBUG_VALIDATE_BUG_ON(state->input_len <= 0);
 
     uint8_t *lf_idx = memchr(state->input, 0x0a, state->input_len);
 
@@ -370,27 +384,39 @@ static int FTPGetLineForDirection(FtpState *state, FtpLineState *line_state)
          * if we see fragmentation then it's definitely something you
          * should alert about */
         if (line_state->current_line_db == 0) {
-            line_state->db = FTPMalloc(state->input_len);
+            int32_t input_len = state->input_len;
+            if ((uint32_t)input_len > ftp_max_line_len) {
+                input_len = ftp_max_line_len;
+                state->current_line_truncated = true;
+            }
+            line_state->db = FTPMalloc(input_len);
             if (line_state->db == NULL) {
                 return -1;
             }
             line_state->current_line_db = 1;
-            memcpy(line_state->db, state->input, state->input_len);
-            line_state->db_len = state->input_len;
-        } else {
-            ptmp = FTPRealloc(line_state->db, line_state->db_len,
-                             (line_state->db_len + state->input_len));
-            if (ptmp == NULL) {
-                FTPFree(line_state->db, line_state->db_len);
-                line_state->db = NULL;
-                line_state->db_len = 0;
-                return -1;
+            memcpy(line_state->db, state->input, input_len);
+            line_state->db_len = input_len;
+        } else if (!state->current_line_truncated) {
+            int32_t input_len = state->input_len;
+            if (line_state->db_len + input_len > ftp_max_line_len) {
+                input_len = ftp_max_line_len - line_state->db_len;
+                DEBUG_VALIDATE_BUG_ON(input_len < 0);
+                state->current_line_truncated = true;
             }
-            line_state->db = ptmp;
+            if (input_len > 0) {
+                ptmp = FTPRealloc(
+                        line_state->db, line_state->db_len, (line_state->db_len + input_len));
+                if (ptmp == NULL) {
+                    FTPFree(line_state->db, line_state->db_len);
+                    line_state->db = NULL;
+                    line_state->db_len = 0;
+                    return -1;
+                }
+                line_state->db = ptmp;
 
-            memcpy(line_state->db + line_state->db_len,
-                   state->input, state->input_len);
-            line_state->db_len += state->input_len;
+                memcpy(line_state->db + line_state->db_len, state->input, input_len);
+                line_state->db_len += input_len;
+            }
         }
         state->input += state->input_len;
         state->input_len = 0;
@@ -401,27 +427,35 @@ static int FTPGetLineForDirection(FtpState *state, FtpLineState *line_state)
         line_state->current_line_lf_seen = 1;
 
         if (line_state->current_line_db == 1) {
-            ptmp = FTPRealloc(line_state->db, line_state->db_len,
-                             (line_state->db_len + (lf_idx + 1 - state->input)));
-            if (ptmp == NULL) {
-                FTPFree(line_state->db, line_state->db_len);
-                line_state->db = NULL;
-                line_state->db_len = 0;
-                return -1;
-            }
-            line_state->db = ptmp;
+            if (!state->current_line_truncated) {
+                int32_t input_len = lf_idx + 1 - state->input;
+                if (line_state->db_len + input_len > ftp_max_line_len) {
+                    input_len = ftp_max_line_len - line_state->db_len;
+                    DEBUG_VALIDATE_BUG_ON(input_len < 0);
+                    state->current_line_truncated = true;
+                }
+                if (input_len > 0) {
+                    ptmp = FTPRealloc(
+                            line_state->db, line_state->db_len, (line_state->db_len + input_len));
+                    if (ptmp == NULL) {
+                        FTPFree(line_state->db, line_state->db_len);
+                        line_state->db = NULL;
+                        line_state->db_len = 0;
+                        return -1;
+                    }
+                    line_state->db = ptmp;
 
-            memcpy(line_state->db + line_state->db_len,
-                   state->input, (lf_idx + 1 - state->input));
-            line_state->db_len += (lf_idx + 1 - state->input);
+                    memcpy(line_state->db + line_state->db_len, state->input, input_len);
+                    line_state->db_len += input_len;
 
-            if (line_state->db_len > 1 &&
-                line_state->db[line_state->db_len - 2] == 0x0D) {
-                line_state->db_len -= 2;
-                state->current_line_delimiter_len = 2;
-            } else {
-                line_state->db_len -= 1;
-                state->current_line_delimiter_len = 1;
+                    if (line_state->db_len > 1 && line_state->db[line_state->db_len - 2] == 0x0D) {
+                        line_state->db_len -= 2;
+                        state->current_line_delimiter_len = 2;
+                    } else {
+                        line_state->db_len -= 1;
+                        state->current_line_delimiter_len = 1;
+                    }
+                }
             }
 
             state->current_line = line_state->db;
@@ -429,7 +463,12 @@ static int FTPGetLineForDirection(FtpState *state, FtpLineState *line_state)
 
         } else {
             state->current_line = state->input;
-            state->current_line_len = lf_idx - state->input;
+            if (lf_idx - state->input > ftp_max_line_len) {
+                state->current_line_len = ftp_max_line_len;
+                state->current_line_truncated = true;
+            } else {
+                state->current_line_len = lf_idx - state->input;
+            }
 
             if (state->input != lf_idx &&
                 *(lf_idx - 1) == 0x0D) {
@@ -500,6 +539,7 @@ struct FtpTransferCmd {
     uint64_t flow_id;
     uint8_t *file_name;
     uint16_t file_len;
+    uint8_t direction; /**< direction in which the data will flow */
     FtpRequestCommand cmd;
 };
 
@@ -591,6 +631,7 @@ static AppLayerResult FTPParseRequest(Flow *f, void *ftp_state,
         tx->command_descriptor = cmd_descriptor;
         tx->request_length = CopyCommandLine(&tx->request,
                 state->current_line, state->current_line_len);
+        tx->request_truncated = state->current_line_truncated;
 
         /* change direction (default to server) so expectation will handle
          * the correct message when expectation will match.
@@ -653,6 +694,7 @@ static AppLayerResult FTPParseRequest(Flow *f, void *ftp_state,
                     memcpy(data->file_name, state->current_line + 5, file_name_len);
                     data->cmd = state->command;
                     data->flow_id = FlowGetId(f);
+                    data->direction = direction;
                     int ret = AppLayerExpectationCreate(f, direction,
                                             0, state->dyn_port, ALPROTO_FTPDATA, data);
                     if (ret == -1) {
@@ -813,6 +855,7 @@ static AppLayerResult FTPParseResponse(Flow *f, void *ftp_state, AppLayerParserS
             FTPString *response = FTPStringAlloc();
             if (likely(response)) {
                 response->len = CopyCommandLine(&response->str, state->current_line, state->current_line_len);
+                response->truncated = state->current_line_truncated;
                 TAILQ_INSERT_TAIL(&tx->response_list, response, next);
             }
         }
@@ -1058,15 +1101,32 @@ static AppLayerResult FTPDataParse(Flow *f, FtpDataState *ftpdata_state,
     int ret = 0;
     /* we depend on detection engine for file pruning */
     flags |= FILE_USE_DETECT;
-    if (ftpdata_state->files == NULL) {
-        struct FtpTransferCmd *data = (struct FtpTransferCmd *)FlowGetStorageById(f, AppLayerExpectationGetDataId());
+    const bool eof = (flags & STREAM_TOSERVER)
+                             ? AppLayerParserStateIssetFlag(pstate, APP_LAYER_PARSER_EOF_TS) != 0
+                             : AppLayerParserStateIssetFlag(pstate, APP_LAYER_PARSER_EOF_TC) != 0;
+
+    SCLogDebug("FTP-DATA input_len %u flags %04x dir %d/%s EOF %s", input_len, flags, direction,
+            (direction & STREAM_TOSERVER) ? "toserver" : "toclient", eof ? "true" : "false");
+    if (input_len && ftpdata_state->files == NULL) {
+        struct FtpTransferCmd *data =
+                (struct FtpTransferCmd *)FlowGetStorageById(f, AppLayerExpectationGetFlowId());
         if (data == NULL) {
             SCReturnStruct(APP_LAYER_ERROR);
         }
 
+        /* we shouldn't get data in the wrong dir. Don't set things up for this dir */
+        if ((direction & data->direction) == 0) {
+            // TODO set event for data in wrong direction
+            SCLogDebug("input %u not for our direction (%s): %s/%s", input_len,
+                    (direction & STREAM_TOSERVER) ? "toserver" : "toclient",
+                    data->cmd == FTP_COMMAND_STOR ? "STOR" : "RETR",
+                    (data->direction & STREAM_TOSERVER) ? "toserver" : "toclient");
+            SCReturnStruct(APP_LAYER_OK);
+        }
+
         ftpdata_state->files = FileContainerAlloc();
         if (ftpdata_state->files == NULL) {
-            FlowFreeStorageById(f, AppLayerExpectationGetDataId());
+            FlowFreeStorageById(f, AppLayerExpectationGetFlowId());
             SCReturnStruct(APP_LAYER_ERROR);
         }
 
@@ -1078,10 +1138,14 @@ static AppLayerResult FTPDataParse(Flow *f, FtpDataState *ftpdata_state,
         ftpdata_state->command = data->cmd;
         switch (data->cmd) {
             case FTP_COMMAND_STOR:
-                ftpdata_state->direction = STREAM_TOSERVER;
+                ftpdata_state->direction = data->direction;
+                SCLogDebug("STOR data to %s",
+                        (ftpdata_state->direction & STREAM_TOSERVER) ? "toserver" : "toclient");
                 break;
             case FTP_COMMAND_RETR:
-                ftpdata_state->direction = STREAM_TOCLIENT;
+                ftpdata_state->direction = data->direction;
+                SCLogDebug("RETR data to %s",
+                        (ftpdata_state->direction & STREAM_TOSERVER) ? "toserver" : "toclient");
                 break;
             default:
                 break;
@@ -1096,9 +1160,24 @@ static AppLayerResult FTPDataParse(Flow *f, FtpDataState *ftpdata_state,
             SCLogDebug("Can't open file");
             ret = -1;
         }
-        FlowFreeStorageById(f, AppLayerExpectationGetDataId());
+        FlowFreeStorageById(f, AppLayerExpectationGetFlowId());
         ftpdata_state->tx_data.files_opened = 1;
     } else {
+        if (ftpdata_state->state == FTPDATA_STATE_FINISHED) {
+            SCLogDebug("state is already finished");
+            DEBUG_VALIDATE_BUG_ON(input_len); // data after state finished is a bug.
+            SCReturnStruct(APP_LAYER_OK);
+        }
+        if ((direction & ftpdata_state->direction) == 0) {
+            if (input_len) {
+                // TODO set event for data in wrong direction
+            }
+            SCLogDebug("input %u not for us (%s): %s/%s", input_len,
+                    (direction & STREAM_TOSERVER) ? "toserver" : "toclient",
+                    ftpdata_state->command == FTP_COMMAND_STOR ? "STOR" : "RETR",
+                    (ftpdata_state->direction & STREAM_TOSERVER) ? "toserver" : "toclient");
+            SCReturnStruct(APP_LAYER_OK);
+        }
         if (input_len != 0) {
             ret = FileAppendData(ftpdata_state->files, input, input_len);
             if (ret == -2) {
@@ -1110,22 +1189,15 @@ static AppLayerResult FTPDataParse(Flow *f, FtpDataState *ftpdata_state,
                 ret = -2;
                 goto out;
             }
-        } else {
-            ret = FileCloseFile(ftpdata_state->files, NULL, 0, flags);
-            ftpdata_state->state = FTPDATA_STATE_FINISHED;
-            if (ret < 0)
-                goto out;
         }
     }
 
-    const bool eof_flag = flags & STREAM_TOSERVER ?
-        AppLayerParserStateIssetFlag(pstate, APP_LAYER_PARSER_EOF_TS) != 0 :
-        AppLayerParserStateIssetFlag(pstate, APP_LAYER_PARSER_EOF_TC) != 0;
-    if (input_len && eof_flag) {
-        ret = FileCloseFile(ftpdata_state->files, (uint8_t *) NULL, 0, flags);
+    BUG_ON((direction & ftpdata_state->direction) == 0); // should be unreachble
+    if (eof) {
+        ret = FileCloseFile(ftpdata_state->files, NULL, 0, flags);
         ftpdata_state->state = FTPDATA_STATE_FINISHED;
+        SCLogDebug("closed because of eof");
     }
-
 out:
     if (ret < 0) {
         SCReturnStruct(APP_LAYER_ERROR);
@@ -1241,7 +1313,10 @@ static int FTPDataGetAlstateProgressCompletionStatus(uint8_t direction)
 static int FTPDataGetAlstateProgress(void *tx, uint8_t direction)
 {
     FtpDataState *ftpdata_state = (FtpDataState *)tx;
-    return ftpdata_state->state;
+    if (direction == ftpdata_state->direction)
+        return ftpdata_state->state;
+    else
+        return FTPDATA_STATE_FINISHED;
 }
 
 static FileContainer *FTPDataStateGetFiles(void *state, uint8_t direction)
@@ -1289,6 +1364,44 @@ static void FTPFreeMpmState(void)
     }
 }
 
+/** \brief FTP tx iterator, specialized for its linked list
+ *
+ *  \retval txptr or NULL if no more txs in list
+ */
+static AppLayerGetTxIterTuple FTPGetTxIterator(const uint8_t ipproto, const AppProto alproto,
+        void *alstate, uint64_t min_tx_id, uint64_t max_tx_id, AppLayerGetTxIterState *state)
+{
+    FtpState *ftp_state = (FtpState *)alstate;
+    AppLayerGetTxIterTuple no_tuple = { NULL, 0, false };
+    if (ftp_state) {
+        FTPTransaction *tx_ptr;
+        if (state->un.ptr == NULL) {
+            tx_ptr = TAILQ_FIRST(&ftp_state->tx_list);
+        } else {
+            tx_ptr = (FTPTransaction *)state->un.ptr;
+        }
+        if (tx_ptr) {
+            while (tx_ptr->tx_id < min_tx_id) {
+                tx_ptr = TAILQ_NEXT(tx_ptr, next);
+                if (!tx_ptr) {
+                    return no_tuple;
+                }
+            }
+            if (tx_ptr->tx_id >= max_tx_id) {
+                return no_tuple;
+            }
+            state->un.ptr = TAILQ_NEXT(tx_ptr, next);
+            AppLayerGetTxIterTuple tuple = {
+                .tx_ptr = tx_ptr,
+                .tx_id = tx_ptr->tx_id,
+                .has_next = (state->un.ptr != NULL),
+            };
+            return tuple;
+        }
+    }
+    return no_tuple;
+}
+
 void RegisterFTPParsers(void)
 {
     const char *proto_name = "ftp";
@@ -1317,6 +1430,7 @@ void RegisterFTPParsers(void)
 
         AppLayerParserRegisterGetTx(IPPROTO_TCP, ALPROTO_FTP, FTPGetTx);
         AppLayerParserRegisterTxDataFunc(IPPROTO_TCP, ALPROTO_FTP, FTPGetTxData);
+        AppLayerParserRegisterGetTxIterator(IPPROTO_TCP, ALPROTO_FTP, FTPGetTxIterator);
 
         AppLayerParserRegisterLocalStorageFunc(IPPROTO_TCP, ALPROTO_FTP, FTPLocalStorageAlloc,
                                                FTPLocalStorageFree);

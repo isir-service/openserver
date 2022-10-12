@@ -84,12 +84,15 @@ static Dataset *DatasetSearchByName(const char *name)
 
 static int HexToRaw(const uint8_t *in, size_t ins, uint8_t *out, size_t outs)
 {
+    if (ins < 2)
+        return -1;
     if (ins % 2 != 0)
         return -1;
     if (outs != ins / 2)
         return -1;
 
     uint8_t hash[outs];
+    memset(hash, 0, outs);
     size_t i, x;
     for (x = 0, i = 0; i < ins; i+=2, x++) {
         char buf[3] = { 0, 0, 0 };
@@ -321,12 +324,14 @@ static int DatasetLoadString(Dataset *set)
 
             // coverity[alloc_strlen : FALSE]
             uint8_t decoded[strlen(line)];
-            uint32_t len = DecodeBase64(decoded, (const uint8_t *)line, strlen(line), 1);
-            if (len == 0)
+            uint32_t consumed = 0, num_decoded = 0;
+            Base64Ecode code = DecodeBase64(decoded, strlen(line), (const uint8_t *)line,
+                    strlen(line), &consumed, &num_decoded, BASE64_MODE_STRICT);
+            if (code == BASE64_ECODE_ERR)
                 FatalError(SC_ERR_FATAL, "bad base64 encoding %s/%s",
                         set->name, set->load);
 
-            if (DatasetAdd(set, (const uint8_t *)decoded, len) < 0)
+            if (DatasetAdd(set, (const uint8_t *)decoded, num_decoded) < 0)
                 FatalError(SC_ERR_FATAL, "dataset data add failed %s/%s",
                         set->name, set->load);
             cnt++;
@@ -338,8 +343,10 @@ static int DatasetLoadString(Dataset *set)
 
             // coverity[alloc_strlen : FALSE]
             uint8_t decoded[strlen(line)];
-            uint32_t len = DecodeBase64(decoded, (const uint8_t *)line, strlen(line), 1);
-            if (len == 0)
+            uint32_t consumed = 0, num_decoded = 0;
+            Base64Ecode code = DecodeBase64(decoded, strlen(line), (const uint8_t *)line,
+                    strlen(line), &consumed, &num_decoded, BASE64_MODE_STRICT);
+            if (code == BASE64_ECODE_ERR)
                 FatalError(SC_ERR_FATAL, "bad base64 encoding %s/%s",
                         set->name, set->load);
 
@@ -351,7 +358,7 @@ static int DatasetLoadString(Dataset *set)
                 FatalError(SC_ERR_FATAL, "die: bad rep");
             SCLogDebug("rep %u", rep.value);
 
-            if (DatasetAddwRep(set, (const uint8_t *)decoded, len, &rep) < 0)
+            if (DatasetAddwRep(set, (const uint8_t *)decoded, num_decoded, &rep) < 0)
                 FatalError(SC_ERR_FATAL, "dataset data add failed %s/%s",
                         set->name, set->load);
             cnt++;
@@ -1148,12 +1155,14 @@ int DatasetAddSerialized(Dataset *set, const char *string)
         case DATASET_TYPE_STRING: {
             // coverity[alloc_strlen : FALSE]
             uint8_t decoded[strlen(string)];
-            uint32_t len = DecodeBase64(decoded, (const uint8_t *)string, strlen(string), 1);
-            if (len == 0) {
+            uint32_t consumed = 0, num_decoded = 0;
+            Base64Ecode code = DecodeBase64(decoded, strlen(string), (const uint8_t *)string,
+                    strlen(string), &consumed, &num_decoded, BASE64_MODE_STRICT);
+            if (code == BASE64_ECODE_ERR) {
                 return -2;
             }
 
-            return DatasetAddString(set, decoded, len);
+            return DatasetAddString(set, decoded, num_decoded);
         }
         case DATASET_TYPE_MD5: {
             if (strlen(string) != 32)
@@ -1230,12 +1239,14 @@ int DatasetRemoveSerialized(Dataset *set, const char *string)
         case DATASET_TYPE_STRING: {
             // coverity[alloc_strlen : FALSE]
             uint8_t decoded[strlen(string)];
-            uint32_t len = DecodeBase64(decoded, (const uint8_t *)string, strlen(string), 1);
-            if (len == 0) {
+            uint32_t consumed = 0, num_decoded = 0;
+            Base64Ecode code = DecodeBase64(decoded, strlen(string), (const uint8_t *)string,
+                    strlen(string), &consumed, &num_decoded, BASE64_MODE_STRICT);
+            if (code == BASE64_ECODE_ERR) {
                 return -2;
             }
 
-            return DatasetRemoveString(set, decoded, len);
+            return DatasetRemoveString(set, decoded, num_decoded);
         }
         case DATASET_TYPE_MD5: {
             if (strlen(string) != 32)

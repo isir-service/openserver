@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2020 Open Information Security Foundation
+/* Copyright (C) 2007-2022 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -1273,6 +1273,7 @@ Signature *SigAlloc (void)
         SCFree(sig);
         return NULL;
     }
+    sig->init_data->mpm_sm_list = -1;
 
     sig->init_data->smlists_array_size = DetectBufferTypeMaxId();
     SCLogDebug("smlists size %u", sig->init_data->smlists_array_size);
@@ -1496,6 +1497,14 @@ int DetectSignatureSetAppProto(Signature *s, AppProto alproto)
         SCLogError(SC_ERR_CONFLICTING_RULE_KEYWORDS,
             "can't set rule app proto to %s: already set to %s",
             AppProtoToString(alproto), AppProtoToString(s->alproto));
+        return -1;
+    }
+    /* since AppProtoEquals is quite permissive wrt dcerpc and smb, make sure
+     * we refuse `alert dcerpc ... smb.share; content...` explicitly. */
+    if (alproto == ALPROTO_SMB && s->alproto == ALPROTO_DCERPC) {
+        SCLogError(SC_ERR_CONFLICTING_RULE_KEYWORDS,
+                "can't set rule app proto to %s: already set to %s", AppProtoToString(alproto),
+                AppProtoToString(s->alproto));
         return -1;
     }
 
@@ -1878,14 +1887,6 @@ static int SigValidate(DetectEngineCtx *de_ctx, Signature *s)
             AppLayerHtpNeedFileInspection();
         }
     }
-    if (s->init_data->init_flags & SIG_FLAG_INIT_DCERPC) {
-        if (s->alproto != ALPROTO_UNKNOWN && s->alproto != ALPROTO_DCERPC &&
-                s->alproto != ALPROTO_SMB) {
-            SCLogError(SC_ERR_NO_FILES_FOR_PROTOCOL, "protocol %s doesn't support DCERPC keyword",
-                    AppProtoToString(s->alproto));
-            SCReturnInt(0);
-        }
-    }
     SCReturnInt(1);
 }
 
@@ -1907,12 +1908,14 @@ static Signature *SigInitHelper(DetectEngineCtx *de_ctx, const char *sigstr,
     sig->gid = 1;
 
     int ret = SigParse(de_ctx, sig, sigstr, dir, &parser);
-    if (ret == -3) {
+    if (ret == -4) {
+        de_ctx->sigerror_ok = true;
+        goto error;
+    } else if (ret == -3) {
         de_ctx->sigerror_silent = true;
         de_ctx->sigerror_ok = true;
         goto error;
-    }
-    else if (ret == -2) {
+    } else if (ret == -2) {
         de_ctx->sigerror_silent = true;
         goto error;
     } else if (ret < 0) {
@@ -3624,7 +3627,7 @@ static int SigTestBidirec04 (void)
         0x6b,0x65,0x65,0x70,0x2d,0x61,0x6c,0x69,
         0x76,0x65,0x0d,0x0a,0x0d,0x0a }; /* end rawpkt1_ether */
 
-    p = SCMalloc(SIZE_OF_PACKET);
+    p = PacketGetFromAlloc();
     if (unlikely(p == NULL))
         return 0;
     DecodeThreadVars dtv;
@@ -3632,7 +3635,6 @@ static int SigTestBidirec04 (void)
     DetectEngineThreadCtx *det_ctx;
 
     memset(&th_v, 0, sizeof(th_v));
-    memset(p, 0, SIZE_OF_PACKET);
 
     FlowInitConfig(FLOW_QUIET);
     DecodeEthernet(&th_v, &dtv, p, rawpkt1_ether, sizeof(rawpkt1_ether));
@@ -4151,6 +4153,38 @@ static int SigParseBidirWithSameSrcAndDest02(void)
     PASS;
 }
 
+static int SigParseTestActionReject(void)
+{
+    DetectEngineCtx *de_ctx = DetectEngineCtxInit();
+    FAIL_IF_NULL(de_ctx);
+
+    Signature *sig = DetectEngineAppendSig(
+            de_ctx, "reject tcp 1.2.3.4 any -> !1.2.3.4 any (msg:\"SigParseTest01\"; sid:1;)");
+#ifdef HAVE_LIBNET11
+    FAIL_IF_NULL(sig);
+    FAIL_IF_NOT((sig->action & (ACTION_DROP | ACTION_REJECT)) == (ACTION_DROP | ACTION_REJECT));
+#else
+    FAIL_IF_NOT_NULL(sig);
+#endif
+
+    DetectEngineCtxFree(de_ctx);
+    PASS;
+}
+
+static int SigParseTestActionDrop(void)
+{
+    DetectEngineCtx *de_ctx = DetectEngineCtxInit();
+    FAIL_IF_NULL(de_ctx);
+
+    Signature *sig = DetectEngineAppendSig(
+            de_ctx, "drop tcp 1.2.3.4 any -> !1.2.3.4 any (msg:\"SigParseTest01\"; sid:1;)");
+    FAIL_IF_NULL(sig);
+    FAIL_IF_NOT(sig->action & ACTION_DROP);
+
+    DetectEngineCtxFree(de_ctx);
+    PASS;
+}
+
 #endif /* UNITTESTS */
 
 #ifdef UNITTESTS
@@ -4225,5 +4259,7 @@ void SigParseRegisterTests(void)
             SigParseBidirWithSameSrcAndDest01);
     UtRegisterTest("SigParseBidirWithSameSrcAndDest02",
             SigParseBidirWithSameSrcAndDest02);
+    UtRegisterTest("SigParseTestActionReject", SigParseTestActionReject);
+    UtRegisterTest("SigParseTestActionDrop", SigParseTestActionDrop);
 #endif /* UNITTESTS */
 }

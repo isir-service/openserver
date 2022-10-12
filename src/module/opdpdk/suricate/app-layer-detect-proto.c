@@ -1878,6 +1878,12 @@ void AppLayerProtoDetectRegisterProtocol(AppProto alproto, const char *alproto_n
  */
 void AppLayerRequestProtocolChange(Flow *f, uint16_t dp, AppProto expect_proto)
 {
+    if (FlowChangeProto(f)) {
+        // If we are already changing protocols, from SMTP to TLS for instance,
+        // and that we do not get TLS but HTTP1, which is requesting whange to HTTP2,
+        // we do not proceed the new protocol change
+        return;
+    }
     FlowSetChangeProtoFlag(f);
     f->protodetect_dp = dp;
     f->alproto_expect = expect_proto;
@@ -1960,7 +1966,13 @@ int AppLayerProtoDetectConfProtoDetectionEnabled(const char *ipproto,
 
         node = ConfGetNode(param);
         if (node == NULL) {
-            SCLogDebug("Entry for %s not found.", param);
+#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+            SCLogWarning(SC_ERR_CONF_YAML_ERROR,
+                    "App-Layer protocol %s enable status not set, so enabling by default."
+                    " This behavior will change in Suricata 7, so please update"
+                    " your config. See ticket #4744 for more details.",
+                    alproto);
+#endif
             goto enabled;
         }
     }

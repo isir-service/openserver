@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2017 Open Information Security Foundation
+/* Copyright (C) 2007-2022 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -547,12 +547,6 @@ static void DetectRunInspectIPOnly(ThreadVars *tv, const DetectEngineCtx *de_ctx
             /* save in the flow that we scanned this direction... */
             FlowSetIPOnlyFlag(pflow, p->flowflags & FLOW_PKT_TOSERVER ? 1 : 0);
         }
-        /* If we have a drop from IP only module,
-         * we will drop the rest of the flow packets
-         * This will apply only to inline/IPS */
-        if (pflow->flags & FLOW_ACTION_DROP) {
-            PACKET_DROP(p);
-        }
     } else { /* p->flags & PKT_HAS_FLOW */
         /* no flow */
 
@@ -772,15 +766,8 @@ static inline void DetectRulePacketRules(
         /* if the sig has alproto and the session as well they should match */
         if (likely(sflags & SIG_FLAG_APPLAYER)) {
             if (s->alproto != ALPROTO_UNKNOWN && !AppProtoEquals(s->alproto, scratch->alproto)) {
-                if (s->alproto == ALPROTO_DCERPC) {
-                    if (scratch->alproto != ALPROTO_SMB) {
-                        SCLogDebug("DCERPC sig, alproto not SMB");
-                        goto next;
-                    }
-                } else {
-                    SCLogDebug("alproto mismatch");
-                    goto next;
-                }
+                SCLogDebug("alproto mismatch");
+                goto next;
             }
         }
 
@@ -797,7 +784,7 @@ static inline void DetectRulePacketRules(
 #endif
         DetectRunPostMatch(tv, det_ctx, p, s);
 
-        PacketAlertAppend(det_ctx, s, p, 0, alert_flags);
+        AlertQueueAppend(det_ctx, s, p, 0, alert_flags);
 next:
         DetectVarProcessList(det_ctx, pflow, p);
         DetectReplaceFree(det_ctx);
@@ -821,12 +808,17 @@ static DetectRunScratchpad DetectRunSetup(
 
 #ifdef UNITTESTS
     p->alerts.cnt = 0;
+    p->alerts.discarded = 0;
+    p->alerts.suppressed = 0;
 #endif
     det_ctx->ticker++;
     det_ctx->filestore_cnt = 0;
     det_ctx->base64_decoded_len = 0;
     det_ctx->raw_stream_progress = 0;
     det_ctx->match_array_cnt = 0;
+
+    det_ctx->alert_queue_size = 0;
+    p->alerts.drop.action = 0;
 
 #ifdef DEBUG
     if (p->flags & PKT_STREAM_ADD) {
@@ -927,6 +919,12 @@ static inline void DetectRunPostRules(
     if (p->alerts.cnt > 0) {
         StatsAddUI64(tv, det_ctx->counter_alerts, (uint64_t)p->alerts.cnt);
     }
+    if (p->alerts.discarded > 0) {
+        StatsAddUI64(tv, det_ctx->counter_alerts_overflow, (uint64_t)p->alerts.discarded);
+    }
+    if (p->alerts.suppressed > 0) {
+        StatsAddUI64(tv, det_ctx->counter_alerts_suppressed, (uint64_t)p->alerts.suppressed);
+    }
     PACKET_PROFILING_DETECT_END(p, PROF_DETECT_ALERT);
 }
 
@@ -999,17 +997,20 @@ static int RuleMatchCandidateTxArrayExpand(DetectEngineThreadCtx *det_ctx, const
  *  \brief sort helper for sorting match candidates by id: ascending
  *
  *  The id field is set from Signature::num, so we sort the candidates to match the signature
- *  sort order (ascending).
- *
- *  \todo maybe let one with flags win if equal? */
+ *  sort order (ascending), where candidates that have flags go first.
+ */
 static int
 DetectRunTxSortHelper(const void *a, const void *b)
 {
     const RuleMatchCandidateTx *s0 = a;
     const RuleMatchCandidateTx *s1 = b;
-    if (s1->id == s0->id)
+    if (s1->id == s0->id) {
+        if (s1->flags && !s0->flags)
+            return 1;
+        else if (!s1->flags && s0->flags)
+            return -1;
         return 0;
-    else
+    } else
         return s0->id > s1->id ? 1 : -1;
 }
 
@@ -1318,6 +1319,7 @@ static void DetectRunTx(ThreadVars *tv,
         }
         tx_id_min = tx.tx_id + 1; // next look for cur + 1
 
+        bool do_sort = false; // do we need to sort the tx candidate list?
         uint32_t array_idx = 0;
         uint32_t total_rules = det_ctx->match_array_cnt;
         total_rules += (tx.de_state ? tx.de_state->cnt : 0);
@@ -1368,8 +1370,9 @@ static void DetectRunTx(ThreadVars *tv,
                         tx.tx_ptr, tx.tx_id, s->id, id);
             }
         }
-        SCLogDebug("%p/%"PRIu64" rules added from 'match' list: %u",
-                tx.tx_ptr, tx.tx_id, array_idx - x); (void)x;
+        do_sort = (array_idx > x); // sort if match added anything
+        SCLogDebug("%p/%" PRIu64 " rules added from 'match' list: %u", tx.tx_ptr, tx.tx_id,
+                array_idx - x);
 
         /* merge stored state into results */
         if (tx.de_state != NULL) {
@@ -1409,19 +1412,26 @@ static void DetectRunTx(ThreadVars *tv,
                     array_idx++;
                 }
             }
-            if (old && old != array_idx) {
-                qsort(det_ctx->tx_candidates, array_idx, sizeof(RuleMatchCandidateTx),
-                        DetectRunTxSortHelper);
-
-                SCLogDebug("%p/%"PRIu64" rules added from 'continue' list: %u",
-                        tx.tx_ptr, tx.tx_id, array_idx - old);
-            }
+            do_sort |= (old && old != array_idx); // sort if continue list adds sids
+            SCLogDebug("%p/%" PRIu64 " rules added from 'continue' list: %u", tx.tx_ptr, tx.tx_id,
+                    array_idx - old);
+        }
+        if (do_sort) {
+            qsort(det_ctx->tx_candidates, array_idx, sizeof(RuleMatchCandidateTx),
+                    DetectRunTxSortHelper);
         }
 
         det_ctx->tx_id = tx.tx_id;
-        det_ctx->tx_id_set = 1;
+        det_ctx->tx_id_set = true;
         det_ctx->p = p;
 
+#ifdef DEBUG
+        for (uint32_t i = 0; i < array_idx; i++) {
+            RuleMatchCandidateTx *can = &det_ctx->tx_candidates[i];
+            const Signature *s = det_ctx->tx_candidates[i].s;
+            SCLogDebug("%u: sid %u flags %p", i, s->id, can->flags);
+        }
+#endif
         /* run rules: inspect the match candidates */
         for (uint32_t i = 0; i < array_idx; i++) {
             RuleMatchCandidateTx *can = &det_ctx->tx_candidates[i];
@@ -1431,24 +1441,13 @@ static void DetectRunTx(ThreadVars *tv,
             /* deduplicate: rules_array is sorted, but not deduplicated:
              * both mpm and stored state could give us the same sid.
              * As they are back to back in that case we can check for it
-             * here. We select the stored state one. */
-            if ((i + 1) < array_idx) {
-                if (det_ctx->tx_candidates[i].s == det_ctx->tx_candidates[i+1].s) {
-                    if (det_ctx->tx_candidates[i].flags != NULL) {
-                        i++;
-                        SCLogDebug("%p/%"PRIu64" inspecting SKIP NEXT: sid %u (%u), flags %08x",
-                                tx.tx_ptr, tx.tx_id, s->id, s->num, inspect_flags ? *inspect_flags : 0);
-                    } else if (det_ctx->tx_candidates[i+1].flags != NULL) {
-                        SCLogDebug("%p/%"PRIu64" inspecting SKIP CURRENT: sid %u (%u), flags %08x",
-                                tx.tx_ptr, tx.tx_id, s->id, s->num, inspect_flags ? *inspect_flags : 0);
-                        continue;
-                    } else {
-                        // if it's all the same, inspect the current one and skip next.
-                        i++;
-                        SCLogDebug("%p/%"PRIu64" inspecting SKIP NEXT: sid %u (%u), flags %08x",
-                                tx.tx_ptr, tx.tx_id, s->id, s->num, inspect_flags ? *inspect_flags : 0);
-                    }
-                }
+             * here. We select the stored state one as that comes first
+             * in the array. */
+            while ((i + 1) < array_idx &&
+                    det_ctx->tx_candidates[i].s == det_ctx->tx_candidates[i + 1].s) {
+                SCLogDebug("%p/%" PRIu64 " inspecting SKIP NEXT: sid %u (%u), flags %08x",
+                        tx.tx_ptr, tx.tx_id, s->id, s->num, inspect_flags ? *inspect_flags : 0);
+                i++;
             }
 
             SCLogDebug("%p/%"PRIu64" inspecting: sid %u (%u), flags %08x",
@@ -1480,14 +1479,14 @@ static void DetectRunTx(ThreadVars *tv,
 
                 const uint8_t alert_flags = (PACKET_ALERT_FLAG_STATE_MATCH | PACKET_ALERT_FLAG_TX);
                 SCLogDebug("%p/%"PRIu64" sig %u (%u) matched", tx.tx_ptr, tx.tx_id, s->id, s->num);
-                PacketAlertAppend(det_ctx, s, p, tx.tx_id, alert_flags);
+                AlertQueueAppend(det_ctx, s, p, tx.tx_id, alert_flags);
             }
             DetectVarProcessList(det_ctx, p->flow, p);
             RULE_PROFILING_END(det_ctx, s, r, p);
         }
 
         det_ctx->tx_id = 0;
-        det_ctx->tx_id_set = 0;
+        det_ctx->tx_id_set = false;
         det_ctx->p = NULL;
 
         /* see if we have any updated state to store in the tx */
@@ -1556,6 +1555,12 @@ static void DetectFlow(ThreadVars *tv,
         SCLogDebug("p->pcap %"PRIu64": no detection on packet, "
                 "PKT_NOPACKET_INSPECTION is set", p->pcap_cnt);
         return;
+    }
+
+    /* if flow is set to drop, we enforce that here */
+    if (p->flow->flags & FLOW_ACTION_DROP) {
+        PacketDrop(p, ACTION_DROP, PKT_DROP_REASON_FLOW_DROP);
+        SCReturn;
     }
 
     /* see if the packet matches one or more of the sigs */
@@ -1655,11 +1660,14 @@ void DisableDetectFlowFileFlags(Flow *f)
 /**
  *  \brief wrapper for old tests
  */
-void SigMatchSignatures(ThreadVars *th_v,
-        DetectEngineCtx *de_ctx, DetectEngineThreadCtx *det_ctx,
-        Packet *p)
+void SigMatchSignatures(
+        ThreadVars *tv, DetectEngineCtx *de_ctx, DetectEngineThreadCtx *det_ctx, Packet *p)
 {
-    DetectRun(th_v, de_ctx, det_ctx, p);
+    if (p->flow) {
+        DetectFlow(tv, de_ctx, det_ctx, p);
+    } else {
+        DetectNoFlow(tv, de_ctx, det_ctx, p);
+    }
 }
 #endif
 

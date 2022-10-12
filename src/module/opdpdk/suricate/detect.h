@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2020 Open Information Security Foundation
+/* Copyright (C) 2007-2022 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -217,6 +217,9 @@ typedef struct DetectPort_ {
 #define SIG_FLAG_DSIZE                  BIT_U32(5)  /**< signature has a dsize setting */
 #define SIG_FLAG_APPLAYER               BIT_U32(6)  /**< signature applies to app layer instead of packets */
 #define SIG_FLAG_IPONLY                 BIT_U32(7)  /**< ip only signature */
+#define SIG_FLAG_LIKE_IPONLY                                                                       \
+    BIT_U32(8) /**< signature that is almost ip only, but contains negation prevening some iponly  \
+                  optimizations */
 
 // vacancy
 
@@ -263,7 +266,6 @@ typedef struct DetectPort_ {
 #define SIG_FLAG_INIT_NEED_FLUSH            BIT_U32(7)
 #define SIG_FLAG_INIT_PRIO_EXPLICT          BIT_U32(8)  /**< priority is explicitly set by the priority keyword */
 #define SIG_FLAG_INIT_FILEDATA              BIT_U32(9)  /**< signature has filedata keyword */
-#define SIG_FLAG_INIT_DCERPC                BIT_U32(10) /**< signature has DCERPC keyword */
 
 /* signature mask flags */
 /** \note: additions should be added to the rule analyzer as well */
@@ -500,6 +502,8 @@ typedef struct SignatureInitData_ {
     /* used at init to determine max dsize */
     SigMatch *dsize_sm;
 
+    /* list id for `mpm_sm`. Should always match `SigMatchListSMBelongsTo(s, mpm_sm)`. */
+    int mpm_sm_list;
     /* the fast pattern added from this signature */
     SigMatch *mpm_sm;
     /* used to speed up init of prefilter */
@@ -678,31 +682,13 @@ typedef struct DetectEngineIPOnlyThreadCtx_ {
 
 /** \brief IP only rules matching ctx. */
 typedef struct DetectEngineIPOnlyCtx_ {
-    /* lookup hashes */
-    HashListTable *ht16_src, *ht16_dst;
-    HashListTable *ht24_src, *ht24_dst;
-
     /* Lookup trees */
     SCRadixTree *tree_ipv4src, *tree_ipv4dst;
     SCRadixTree *tree_ipv6src, *tree_ipv6dst;
 
     /* Used to build the radix trees */
     IPOnlyCIDRItem *ip_src, *ip_dst;
-
-    /* counters */
-    uint32_t a_src_uniq16, a_src_total16;
-    uint32_t a_dst_uniq16, a_dst_total16;
-    uint32_t a_src_uniq24, a_src_total24;
-    uint32_t a_dst_uniq24, a_dst_total24;
-
     uint32_t max_idx;
-
-    uint8_t *sig_init_array; /* bit array of sig nums */
-    uint32_t sig_init_size;  /* size in bytes of the array */
-
-    /* number of sigs in this head */
-    uint32_t sig_cnt;
-    uint32_t *match_array;
 } DetectEngineIPOnlyCtx;
 
 typedef struct DetectEngineLookupFlow_ {
@@ -1053,6 +1039,10 @@ typedef struct DetectEngineThreadCtx_ {
 
     /** id for alert counter */
     uint16_t counter_alerts;
+    /** id for discarded alerts counter */
+    uint16_t counter_alerts_overflow;
+    /** id for suppressed alerts counter */
+    uint16_t counter_alerts_suppressed;
 #ifdef PROFILING
     uint16_t counter_mpm_list;
     uint16_t counter_nonmpm_list;
@@ -1082,11 +1072,15 @@ typedef struct DetectEngineThreadCtx_ {
     uint16_t discontinue_matching;
     uint16_t flags;
 
-    /* bool: if tx_id is set, this is 1, otherwise 0 */
-    uint16_t tx_id_set;
+    /* true if tx_id is set */
+    bool tx_id_set;
     /** ID of the transaction currently being inspected. */
     uint64_t tx_id;
     Packet *p;
+
+    uint16_t alert_queue_size;
+    uint16_t alert_queue_capacity;
+    PacketAlert *alert_queue;
 
     SC_ATOMIC_DECLARE(int, so_far_used_by_detect);
 
@@ -1502,6 +1496,11 @@ void *DetectThreadCtxGetKeywordThreadCtx(DetectEngineThreadCtx *, int);
 
 void RuleMatchCandidateTxArrayInit(DetectEngineThreadCtx *det_ctx, uint32_t size);
 void RuleMatchCandidateTxArrayFree(DetectEngineThreadCtx *det_ctx);
+
+void AlertQueueInit(DetectEngineThreadCtx *det_ctx);
+void AlertQueueFree(DetectEngineThreadCtx *det_ctx);
+void AlertQueueAppend(DetectEngineThreadCtx *det_ctx, const Signature *s, Packet *p, uint64_t tx_id,
+        uint8_t alert_flags);
 
 int DetectFlowbitsAnalyze(DetectEngineCtx *de_ctx);
 

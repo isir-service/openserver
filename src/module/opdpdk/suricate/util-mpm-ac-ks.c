@@ -599,7 +599,7 @@ static void SCACTileSetState4Bytes(SCACTileCtx *ctx, int state, int aa,
     }
 
     if (outputs == 0)
-        encoded_next_state |= (1 << 31);
+        encoded_next_state |= (1UL << 31);
 
     state_table[state * ctx->alphabet_storage + aa] = encoded_next_state;
 }
@@ -924,7 +924,7 @@ int SCACTilePreparePatterns(MpmCtx *mpm_ctx)
     mpm_ctx->memory_size += mem_size;
     /* Split the allocated block into pattern list array and string space. */
     ctx->pattern_list = mem_block;
-    uint8_t *string_space = (uint8_t*)mem_block + pattern_list_size;
+    uint8_t *string_space = mem_block + pattern_list_size;
 
     /* Now make the copies of the no-case strings. */
     for (i = 0; i < mpm_ctx->pattern_cnt; i++) {
@@ -1444,7 +1444,7 @@ void SCACTilePrintInfo(MpmCtx *mpm_ctx)
     printf("Unique Patterns: %" PRIu32 "\n", mpm_ctx->pattern_cnt);
     printf("Smallest:        %" PRIu32 "\n", mpm_ctx->minlen);
     printf("Largest:         %" PRIu32 "\n", mpm_ctx->maxlen);
-    printf("Total states in the state table:    %d\n", ctx->state_count);
+    printf("Total states in the state table:    %u\n", ctx->state_count);
     printf("\n");
 }
 

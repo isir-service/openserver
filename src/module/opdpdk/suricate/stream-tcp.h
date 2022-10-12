@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2010 Open Information Security Foundation
+/* Copyright (C) 2007-2022 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -63,6 +63,10 @@ typedef struct TcpStreamCnf_ {
     uint16_t reassembly_toclient_chunk_size;
 
     bool streaming_log_api;
+
+    enum ExceptionPolicy ssn_memcap_policy;
+    enum ExceptionPolicy reassembly_memcap_policy;
+    enum ExceptionPolicy midstream_policy;
 
     StreamingBufferConfig sbcnf;
 } TcpStreamCnf;
@@ -178,7 +182,6 @@ TmEcode StreamTcp (ThreadVars *, Packet *, void *, PacketQueueNoLock *);
 int StreamNeedsReassembly(const TcpSession *ssn, uint8_t direction);
 TmEcode StreamTcpThreadInit(ThreadVars *, void *, void **);
 TmEcode StreamTcpThreadDeinit(ThreadVars *tv, void *data);
-void StreamTcpRegisterTests (void);
 
 int StreamTcpPacket (ThreadVars *tv, Packet *p, StreamTcpThread *stt,
                      PacketQueueNoLock *pq);

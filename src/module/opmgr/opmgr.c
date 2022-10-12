@@ -119,7 +119,7 @@ static void _get_cpu_info(struct proc_cpu_info *cpu_info, int cpu_num)
 	
 exit:
 	if (cpu_file)
-		fclose(cpu_file);
+		pclose(cpu_file);
 
 	return;
 }

@@ -9,7 +9,6 @@ opserver_LDFLAGS+=-L$(top_builddir)/src/module/timer_service/.libs
 opserver_LDFLAGS+=-L$(top_builddir)/src/module/spider/.libs
 opserver_LDFLAGS+=-L$(top_builddir)/src/module/webserver/.libs
 opserver_LDFLAGS+=-L$(top_builddir)/src/module/outer/.libs
-opserver_LDFLAGS+=-L$(top_builddir)/src/module/opdpdk/.libs
 opserver_LDFLAGS+=-L$(top_builddir)/src/module/mqtt/.libs
 opserver_LDFLAGS+=-L$(top_builddir)/src/module/mqtt/lib/.libs
 opserver_LDFLAGS+=-L$(top_builddir)/src/module/opfile/.libs

@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2020 Open Information Security Foundation
+/* Copyright (C) 2007-2022 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -437,7 +437,7 @@ static void AppendStreamInspectEngine(Signature *s, SigMatchData *stream, int di
     if (unlikely(new_engine == NULL)) {
         exit(EXIT_FAILURE);
     }
-    if (SigMatchListSMBelongsTo(s, s->init_data->mpm_sm) == DETECT_SM_LIST_PMATCH) {
+    if (s->init_data->mpm_sm_list == DETECT_SM_LIST_PMATCH) {
         SCLogDebug("stream is mpm");
         prepend = true;
         new_engine->mpm = true;
@@ -482,9 +482,7 @@ int DetectEngineAppInspectionEngine2Signature(DetectEngineCtx *de_ctx, Signature
     SigMatchData *ptrs[nlists];
     memset(&ptrs, 0, (nlists * sizeof(SigMatchData *)));
 
-    const int mpm_list = s->init_data->mpm_sm ?
-        SigMatchListSMBelongsTo(s, s->init_data->mpm_sm) :
-        -1;
+    const int mpm_list = s->init_data->mpm_sm ? s->init_data->mpm_sm_list : -1;
 
     const int files_id = DetectBufferTypeGetByName("files");
 
@@ -1523,6 +1521,7 @@ static int DetectEnginePktInspectionAppend(Signature *s, InspectionBufferPktInsp
     if (e == NULL)
         return -1;
 
+    e->mpm = s->init_data->mpm_sm_list == list_id;
     e->sm_list = list_id;
     e->sm_list_base = list_id;
     e->v1.Callback = Callback;
@@ -2058,7 +2057,10 @@ static DetectEngineCtx *DetectEngineCtxInitReal(enum DetectEngineType type, cons
     (void)SRepInit(de_ctx);
 
     SCClassConfLoadClassficationConfigFile(de_ctx, NULL);
-    SCRConfLoadReferenceConfigFile(de_ctx, NULL);
+    if (SCRConfLoadReferenceConfigFile(de_ctx, NULL) < 0) {
+        if (RunmodeGetCurrent() == RUNMODE_CONF_TEST)
+            goto error;
+    }
 
     if (ActionInitConfig() < 0) {
         goto error;
@@ -2765,6 +2767,9 @@ static TmEcode ThreadCtxDoInit (DetectEngineCtx *de_ctx, DetectEngineThreadCtx *
         RuleMatchCandidateTxArrayInit(det_ctx, de_ctx->sig_array_len);
     }
 
+    /* Alert processing queue */
+    AlertQueueInit(det_ctx);
+
     /* byte_extract storage */
     det_ctx->byte_values = SCMalloc(sizeof(*det_ctx->byte_values) *
                                   (de_ctx->byte_extract_max_local_id + 1));
@@ -2869,6 +2874,8 @@ TmEcode DetectEngineThreadCtxInit(ThreadVars *tv, void *initdata, void **data)
 
     /** alert counter setup */
     det_ctx->counter_alerts = StatsRegisterCounter("detect.alert", tv);
+    det_ctx->counter_alerts_overflow = StatsRegisterCounter("detect.alert_queue_overflow", tv);
+    det_ctx->counter_alerts_suppressed = StatsRegisterCounter("detect.alerts_suppressed", tv);
 #ifdef PROFILING
     det_ctx->counter_mpm_list = StatsRegisterAvgCounter("detect.mpm_list", tv);
     det_ctx->counter_nonmpm_list = StatsRegisterAvgCounter("detect.nonmpm_list", tv);
@@ -2927,6 +2934,8 @@ static DetectEngineThreadCtx *DetectEngineThreadCtxInitForReload(
 
     /** alert counter setup */
     det_ctx->counter_alerts = StatsRegisterCounter("detect.alert", tv);
+    det_ctx->counter_alerts_overflow = StatsRegisterCounter("detect.alert_queue_overflow", tv);
+    det_ctx->counter_alerts_suppressed = StatsRegisterCounter("detect.alerts_suppressed", tv);
 #ifdef PROFILING
     uint16_t counter_mpm_list = StatsRegisterAvgCounter("detect.mpm_list", tv);
     uint16_t counter_nonmpm_list = StatsRegisterAvgCounter("detect.nonmpm_list", tv);
@@ -2995,6 +3004,8 @@ static void DetectEngineThreadCtxFree(DetectEngineThreadCtx *det_ctx)
         SCFree(det_ctx->match_array);
 
     RuleMatchCandidateTxArrayFree(det_ctx);
+
+    AlertQueueFree(det_ctx);
 
     if (det_ctx->byte_values != NULL)
         SCFree(det_ctx->byte_values);
@@ -3323,7 +3334,7 @@ static int DetectEngineMultiTenantLoadTenant(uint32_t tenant_id, const char *fil
     DetectEngineCtx *de_ctx = NULL;
     char prefix[64];
 
-    snprintf(prefix, sizeof(prefix), "multi-detect.%d", tenant_id);
+    snprintf(prefix, sizeof(prefix), "multi-detect.%u", tenant_id);
 
 #ifdef OS_WIN32
     struct _stat st;
@@ -3387,7 +3398,7 @@ static int DetectEngineMultiTenantReloadTenant(uint32_t tenant_id, const char *f
     }
 
     char prefix[64];
-    snprintf(prefix, sizeof(prefix), "multi-detect.%d.reload.%d", tenant_id, reload_cnt);
+    snprintf(prefix, sizeof(prefix), "multi-detect.%u.reload.%d", tenant_id, reload_cnt);
     reload_cnt++;
     SCLogDebug("prefix %s", prefix);
 
@@ -3766,7 +3777,7 @@ int DetectEngineMultiTenantSetup(void)
                 /* setup the yaml in this loop so that it's not done by the loader
                  * threads. ConfYamlLoadFileWithPrefix is not thread safe. */
                 char prefix[64];
-                snprintf(prefix, sizeof(prefix), "multi-detect.%d", tenant_id);
+                snprintf(prefix, sizeof(prefix), "multi-detect.%u", tenant_id);
                 if (ConfYamlLoadFileWithPrefix(yaml_node->val, prefix) != 0) {
                     SCLogError(SC_ERR_CONF_YAML_ERROR, "failed to load yaml %s", yaml_node->val);
                     goto bad_tenant;

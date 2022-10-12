@@ -595,7 +595,7 @@ opdpdk_includedir=$(prefix)/include/module/opdpdk
 opdpdk_include_HEADERS =
 
 opdpdk_CFLAGS  = -I$(top_srcdir)/src/ -I$(top_srcdir)/src/module/opdpdk/opproto -I$(top_srcdir)/src/module/opdpdk/suricate -I/usr/include/nss
-opdpdk_CFLAGS += -I/usr/include/nspr
+opdpdk_CFLAGS += -I/usr/include/nspr -I/usr/include/linux
 opdpdk_CFLAGS += -I$(top_srcdir)/src/module/opdpdk/suricate/dist
 
 opdpdk_CFLAGS += -I$(prefix)/include

@@ -167,6 +167,8 @@ TmEcode NoAFPSupportExit(ThreadVars *tv, const void *initdata, void **data)
 #define AFP_RECONNECT_TIMEOUT 500000
 #define AFP_DOWN_COUNTER_INTERVAL 40
 
+#define POLL_TIMEOUT 100
+
 /* kernel flags defined for RX ring tp_status */
 #ifndef TP_STATUS_KERNEL
 #define TP_STATUS_KERNEL 0
@@ -256,7 +258,7 @@ static int AFPXDPBypassCallback(Packet *p);
 typedef struct AFPThreadVars_
 {
     union AFPRing {
-        char *v2;
+        union thdr **v2;
         struct iovec *v3;
     } ring;
 
@@ -319,7 +321,7 @@ typedef struct AFPThreadVars_
 
     int down_count;
 
-    int cluster_id;
+    uint16_t cluster_id;
     int cluster_type;
 
     int threads;
@@ -1999,12 +2001,11 @@ static int AFPSetupRing(AFPThreadVars *ptv, char *devname)
     } else {
 #endif
         /* allocate a ring for each frame header pointer*/
-        ptv->ring.v2 = SCMalloc(ptv->req.v2.tp_frame_nr * sizeof (union thdr *));
+        ptv->ring.v2 = SCCalloc(ptv->req.v2.tp_frame_nr, sizeof(union thdr *));
         if (ptv->ring.v2 == NULL) {
             SCLogError(SC_ERR_MEM_ALLOC, "Unable to allocate frame buf");
             goto postmmap_err;
         }
-        memset(ptv->ring.v2, 0, ptv->req.v2.tp_frame_nr * sizeof (union thdr *));
         /* fill the header ring with proper frame ptr*/
         ptv->frame_offset = 0;
         for (i = 0; i < ptv->req.v2.tp_block_nr; ++i) {
@@ -2012,7 +2013,7 @@ static int AFPSetupRing(AFPThreadVars *ptv, char *devname)
             unsigned int j;
             for (j = 0; j < ptv->req.v2.tp_block_size / ptv->req.v2.tp_frame_size; ++j, ++ptv->frame_offset) {
                 (((union thdr **)ptv->ring.v2)[ptv->frame_offset]) = base;
-                base =  (char*)base + ptv->req.v2.tp_frame_size;
+                base += ptv->req.v2.tp_frame_size;
             }
         }
         ptv->frame_offset = 0;
@@ -2036,7 +2037,7 @@ mmap_err:
 /** \brief test if we can use FANOUT. Older kernels like those in
  *         CentOS6 have HAVE_PACKET_FANOUT defined but fail to work
  */
-int AFPIsFanoutSupported(int cluster_id)
+int AFPIsFanoutSupported(uint16_t cluster_id)
 {
 #ifdef HAVE_PACKET_FANOUT
     int fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
@@ -2044,8 +2045,7 @@ int AFPIsFanoutSupported(int cluster_id)
         return 0;
 
     uint32_t mode = PACKET_FANOUT_HASH | PACKET_FANOUT_FLAG_DEFRAG;
-    uint16_t id = 1;
-    uint32_t option = (mode << 16) | (id & 0xffff);
+    uint32_t option = (mode << 16) | cluster_id;
     int r = setsockopt(fd, SOL_PACKET, PACKET_FANOUT,(void *)&option, sizeof(option));
     close(fd);
 
@@ -2380,6 +2380,12 @@ static int AFPSetFlowStorage(Packet *p, int map_fd, void *key0, void* key1,
 {
     FlowBypassInfo *fc = FlowGetStorageById(p->flow, GetFlowBypassInfoID());
     if (fc) {
+        if (fc->bypass_data != NULL) {
+            // bypass already activated
+            SCFree(key0);
+            SCFree(key1);
+            return 1;
+        }
         EBPFBypassData *eb = SCCalloc(1, sizeof(EBPFBypassData));
         if (eb == NULL) {
             EBPFDeleteKey(map_fd, key0);

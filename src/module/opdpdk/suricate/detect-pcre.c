@@ -65,9 +65,6 @@
 #define PARSE_CAPTURE_REGEX "\\(\\?P\\<([A-z]+)\\_([A-z0-9_]+)\\>"
 #define PARSE_REGEX         "(?<!\\\\)/(.*(?<!(?<!\\\\)\\\\))/([^\"]*)"
 
-#define SC_MATCH_LIMIT_DEFAULT 3500
-#define SC_MATCH_LIMIT_RECURSION_DEFAULT 1500
-
 static int pcre_match_limit = 0;
 static int pcre_match_limit_recursion = 0;
 
@@ -370,8 +367,11 @@ static DetectPcreData *DetectPcreParse (DetectEngineCtx *de_ctx,
             cut_capture = fcap - regexstr;
         else if (pcap && !fcap)
             cut_capture = pcap - regexstr;
-        else
+        else {
+            BUG_ON(pcap == NULL); // added to assist cppcheck
+            BUG_ON(fcap == NULL);
             cut_capture = MIN((pcap - regexstr), (fcap - regexstr));
+        }
 
         SCLogDebug("cut_capture %d", cut_capture);
 

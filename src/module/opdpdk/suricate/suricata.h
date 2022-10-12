@@ -63,7 +63,7 @@
 
 #ifndef __SURICATA_H__
 #define __SURICATA_H__
-
+#include <stddef.h>
 #include "suricata-common.h"
 #include "packet-queue.h"
 
@@ -132,10 +132,12 @@ typedef struct SCInstance_ {
 
     char *keyword_info;
     char *runmode_custom_mode;
+#ifndef OS_WIN32
     const char *user_name;
     const char *group_name;
     uint8_t do_setuid;
     uint8_t do_setgid;
+#endif /* OS_WIN32 */
     uint32_t userid;
     uint32_t groupid;
 
@@ -176,7 +178,11 @@ extern uint16_t g_vlan_mask;
 void EngineStop(void);
 void EngineDone(void);
 
+#ifdef UNITTESTS
 int RunmodeIsUnittests(void);
+#else
+#define RunmodeIsUnittests() 0
+#endif
 int RunmodeGetCurrent(void);
 int IsRuleReloadSet(int quiet);
 

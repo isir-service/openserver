@@ -56,6 +56,8 @@ enum {
     /* Invalid behavior or content */
     SMTP_DECODER_EVENT_DUPLICATE_FIELDS,
     SMTP_DECODER_EVENT_UNPARSABLE_CONTENT,
+    /* For line >= 4KB */
+    SMTP_DECODER_EVENT_TRUNCATED_LINE,
 };
 
 typedef struct SMTPString_ {
@@ -116,28 +118,19 @@ typedef struct SMTPState_ {
     int32_t input_len;
     uint8_t direction;
 
+    /* original length of an input */
+    int32_t orig_input_len;
+
     /* --parser details-- */
     /** current line extracted by the parser from the call to SMTPGetline() */
     const uint8_t *current_line;
     /** length of the line in current_line.  Doesn't include the delimiter */
     int32_t current_line_len;
     uint8_t current_line_delimiter_len;
-
-    /** used to indicate if the current_line buffer is a malloced buffer.  We
-     * use a malloced buffer, if a line is fragmented */
-    uint8_t *tc_db;
-    int32_t tc_db_len;
-    uint8_t tc_current_line_db;
-    /** we have see LF for the currently parsed line */
-    uint8_t tc_current_line_lf_seen;
-
-    /** used to indicate if the current_line buffer is a malloced buffer.  We
-     * use a malloced buffer, if a line is fragmented */
-    uint8_t *ts_db;
-    int32_t ts_db_len;
-    uint8_t ts_current_line_db;
-    /** we have see LF for the currently parsed line */
-    uint8_t ts_current_line_lf_seen;
+    /* Consumed bytes till current line */
+    int32_t consumed;
+    /* If rest of the bytes should be discarded in case of long line w/o LF */
+    bool discard_till_lf;
 
     /** var to indicate parser state */
     uint8_t parser_state;

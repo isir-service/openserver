@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2021 Open Information Security Foundation
+/* Copyright (C) 2007-2022 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -385,44 +385,6 @@ bool DetectAddressListsAreEqual(DetectAddress *list1, DetectAddress *list2)
 
 /**
  * \internal
- * \brief Creates a cidr ipv6 netblock, based on the cidr netblock value.
- *
- *        For example if we send a cidr of 7 as argument, an ipv6 address
- *        mask of the value FE:00:00:00:00:00:00:00 is created and updated
- *        in the argument struct in6_addr *in6.
- *
- * \todo I think for the final section: while (cidr > 0), we can simply
- *       replace it with a
- *       if (cidr > 0) {
- *           in6->s6_addr[i] = -1 << (8 - cidr);
- *
- * \param cidr The value of the cidr.
- * \param in6  Pointer to an ipv6 address structure(struct in6_addr) which will
- *             hold the cidr netblock result.
- */
-static void DetectAddressParseIPv6CIDR(int cidr, struct in6_addr *in6)
-{
-    int i = 0;
-
-    memset(in6, 0, sizeof(struct in6_addr));
-
-    while (cidr > 8) {
-        in6->s6_addr[i] = 0xff;
-        cidr -= 8;
-        i++;
-    }
-
-    while (cidr > 0) {
-        in6->s6_addr[i] |= 0x80;
-        if (--cidr > 0)
-             in6->s6_addr[i] = in6->s6_addr[i] >> 1;
-    }
-
-    return;
-}
-
-/**
- * \internal
  * \brief Parses an ipv4/ipv6 address string and updates the result into the
  *        DetectAddress instance sent as the argument.
  *
@@ -490,6 +452,16 @@ static int DetectAddressParseString(DetectAddress *dd, const char *str)
                     goto error;
 
                 netmask = in.s_addr;
+
+                /* validate netmask */
+                int cidr = CIDRFromMask(netmask);
+                if (cidr < 0) {
+                    SCLogError(SC_ERR_INVALID_SIGNATURE,
+                            "netmask \"%s\" is not usable. Only netmasks that are compatible with "
+                            "CIDR notation are supported. See #5168.",
+                            mask);
+                    goto error;
+                }
             }
 
             r = inet_pton(AF_INET, ip, &in);
@@ -547,7 +519,7 @@ static int DetectAddressParseString(DetectAddress *dd, const char *str)
                 goto error;
             memcpy(&ip6addr, &in6.s6_addr, sizeof(ip6addr));
 
-            DetectAddressParseIPv6CIDR(cidr, &mask6);
+            CIDRGetIPv6(cidr, &mask6);
             memcpy(&netmask, &mask6.s6_addr, sizeof(netmask));
 
             dd->ip2.addr_data32[0] = dd->ip.addr_data32[0] = ip6addr[0] & netmask[0];
@@ -1280,14 +1252,10 @@ int DetectAddressTestConfVars(void)
             goto error;
         }
 
-        if (gh != NULL) {
-            DetectAddressHeadFree(gh);
-            gh = NULL;
-        }
-        if (ghn != NULL) {
-            DetectAddressHeadFree(ghn);
-            ghn = NULL;
-        }
+        DetectAddressHeadFree(gh);
+        gh = NULL;
+        DetectAddressHeadFree(ghn);
+        ghn = NULL;
     }
 
     return 0;
@@ -1971,20 +1939,37 @@ static int AddressTestParse03(void)
 
 static int AddressTestParse04(void)
 {
-    int result = 1;
     DetectAddress *dd = DetectAddressParseSingle("1.2.3.4/255.255.255.0");
+    FAIL_IF_NULL(dd);
 
-    if (dd) {
-        if (dd->ip.addr_data32[0] != SCNtohl(16909056)||
-            dd->ip2.addr_data32[0] != SCNtohl(16909311)) {
-            result = 0;
-        }
+    char left[16], right[16];
+    PrintInet(AF_INET, (const void *)&dd->ip.addr_data32[0], left, sizeof(left));
+    PrintInet(AF_INET, (const void *)&dd->ip2.addr_data32[0], right, sizeof(right));
+    SCLogDebug("left %s right %s", left, right);
+    FAIL_IF_NOT(dd->ip.addr_data32[0] == SCNtohl(16909056));
+    FAIL_IF_NOT(dd->ip2.addr_data32[0] == SCNtohl(16909311));
+    FAIL_IF_NOT(strcmp(left, "1.2.3.0") == 0);
+    FAIL_IF_NOT(strcmp(right, "1.2.3.255") == 0);
 
-        DetectAddressFree(dd);
-        return result;
-    }
+    DetectAddressFree(dd);
+    PASS;
+}
 
-    return 0;
+/** \test that address range sets proper start address */
+static int AddressTestParse04bug5081(void)
+{
+    DetectAddress *dd = DetectAddressParseSingle("1.2.3.64/26");
+    FAIL_IF_NULL(dd);
+
+    char left[16], right[16];
+    PrintInet(AF_INET, (const void *)&dd->ip.addr_data32[0], left, sizeof(left));
+    PrintInet(AF_INET, (const void *)&dd->ip2.addr_data32[0], right, sizeof(right));
+    SCLogDebug("left %s right %s", left, right);
+    FAIL_IF_NOT(strcmp(left, "1.2.3.64") == 0);
+    FAIL_IF_NOT(strcmp(right, "1.2.3.127") == 0);
+
+    DetectAddressFree(dd);
+    PASS;
 }
 
 static int AddressTestParse05(void)
@@ -4322,23 +4307,18 @@ static int AddressTestAddressGroupSetup48(void)
 
 static int AddressTestCutIPv401(void)
 {
-    DetectAddress *a, *b, *c;
-    a = DetectAddressParseSingle("1.2.3.0/255.255.255.0");
-    b = DetectAddressParseSingle("1.2.2.0-1.2.3.4");
+    DetectAddress *c;
+    DetectAddress *a = DetectAddressParseSingle("1.2.3.0/255.255.255.0");
+    FAIL_IF_NULL(a);
+    DetectAddress *b = DetectAddressParseSingle("1.2.2.0-1.2.3.4");
+    FAIL_IF_NULL(b);
 
-    if (DetectAddressCut(NULL, a, b, &c) == -1)
-        goto error;
+    FAIL_IF(DetectAddressCut(NULL, a, b, &c) == -1);
 
     DetectAddressFree(a);
     DetectAddressFree(b);
     DetectAddressFree(c);
-    return 1;
-
-error:
-    DetectAddressFree(a);
-    DetectAddressFree(b);
-    DetectAddressFree(c);
-    return 0;
+    PASS;
 }
 
 static int AddressTestCutIPv402(void)
@@ -4842,6 +4822,7 @@ void DetectAddressTests(void)
     UtRegisterTest("AddressTestParse02", AddressTestParse02);
     UtRegisterTest("AddressTestParse03", AddressTestParse03);
     UtRegisterTest("AddressTestParse04", AddressTestParse04);
+    UtRegisterTest("AddressTestParse04bug5081", AddressTestParse04bug5081);
     UtRegisterTest("AddressTestParse05", AddressTestParse05);
     UtRegisterTest("AddressTestParse06", AddressTestParse06);
     UtRegisterTest("AddressTestParse07", AddressTestParse07);

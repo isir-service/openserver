@@ -33,6 +33,7 @@
 #include "detect-dsize.h"
 #include "detect-tcp-flags.h"
 #include "detect-flow.h"
+#include "detect-config.h"
 #include "detect-flowbits.h"
 
 #include "util-profiling.h"
@@ -183,6 +184,7 @@ int SignatureIsFilesizeInspecting(const Signature *s)
  *  \param de_ctx detection engine ctx
  *  \param s the signature
  *  \retval 1 sig is ip only
+ *  \retval 2 sig is like ip only
  *  \retval 0 sig is not ip only
  */
 int SignatureIsIPOnly(DetectEngineCtx *de_ctx, const Signature *s)
@@ -191,6 +193,10 @@ int SignatureIsIPOnly(DetectEngineCtx *de_ctx, const Signature *s)
         return 0;
 
     if (s->init_data->smlists[DETECT_SM_LIST_PMATCH] != NULL)
+        return 0;
+
+    // may happen for 'config' keyword, postmatch
+    if (s->flags & SIG_FLAG_APPLAYER)
         return 0;
 
     /* if flow dir is set we can't process it in ip-only */
@@ -213,17 +219,18 @@ int SignatureIsIPOnly(DetectEngineCtx *de_ctx, const Signature *s)
     /* TMATCH list can be ignored, it contains TAGs and
      * tags are compatible to IP-only. */
 
-    /* if any of the addresses uses negation, we don't support
-     * it in ip-only */
-    if (s->init_data->src_contains_negation)
-        return 0;
-    if (s->init_data->dst_contains_negation)
-        return 0;
-
     SigMatch *sm = s->init_data->smlists[DETECT_SM_LIST_MATCH];
-    if (sm == NULL)
-        goto iponly;
-
+    for (; sm != NULL; sm = sm->next) {
+        if (!(sigmatch_table[sm->type].flags & SIGMATCH_IPONLY_COMPAT))
+            return 0;
+        /* we have enabled flowbits to be compatible with ip only sigs, as long
+         * as the sig only has a "set" flowbits */
+        if (sm->type == DETECT_FLOWBITS &&
+                (((DetectFlowbitsData *)sm->ctx)->cmd != DETECT_FLOWBITS_CMD_SET)) {
+            return 0;
+        }
+    }
+    sm = s->init_data->smlists[DETECT_SM_LIST_POSTMATCH];
     for ( ; sm != NULL; sm = sm->next) {
         if ( !(sigmatch_table[sm->type].flags & SIGMATCH_IPONLY_COMPAT))
             return 0;
@@ -235,7 +242,10 @@ int SignatureIsIPOnly(DetectEngineCtx *de_ctx, const Signature *s)
         }
     }
 
-iponly:
+    if (s->init_data->src_contains_negation || s->init_data->dst_contains_negation) {
+        /* Rule is IP only, but contains negated addresses. */
+        return 2;
+    }
     if (!(de_ctx->flags & DE_QUIET)) {
         SCLogDebug("IP-ONLY (%" PRIu32 "): source %s, dest %s", s->id,
                    s->flags & SIG_FLAG_SRC_ANY ? "ANY" : "SET",
@@ -565,6 +575,18 @@ static int SignatureCreateMask(Signature *s)
         }
     }
 
+    for (sm = s->init_data->smlists[DETECT_SM_LIST_POSTMATCH]; sm != NULL; sm = sm->next) {
+        switch (sm->type) {
+            case DETECT_CONFIG: {
+                DetectConfigData *fd = (DetectConfigData *)sm->ctx;
+                if (fd->scope == CONFIG_SCOPE_FLOW) {
+                    s->mask |= SIG_MASK_REQUIRE_FLOW;
+                }
+                break;
+            }
+        }
+    }
+
     if (s->init_data->init_flags & SIG_FLAG_INIT_FLOW) {
         s->mask |= SIG_MASK_REQUIRE_FLOW;
         SCLogDebug("sig requires flow");
@@ -596,7 +618,7 @@ static int RuleGetMpmPatternSize(const Signature *s)
 {
     if (s->init_data->mpm_sm == NULL)
         return -1;
-    int mpm_list = SigMatchListSMBelongsTo(s, s->init_data->mpm_sm);
+    int mpm_list = s->init_data->mpm_sm_list;
     if (mpm_list < 0)
         return -1;
     const DetectContentData *cd = (const DetectContentData *)s->init_data->mpm_sm->ctx;
@@ -609,7 +631,7 @@ static int RuleMpmIsNegated(const Signature *s)
 {
     if (s->init_data->mpm_sm == NULL)
         return 0;
-    int mpm_list = SigMatchListSMBelongsTo(s, s->init_data->mpm_sm);
+    int mpm_list = s->init_data->mpm_sm_list;
     if (mpm_list < 0)
         return 0;
     const DetectContentData *cd = (const DetectContentData *)s->init_data->mpm_sm->ctx;
@@ -704,7 +726,7 @@ static json_t *RulesGroupPrintSghStats(const SigGroupHead *sgh,
             }
 
         } else {
-            int mpm_list = SigMatchListSMBelongsTo(s, s->init_data->mpm_sm);
+            int mpm_list = s->init_data->mpm_sm_list;
             BUG_ON(mpm_list < 0);
             const DetectContentData *cd = (const DetectContentData *)s->init_data->mpm_sm->ctx;
             uint32_t size = cd->content_len < 256 ? cd->content_len : 255;
@@ -1098,15 +1120,13 @@ static int RuleSetWhitelist(Signature *s)
 
             /* one byte pattern in packet/stream payloads */
         } else if (s->init_data->mpm_sm != NULL &&
-                   SigMatchListSMBelongsTo(s, s->init_data->mpm_sm) == DETECT_SM_LIST_PMATCH &&
-                   RuleGetMpmPatternSize(s) == 1)
-        {
+                   s->init_data->mpm_sm_list == DETECT_SM_LIST_PMATCH &&
+                   RuleGetMpmPatternSize(s) == 1) {
             SCLogDebug("Rule %u No MPM. Payload inspecting. Whitelisting SGH's.", s->id);
             wl = 55;
 
         } else if (DetectFlagsSignatureNeedsSynPackets(s) &&
-                   DetectFlagsSignatureNeedsSynOnlyPackets(s))
-        {
+                   DetectFlagsSignatureNeedsSynOnlyPackets(s)) {
             SCLogDebug("Rule %u Needs SYN, so inspected often. Whitelisting SGH's.", s->id);
             wl = 33;
         }
@@ -1265,14 +1285,19 @@ static DetectPort *RulesGroupByPorts(DetectEngineCtx *de_ctx, int ipproto, uint3
 
 void SignatureSetType(DetectEngineCtx *de_ctx, Signature *s)
 {
+    int iponly = 0;
+
     /* see if the sig is dp only */
     if (SignatureIsPDOnly(de_ctx, s) == 1) {
         s->flags |= SIG_FLAG_PDONLY;
 
     /* see if the sig is ip only */
-    } else if (SignatureIsIPOnly(de_ctx, s) == 1) {
-        s->flags |= SIG_FLAG_IPONLY;
-
+    } else if ((iponly = SignatureIsIPOnly(de_ctx, s)) > 0) {
+        if (iponly == 1) {
+            s->flags |= SIG_FLAG_IPONLY;
+        } else if (iponly == 2) {
+            s->flags |= SIG_FLAG_LIKE_IPONLY;
+        }
     } else if (SignatureIsDEOnly(de_ctx, s) == 1) {
         s->init_data->init_flags |= SIG_FLAG_INIT_DEONLY;
     }

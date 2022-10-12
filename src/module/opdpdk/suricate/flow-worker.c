@@ -171,16 +171,9 @@ static void CheckWorkQueue(ThreadVars *tv, FlowWorkerThreadData *fw,
         FLOWLOCK_WRLOCK(f);
         f->flow_end_flags |= FLOW_END_FLAG_TIMEOUT; //TODO emerg
 
-        const FlowStateType state = f->flow_state;
         if (f->proto == IPPROTO_TCP) {
-            if (!(f->flags & FLOW_TIMEOUT_REASSEMBLY_DONE) &&
-#ifdef CAPTURE_OFFLOAD
-                    state != FLOW_STATE_CAPTURE_BYPASSED &&
-#endif
-                    state != FLOW_STATE_LOCAL_BYPASSED &&
-                    FlowForceReassemblyNeedReassembly(f) == 1 &&
-                    f->ffr != 0)
-            {
+            if (!(f->flags & FLOW_TIMEOUT_REASSEMBLY_DONE) && !FlowIsBypassed(f) &&
+                    FlowForceReassemblyNeedReassembly(f) == 1 && f->ffr != 0) {
                 int cnt = FlowFinish(tv, f, fw, detect_thread);
                 counters->flows_aside_pkt_inject += cnt;
                 counters->flows_aside_needs_work++;
@@ -509,7 +502,7 @@ static TmEcode FlowWorker(ThreadVars *tv, Packet *p, void *data)
         if (likely(p->flow != NULL)) {
             DEBUG_ASSERT_FLOW_LOCKED(p->flow);
             if (FlowUpdate(tv, fw, p) == TM_ECODE_DONE) {
-                return TM_ECODE_OK;
+                goto housekeeping;
             }
         }
         /* Flow is now LOCKED */
@@ -569,7 +562,12 @@ static TmEcode FlowWorker(ThreadVars *tv, Packet *p, void *data)
     if (p->flow != NULL) {
         DEBUG_ASSERT_FLOW_LOCKED(p->flow);
 
-        if (p->proto == IPPROTO_TCP) {
+        if (FlowIsBypassed(p->flow)) {
+            FlowCleanupAppLayer(p->flow);
+            if (p->proto == IPPROTO_TCP) {
+                StreamTcpSessionCleanup(p->flow->protoctx);
+            }
+        } else if (p->proto == IPPROTO_TCP && p->flow->protoctx) {
             FLOWWORKER_PROFILING_START(p, PROFILE_FLOWWORKER_TCPPRUNE);
             StreamTcpPruneSession(p->flow, p->flowflags & FLOW_PKT_TOSERVER ?
                     STREAM_TOSERVER : STREAM_TOCLIENT);
@@ -583,6 +581,8 @@ static TmEcode FlowWorker(ThreadVars *tv, Packet *p, void *data)
         FlowDeReference(&p->flow);
         FLOWLOCK_UNLOCK(f);
     }
+
+housekeeping:
 
     /* take injected flows and process them */
     FlowWorkerProcessInjectedFlows(tv, fw, p, detect_thread);

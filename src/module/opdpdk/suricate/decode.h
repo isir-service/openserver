@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2020 Open Information Security Foundation
+/* Copyright (C) 2007-2022 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -275,10 +275,10 @@ typedef uint16_t Port;
  * found in this packet */
 typedef struct PacketAlert_ {
     SigIntId num; /* Internal num, used for sorting */
-    uint8_t action; /* Internal num, used for sorting */
+    uint8_t action; /* Internal num, used for thresholding */
     uint8_t flags;
     const struct Signature_ *s;
-    uint64_t tx_id;
+    uint64_t tx_id; /* Used for sorting */
 } PacketAlert;
 
 /* flag to indicate the rule action (drop/pass) needs to be applied to the flow */
@@ -292,15 +292,22 @@ typedef struct PacketAlert_ {
 /** action was changed by rate_filter */
 #define PACKET_ALERT_RATE_FILTER_MODIFIED   0x10
 
+extern uint16_t packet_alert_max;
 #define PACKET_ALERT_MAX 15
 
 typedef struct PacketAlerts_ {
     uint16_t cnt;
-    PacketAlert alerts[PACKET_ALERT_MAX];
+    uint16_t discarded;
+    uint16_t suppressed;
+    PacketAlert *alerts;
     /* single pa used when we're dropping,
      * so we can log it out in the drop log. */
     PacketAlert drop;
 } PacketAlerts;
+
+PacketAlert *PacketAlertCreate(void);
+
+void PacketAlertFree(PacketAlert *pa);
 
 /** number of decoder events we support per packet. Power of 2 minus 1
  *  for memory layout */
@@ -389,6 +396,22 @@ typedef struct PktProfiling_ {
 } PktProfiling;
 
 #endif /* PROFILING */
+
+enum PacketDropReason {
+    PKT_DROP_REASON_NOT_SET = 0,
+    PKT_DROP_REASON_DECODE_ERROR,
+    PKT_DROP_REASON_DEFRAG_ERROR,
+    PKT_DROP_REASON_DEFRAG_MEMCAP,
+    PKT_DROP_REASON_FLOW_MEMCAP,
+    PKT_DROP_REASON_FLOW_DROP,
+    PKT_DROP_REASON_APPLAYER_ERROR,
+    PKT_DROP_REASON_APPLAYER_MEMCAP,
+    PKT_DROP_REASON_RULES,
+    PKT_DROP_REASON_RULES_THRESHOLD, /**< detection_filter in action */
+    PKT_DROP_REASON_STREAM_ERROR,
+    PKT_DROP_REASON_STREAM_MEMCAP,
+    PKT_DROP_REASON_STREAM_MIDSTREAM,
+};
 
 /* forward declaration since Packet struct definition requires this */
 struct PacketQueue_;
@@ -581,6 +604,14 @@ typedef struct Packet_
     /** data linktype in host order */
     int datalink;
 
+    /* count decoded layers of packet : too many layers
+     * cause issues with performance and stability (stack exhaustion)
+     */
+    uint8_t nb_decoded_layers;
+
+    /* enum PacketDropReason::PKT_DROP_REASON_* as uint8_t for compactness */
+    uint8_t drop_reason;
+
     /* tunnel/encapsulation handling */
     struct Packet_ *root; /* in case of tunnel this is a ptr
                            * to the 'real' packet, the one we
@@ -605,11 +636,6 @@ typedef struct Packet_
      * the packet to its owner's stack. If NULL, then allocated with malloc.
      */
     struct PktPool_ *pool;
-
-    /* count decoded layers of packet : too many layers
-     * cause issues with performance and stability (stack exhaustion)
-     */
-    uint8_t nb_decoded_layers;
 
 #ifdef PROFILING
     PktProfiling *profile;
@@ -746,11 +772,13 @@ void CaptureStatsSetup(ThreadVars *tv, CaptureStats *s);
 /**
  *  \brief Initialize a packet structure for use.
  */
-#define PACKET_INITIALIZE(p) {         \
-    SCMutexInit(&(p)->tunnel_mutex, NULL); \
-    PACKET_RESET_CHECKSUMS((p)); \
-    (p)->livedev = NULL; \
-}
+#define PACKET_INITIALIZE(p)                                                                       \
+    {                                                                                              \
+        SCMutexInit(&(p)->tunnel_mutex, NULL);                                                     \
+        (p)->alerts.alerts = PacketAlertCreate();                                                  \
+        PACKET_RESET_CHECKSUMS((p));                                                               \
+        (p)->livedev = NULL;                                                                       \
+    }
 
 #define PACKET_RELEASE_REFS(p) do {              \
         FlowDeReference(&((p)->flow));          \
@@ -761,72 +789,76 @@ void CaptureStatsSetup(ThreadVars *tv, CaptureStats *s);
 /**
  *  \brief Recycle a packet structure for reuse.
  */
-#define PACKET_REINIT(p) do {             \
-        CLEAR_ADDR(&(p)->src);                  \
-        CLEAR_ADDR(&(p)->dst);                  \
-        (p)->sp = 0;                            \
-        (p)->dp = 0;                            \
-        (p)->proto = 0;                         \
-        (p)->recursion_level = 0;               \
-        PACKET_FREE_EXTDATA((p));               \
-        (p)->flags = (p)->flags & PKT_ALLOC;    \
-        (p)->flowflags = 0;                     \
-        (p)->pkt_src = 0;                       \
-        (p)->vlan_id[0] = 0;                    \
-        (p)->vlan_id[1] = 0;                    \
-        (p)->vlan_idx = 0;                      \
-        (p)->ts.tv_sec = 0;                     \
-        (p)->ts.tv_usec = 0;                    \
-        (p)->datalink = 0;                      \
-        (p)->action = 0;                        \
-        if ((p)->pktvar != NULL) {              \
-            PktVarFree((p)->pktvar);            \
-            (p)->pktvar = NULL;                 \
-        }                                       \
-        (p)->ethh = NULL;                       \
-        if ((p)->ip4h != NULL) {                \
-            CLEAR_IPV4_PACKET((p));             \
-        }                                       \
-        if ((p)->ip6h != NULL) {                \
-            CLEAR_IPV6_PACKET((p));             \
-        }                                       \
-        if ((p)->tcph != NULL) {                \
-            CLEAR_TCP_PACKET((p));              \
-        }                                       \
-        if ((p)->udph != NULL) {                \
-            CLEAR_UDP_PACKET((p));              \
-        }                                       \
-        if ((p)->sctph != NULL) {               \
-            CLEAR_SCTP_PACKET((p));             \
-        }                                       \
-        if ((p)->icmpv4h != NULL) {             \
-            CLEAR_ICMPV4_PACKET((p));           \
-        }                                       \
-        if ((p)->icmpv6h != NULL) {             \
-            CLEAR_ICMPV6_PACKET((p));           \
-        }                                       \
-        (p)->ppph = NULL;                       \
-        (p)->pppoesh = NULL;                    \
-        (p)->pppoedh = NULL;                    \
-        (p)->greh = NULL;                       \
-        (p)->payload = NULL;                    \
-        (p)->payload_len = 0;                   \
-        (p)->BypassPacketsFlow = NULL;          \
-        (p)->pktlen = 0;                        \
-        (p)->alerts.cnt = 0;                    \
-        (p)->alerts.drop.action = 0;            \
-        (p)->pcap_cnt = 0;                      \
-        (p)->tunnel_rtv_cnt = 0;                \
-        (p)->tunnel_tpr_cnt = 0;                \
-        (p)->events.cnt = 0;                    \
-        AppLayerDecoderEventsResetEvents((p)->app_layer_events); \
-        (p)->next = NULL;                       \
-        (p)->prev = NULL;                       \
-        (p)->root = NULL;                       \
-        (p)->livedev = NULL;                    \
-        PACKET_RESET_CHECKSUMS((p));            \
-        PACKET_PROFILING_RESET((p));            \
-        p->tenant_id = 0;                       \
+#define PACKET_REINIT(p)                                                                           \
+    do {                                                                                           \
+        CLEAR_ADDR(&(p)->src);                                                                     \
+        CLEAR_ADDR(&(p)->dst);                                                                     \
+        (p)->sp = 0;                                                                               \
+        (p)->dp = 0;                                                                               \
+        (p)->proto = 0;                                                                            \
+        (p)->recursion_level = 0;                                                                  \
+        PACKET_FREE_EXTDATA((p));                                                                  \
+        (p)->flags = (p)->flags & PKT_ALLOC;                                                       \
+        (p)->flowflags = 0;                                                                        \
+        (p)->pkt_src = 0;                                                                          \
+        (p)->vlan_id[0] = 0;                                                                       \
+        (p)->vlan_id[1] = 0;                                                                       \
+        (p)->vlan_idx = 0;                                                                         \
+        (p)->ts.tv_sec = 0;                                                                        \
+        (p)->ts.tv_usec = 0;                                                                       \
+        (p)->datalink = 0;                                                                         \
+        (p)->drop_reason = 0;                                                                      \
+        (p)->action = 0;                                                                           \
+        if ((p)->pktvar != NULL) {                                                                 \
+            PktVarFree((p)->pktvar);                                                               \
+            (p)->pktvar = NULL;                                                                    \
+        }                                                                                          \
+        (p)->ethh = NULL;                                                                          \
+        if ((p)->ip4h != NULL) {                                                                   \
+            CLEAR_IPV4_PACKET((p));                                                                \
+        }                                                                                          \
+        if ((p)->ip6h != NULL) {                                                                   \
+            CLEAR_IPV6_PACKET((p));                                                                \
+        }                                                                                          \
+        if ((p)->tcph != NULL) {                                                                   \
+            CLEAR_TCP_PACKET((p));                                                                 \
+        }                                                                                          \
+        if ((p)->udph != NULL) {                                                                   \
+            CLEAR_UDP_PACKET((p));                                                                 \
+        }                                                                                          \
+        if ((p)->sctph != NULL) {                                                                  \
+            CLEAR_SCTP_PACKET((p));                                                                \
+        }                                                                                          \
+        if ((p)->icmpv4h != NULL) {                                                                \
+            CLEAR_ICMPV4_PACKET((p));                                                              \
+        }                                                                                          \
+        if ((p)->icmpv6h != NULL) {                                                                \
+            CLEAR_ICMPV6_PACKET((p));                                                              \
+        }                                                                                          \
+        (p)->ppph = NULL;                                                                          \
+        (p)->pppoesh = NULL;                                                                       \
+        (p)->pppoedh = NULL;                                                                       \
+        (p)->greh = NULL;                                                                          \
+        (p)->payload = NULL;                                                                       \
+        (p)->payload_len = 0;                                                                      \
+        (p)->BypassPacketsFlow = NULL;                                                             \
+        (p)->pktlen = 0;                                                                           \
+        (p)->alerts.cnt = 0;                                                                       \
+        (p)->alerts.discarded = 0;                                                                 \
+        (p)->alerts.suppressed = 0;                                                                \
+        (p)->alerts.drop.action = 0;                                                               \
+        (p)->pcap_cnt = 0;                                                                         \
+        (p)->tunnel_rtv_cnt = 0;                                                                   \
+        (p)->tunnel_tpr_cnt = 0;                                                                   \
+        (p)->events.cnt = 0;                                                                       \
+        AppLayerDecoderEventsResetEvents((p)->app_layer_events);                                   \
+        (p)->next = NULL;                                                                          \
+        (p)->prev = NULL;                                                                          \
+        (p)->root = NULL;                                                                          \
+        (p)->livedev = NULL;                                                                       \
+        PACKET_RESET_CHECKSUMS((p));                                                               \
+        PACKET_PROFILING_RESET((p));                                                               \
+        p->tenant_id = 0;                                                                          \
         p->nb_decoded_layers = 0;                                                                  \
     } while (0)
 
@@ -838,16 +870,18 @@ void CaptureStatsSetup(ThreadVars *tv, CaptureStats *s);
 /**
  *  \brief Cleanup a packet so that we can free it. No memset needed..
  */
-#define PACKET_DESTRUCTOR(p) do {                  \
-        if ((p)->pktvar != NULL) {              \
-            PktVarFree((p)->pktvar);            \
-        }                                       \
-        PACKET_FREE_EXTDATA((p));               \
-        SCMutexDestroy(&(p)->tunnel_mutex);     \
-        AppLayerDecoderEventsFreeEvents(&(p)->app_layer_events); \
-        PACKET_PROFILING_RESET((p));            \
+#define PACKET_DESTRUCTOR(p)                                                                       \
+    do {                                                                                           \
+        PACKET_RELEASE_REFS((p));                                                                  \
+        if ((p)->pktvar != NULL) {                                                                 \
+            PktVarFree((p)->pktvar);                                                               \
+        }                                                                                          \
+        PacketAlertFree((p)->alerts.alerts);                                                       \
+        PACKET_FREE_EXTDATA((p));                                                                  \
+        SCMutexDestroy(&(p)->tunnel_mutex);                                                        \
+        AppLayerDecoderEventsFreeEvents(&(p)->app_layer_events);                                   \
+        PACKET_PROFILING_RESET((p));                                                               \
     } while (0)
-
 
 /* macro's for setting the action
  * handle the case of a root packet
@@ -863,26 +897,38 @@ void CaptureStatsSetup(ThreadVars *tv, CaptureStats *s);
 
 #define PACKET_ACCEPT(p) PACKET_SET_ACTION(p, ACTION_ACCEPT)
 
-#define PACKET_DROP(p) PACKET_SET_ACTION(p, ACTION_DROP)
-
-#define PACKET_REJECT(p) PACKET_SET_ACTION(p, (ACTION_REJECT|ACTION_DROP))
-
-#define PACKET_REJECT_DST(p) PACKET_SET_ACTION(p, (ACTION_REJECT_DST|ACTION_DROP))
-
-#define PACKET_REJECT_BOTH(p) PACKET_SET_ACTION(p, (ACTION_REJECT_BOTH|ACTION_DROP))
-
 #define PACKET_PASS(p) PACKET_SET_ACTION(p, ACTION_PASS)
 
-#define PACKET_TEST_ACTION(p, a) \
-    ((p)->root ? \
-     ((p)->root->action & a) : \
-     ((p)->action & a))
+#define PACKET_TEST_ACTION_DO(p, a) (p)->action &(a)
 
-#define PACKET_UPDATE_ACTION(p, a) do { \
-    ((p)->root ? \
-     ((p)->root->action |= a) : \
-     ((p)->action |= a)); \
-} while (0)
+#define PACKET_UPDATE_ACTION(p, a) (p)->action |= (a)
+static inline void PacketUpdateAction(Packet *p, const uint8_t a)
+{
+    if (likely(p->root == NULL)) {
+        PACKET_UPDATE_ACTION(p, a);
+    } else {
+        PACKET_UPDATE_ACTION(p->root, a);
+    }
+}
+
+static inline void PacketDrop(Packet *p, const uint8_t action, enum PacketDropReason r)
+{
+    if (p->drop_reason == PKT_DROP_REASON_NOT_SET)
+        p->drop_reason = (uint8_t)r;
+
+    PACKET_UPDATE_ACTION(p, action);
+}
+#define PACKET_DROP(p) PacketDrop((p), PKT_DROP_REASON_NOT_SET)
+
+static inline uint8_t PacketTestAction(const Packet *p, const uint8_t a)
+{
+    if (likely(p->root == NULL)) {
+        return PACKET_TEST_ACTION_DO(p, a);
+    } else {
+        return PACKET_TEST_ACTION_DO(p->root, a);
+    }
+}
+#define PACKET_TEST_ACTION(p, a) PacketTestAction((p), (a))
 
 #define TUNNEL_INCR_PKT_RTV_NOLOCK(p) do {                                          \
         ((p)->root ? (p)->root->tunnel_rtv_cnt++ : (p)->tunnel_rtv_cnt++);          \
@@ -941,6 +987,7 @@ DecodeThreadVars *DecodeThreadVarsAlloc(ThreadVars *);
 void DecodeThreadVarsFree(ThreadVars *, DecodeThreadVars *);
 void DecodeUpdatePacketCounters(ThreadVars *tv,
                                 const DecodeThreadVars *dtv, const Packet *p);
+const char *PacketDropReasonToString(enum PacketDropReason r);
 
 /* decoder functions */
 int DecodeEthernet(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
@@ -981,6 +1028,7 @@ void AddressDebugPrint(Address *);
 typedef int (*DecoderFunc)(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
          const uint8_t *pkt, uint32_t len);
 void DecodeGlobalConfig(void);
+void PacketAlertGetMaxConfig(void);
 void DecodeUnregisterCounters(void);
 
 /** \brief Set the No payload inspection Flag for the packet.

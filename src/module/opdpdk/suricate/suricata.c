@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2020 Open Information Security Foundation
+/* Copyright (C) 2007-2022 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -86,6 +86,7 @@
 
 #include "source-pcap.h"
 #include "source-pcap-file.h"
+#include "source-pcap-file-helper.h"
 
 #include "source-pfring.h"
 
@@ -176,6 +177,8 @@
 
 #include "util-plugin.h"
 
+#include "util-exception-policy.h"
+
 #include "rust.h"
 
 /*
@@ -263,6 +266,7 @@ void EngineModeSetIDS(void)
     g_engine_mode = ENGINE_MODE_IDS;
 }
 
+#ifdef UNITTESTS
 int RunmodeIsUnittests(void)
 {
     if (run_mode == RUNMODE_UNITTEST)
@@ -270,6 +274,7 @@ int RunmodeIsUnittests(void)
 
     return 0;
 }
+#endif
 
 int RunmodeGetCurrent(void)
 {
@@ -292,6 +297,55 @@ static void SignalHandlerSigterm(/*@unused@*/ int sig)
 {
     sigterm_count = 1;
 }
+#ifndef OS_WIN32
+#if HAVE_LIBUNWIND
+#define UNW_LOCAL_ONLY
+#include <libunwind.h>
+static void SignalHandlerUnexpected(int sig_num, siginfo_t *info, void *context)
+{
+    char msg[SC_LOG_MAX_LOG_MSG_LEN];
+    unw_cursor_t cursor;
+    /* Restore defaults for signals to avoid loops */
+    signal(SIGABRT, SIG_DFL);
+    signal(SIGSEGV, SIG_DFL);
+    int r;
+    if ((r = unw_init_local(&cursor, (unw_context_t *)(context)) != 0)) {
+        fprintf(stderr, "unable to obtain stack trace: unw_init_local: %s\n", unw_strerror(r));
+        goto terminate;
+    }
+
+    char *temp = msg;
+    int cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - msg), "stacktrace:sig %d:", sig_num);
+    temp += cw;
+    r = 1;
+    while (r > 0) {
+        if (unw_is_signal_frame(&cursor) == 0) {
+            unw_word_t off;
+            char name[256];
+            if (unw_get_proc_name(&cursor, name, sizeof(name), &off) == UNW_ENOMEM) {
+                cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - msg), "[unknown]:");
+            } else {
+                cw = snprintf(
+                        temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - msg), "%s+0x%08" PRIx64, name, off);
+            }
+            temp += cw;
+        }
+
+        r = unw_step(&cursor);
+        if (r > 0) {
+            cw = snprintf(temp, SC_LOG_MAX_LOG_MSG_LEN - (temp - msg), ";");
+            temp += cw;
+        }
+    }
+    SCLogError(SC_ERR_SIGNAL, "%s", msg);
+
+terminate:
+    // Propagate signal to watchers, if any
+    kill(getpid(), sig_num);
+}
+#undef UNW_LOCAL_ONLY
+#endif /* HAVE_LIBUNWIND */
+#endif /* !OS_WIN32 */
 #endif
 
 #ifndef OS_WIN32
@@ -320,6 +374,7 @@ void GlobalsInitPreConfig(void)
     TimeInit();
     SupportFastPatternForSigMatchTypes();
     SCThresholdConfGlobalInit();
+    SCProtoNameInit();
 }
 
 static void GlobalsDestroy(SCInstance *suri)
@@ -346,8 +401,8 @@ static void GlobalsDestroy(SCInstance *suri)
     LiveDeviceListClean();
     OutputDeregisterAll();
     FeatureTrackingRelease();
+    SCProtoNameRelease();
     TimeDeinit();
-    SCProtoNameDeInit();
     if (!suri->disabled_detect) {
         SCReferenceConfDeinit();
         SCClassConfDeinit();
@@ -355,12 +410,6 @@ static void GlobalsDestroy(SCInstance *suri)
     TmqhCleanup();
     TmModuleRunDeInit();
     ParseSizeDeinit();
-#ifdef HAVE_NSS
-    if (NSS_IsInitialized()) {
-        NSS_Shutdown();
-        PR_Cleanup();
-    }
-#endif
 
 #ifdef HAVE_AF_PACKET
     AFPPeersListClean();
@@ -1003,10 +1052,12 @@ static void SCInstanceInit(SCInstance *suri, const char *progname)
 
     suri->keyword_info = NULL;
     suri->runmode_custom_mode = NULL;
+#ifndef OS_WIN32
     suri->user_name = NULL;
     suri->group_name = NULL;
     suri->do_setuid = FALSE;
     suri->do_setgid = FALSE;
+#endif /* OS_WIN32 */
     suri->userid = 0;
     suri->groupid = 0;
     suri->delayed_detect = 0;
@@ -1187,7 +1238,7 @@ static TmEcode ParseCommandLine(int argc, char** argv, SCInstance *suri)
     g_ut_modules = 0;
     g_ut_covered = 0;
 #endif
-
+    // clang-format off
     struct option long_opts[] = {
         {"dump-config", 0, &dump_config, 1},
         {"dump-features", 0, &dump_features, 1},
@@ -1247,8 +1298,18 @@ static TmEcode ParseCommandLine(int argc, char** argv, SCInstance *suri)
 #ifdef HAVE_NFLOG
         {"nflog", optional_argument, 0, 0},
 #endif
+        {"simulate-packet-flow-memcap", required_argument, 0, 0},
+        {"simulate-applayer-error-at-offset-ts", required_argument, 0, 0},
+        {"simulate-applayer-error-at-offset-tc", required_argument, 0, 0},
+        {"simulate-packet-loss", required_argument, 0, 0},
+        {"simulate-packet-tcp-reassembly-memcap", required_argument, 0, 0},
+        {"simulate-packet-tcp-ssn-memcap", required_argument, 0, 0},
+        {"simulate-packet-defrag-memcap", required_argument, 0, 0},
+        {"simulate-alert-queue-realloc-failure", 0, 0, 0},
+
         {NULL, 0, NULL, 0}
     };
+    // clang-format on
 
     /* getopt_long stores the option index here. */
     int option_index = 0;
@@ -1615,6 +1676,11 @@ static TmEcode ParseCommandLine(int argc, char** argv, SCInstance *suri)
                 if (suri->strict_rule_parsing_string == NULL) {
                     FatalError(SC_ERR_MEM_ALLOC, "failed to duplicate 'strict' string");
                 }
+            } else {
+                int r = ExceptionSimulationCommandlineParser(
+                        (long_opts[option_index]).name, optarg);
+                if (r < 0)
+                    return TM_ECODE_FAILED;
             }
             break;
         case 'c':
@@ -1883,6 +1949,35 @@ static TmEcode ParseCommandLine(int argc, char** argv, SCInstance *suri)
     return TM_ECODE_OK;
 }
 
+#ifdef OS_WIN32
+static int WindowsInitService(int argc, char **argv)
+{
+    if (SCRunningAsService()) {
+        char path[MAX_PATH];
+        char *p = NULL;
+        strlcpy(path, argv[0], MAX_PATH);
+        if ((p = strrchr(path, '\\'))) {
+            *p = '\0';
+        }
+        if (!SetCurrentDirectory(path)) {
+            SCLogError(SC_ERR_FATAL, "Can't set current directory to: %s", path);
+            return -1;
+        }
+        SCLogInfo("Current directory is set to: %s", path);
+        SCServiceInit(argc, argv);
+    }
+
+    /* Windows socket subsystem initialization */
+    WSADATA wsaData;
+    if (0 != WSAStartup(MAKEWORD(2, 2), &wsaData)) {
+        SCLogError(SC_ERR_FATAL, "Can't initialize Windows sockets: %d", WSAGetLastError());
+        return -1;
+    }
+
+    return 0;
+}
+#endif /* OS_WIN32 */
+
 static int MayDaemonize(SCInstance *suri)
 {
     if (suri->daemon == 1 && suri->pid_filename == NULL) {
@@ -1927,18 +2022,10 @@ static int MayDaemonize(SCInstance *suri)
     return TM_ECODE_OK;
 }
 
-static int InitSignalHandler(SCInstance *suri)
+/* Initialize the user and group Suricata is to run as. */
+static int InitRunAs(SCInstance *suri)
 {
-    /* registering signals we use */
-#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
-    UtilSignalHandlerSetup(SIGINT, SignalHandlerSigint);
-    UtilSignalHandlerSetup(SIGTERM, SignalHandlerSigterm);
-#endif
 #ifndef OS_WIN32
-    UtilSignalHandlerSetup(SIGHUP, SignalHandlerSigHup);
-    UtilSignalHandlerSetup(SIGPIPE, SIG_IGN);
-    UtilSignalHandlerSetup(SIGSYS, SIG_IGN);
-
     /* Try to get user/group to run suricata as if
        command line as not decide of that */
     if (suri->do_setuid == FALSE && suri->do_setgid == FALSE) {
@@ -1970,6 +2057,37 @@ static int InitSignalHandler(SCInstance *suri)
 
         sc_set_caps = TRUE;
     }
+#endif
+    return TM_ECODE_OK;
+}
+
+static int InitSignalHandler(SCInstance *suri)
+{
+    /* registering signals we use */
+#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+    UtilSignalHandlerSetup(SIGINT, SignalHandlerSigint);
+    UtilSignalHandlerSetup(SIGTERM, SignalHandlerSigterm);
+#if HAVE_LIBUNWIND
+    int enabled;
+    if (ConfGetBool("logging.stacktrace-on-signal", &enabled) == 0) {
+        enabled = 0;
+    }
+
+    if (enabled) {
+        SCLogInfo("Preparing unexpected signal handling");
+        struct sigaction stacktrace_action;
+        memset(&stacktrace_action, 0, sizeof(stacktrace_action));
+        stacktrace_action.sa_sigaction = SignalHandlerUnexpected;
+        stacktrace_action.sa_flags = SA_SIGINFO;
+        sigaction(SIGSEGV, &stacktrace_action, NULL);
+        sigaction(SIGABRT, &stacktrace_action, NULL);
+    }
+#endif /* HAVE_LIBUNWIND */
+#endif
+#ifndef OS_WIN32
+    UtilSignalHandlerSetup(SIGHUP, SignalHandlerSigHup);
+    UtilSignalHandlerSetup(SIGPIPE, SIG_IGN);
+    UtilSignalHandlerSetup(SIGSYS, SIG_IGN);
 #endif /* OS_WIN32 */
 
     return TM_ECODE_OK;
@@ -1981,8 +2099,6 @@ static int InitSignalHandler(SCInstance *suri)
  * Will be run once per pcap in unix-socket mode */
 void PreRunInit(const int runmode)
 {
-    /* Initialize Datasets to be able to use them with unix socket */
-    DatasetsInit();
     if (runmode == RUNMODE_UNIX_SOCKET)
         return;
 
@@ -2009,6 +2125,7 @@ void PreRunPostPrivsDropInit(const int runmode)
 {
     StatsSetupPostConfigPreOutput();
     RunModeInitializeOutputs();
+    DatasetsInit();
 
     if (runmode == RUNMODE_UNIX_SOCKET) {
         /* As the above did some necessary startup initialization, it
@@ -2415,6 +2532,16 @@ static void SetupUserMode(SCInstance *suri)
     }
 }
 
+#ifdef HAVE_NSS
+static void AtExitNSSShutdown(void)
+{
+    if (NSS_IsInitialized()) {
+        NSS_Shutdown();
+        PR_Cleanup();
+    }
+}
+#endif
+
 /**
  * This function is meant to contain code that needs
  * to be run once the configuration has been loaded.
@@ -2517,9 +2644,6 @@ int PostConfLoadedSetup(SCInstance *suri)
     SigTableApplyStrictCommandlineOption(suri->strict_rule_parsing_string);
     TmqhSetup();
 
-    CIDRInit();
-    SCProtoNameInit();
-
     TagInitCtx();
     PacketAlertTagInit();
     ThresholdInit();
@@ -2579,6 +2703,7 @@ int PostConfLoadedSetup(SCInstance *suri)
         /* init NSS for hashing */
         PR_Init(PR_USER_THREAD, PR_PRIORITY_NORMAL, 0);
         NSS_NoDB_Init(NULL);
+        atexit(AtExitNSSShutdown);
     }
 #endif
 
@@ -2641,7 +2766,7 @@ static void SuricataMainLoop(SCInstance *suri)
             DetectEngineReloadSetIdle();
         }
 
-        usleep(MAIN_LOOP_USLEEP); /*100ms src: 10*1000*/
+        usleep(10* 1000);
     }
 }
 
@@ -2680,12 +2805,13 @@ int InitGlobal(void) {
      * once we're done launching threads. The goal is to either die
      * completely or handle any and all SIGUSR2s correctly.
      */
-
+#ifndef OS_WIN32
     UtilSignalHandlerSetup(SIGUSR2, SIG_IGN);
     if (UtilSignalBlock(SIGUSR2)) {
         SCLogError(SC_ERR_INITIALIZATION, "SIGUSR2 initialization error");
         return EXIT_FAILURE;
     }
+#endif
 
     ParseSizeInit();
     RunModeRegisterRunModes();
@@ -2703,6 +2829,13 @@ int SuricataMain(int argc, char **argv)
     if (InitGlobal() != 0) {
         exit(EXIT_FAILURE);
     }
+
+#ifdef OS_WIN32
+    /* service initialization */
+    if (WindowsInitService(argc, argv) != 0) {
+        exit(EXIT_FAILURE);
+    }
+#endif /* OS_WIN32 */
 
     if (ParseCommandLine(argc, argv, &suricata) != TM_ECODE_OK) {
         exit(EXIT_FAILURE);
@@ -2740,10 +2873,11 @@ int SuricataMain(int argc, char **argv)
     SCLogDebug("vlan tracking is %s", vlan_tracking == 1 ? "enabled" : "disabled");
 
     SetupUserMode(&suricata);
+    InitRunAs(&suricata);
 
     /* Since our config is now loaded we can finish configurating the
      * logging module. */
-    SCLogLoadConfig(suricata.daemon, suricata.verbose);
+    SCLogLoadConfig(suricata.daemon, suricata.verbose, suricata.userid, suricata.groupid);
 
     LogVersion(&suricata);
     UtilCpuPrintSummary();

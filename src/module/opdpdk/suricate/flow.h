@@ -24,7 +24,11 @@
 #ifndef __FLOW_H__
 #define __FLOW_H__
 
+/* forward declaration for macset include */
+typedef struct FlowStorageId FlowStorageId;
+
 #include "decode.h"
+#include "util-exception-policy.h"
 #include "util-var.h"
 #include "util-atomic.h"
 #include "util-device.h"
@@ -295,6 +299,8 @@ typedef struct FlowCnf_
     uint32_t emerg_timeout_new;
     uint32_t emerg_timeout_est;
     uint32_t emergency_recovery;
+
+    enum ExceptionPolicy memcap_policy;
 
     SC_ATOMIC_DECLARE(uint64_t, memcap);
 } FlowConfig;
@@ -578,7 +584,7 @@ int FlowSetMemcap(uint64_t size);
 uint64_t FlowGetMemcap(void);
 uint64_t FlowGetMemuse(void);
 
-int GetFlowBypassInfoID(void);
+FlowStorageId GetFlowBypassInfoID(void);
 void RegisterFlowBypassInfo(void);
 
 void FlowGetLastTimeAsParts(Flow *flow, uint64_t *secs, uint64_t *usecs);
@@ -695,6 +701,18 @@ static inline void FlowSetEndFlags(Flow *f)
     else if (state == FLOW_STATE_CAPTURE_BYPASSED)
         f->flow_end_flags = FLOW_END_FLAG_STATE_BYPASSED;
 #endif
+}
+
+static inline bool FlowIsBypassed(const Flow *f)
+{
+    if (
+#ifdef CAPTURE_OFFLOAD
+            f->flow_state == FLOW_STATE_CAPTURE_BYPASSED ||
+#endif
+            f->flow_state == FLOW_STATE_LOCAL_BYPASSED) {
+        return true;
+    }
+    return false;
 }
 
 int FlowClearMemory(Flow *,uint8_t );

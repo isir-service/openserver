@@ -61,7 +61,7 @@
 #define BYPASSED_FLOW_TIMEOUT   60
 
 static int g_livedev_storage_id = -1;
-static int g_flow_storage_id = -1;
+static struct FlowStorageId g_flow_storage_id = { .id = -1 };
 
 struct bpf_map_item {
     char iface[IFNAMSIZ];
@@ -365,7 +365,11 @@ int EBPFLoadFile(const char *iface, const char *path, const char * section,
 
     /* Let's check that our section is here */
     bpf_object__for_each_program(bpfprog, bpfobj) {
+#ifdef HAVE_BPF_PROGRAM__SECTION_NAME
+        const char *title = bpf_program__section_name(bpfprog);
+#else
         const char *title = bpf_program__title(bpfprog, 0);
+#endif
         if (!strcmp(title, section)) {
             if (config->flags & EBPF_SOCKET_FILTER) {
                 bpf_program__set_socket_filter(bpfprog);

@@ -70,7 +70,7 @@ int LiveDevStorageRegister(const char *name, const unsigned int size, void *(*Al
 
 int LiveDevSetStorageById(LiveDevice *d, int id, void *ptr)
 {
-    return StorageSetById((Storage *)((char *)d + sizeof(LiveDevice)), STORAGE_DEVICE, id, ptr);
+    return StorageSetById((Storage *)((void *)d + sizeof(LiveDevice)), STORAGE_DEVICE, id, ptr);
 }
 
 /**
@@ -83,7 +83,7 @@ int LiveDevSetStorageById(LiveDevice *d, int id, void *ptr)
 
 void *LiveDevGetStorageById(LiveDevice *d, int id)
 {
-    return StorageGetById((Storage *)((char *)d + sizeof(LiveDevice)), STORAGE_DEVICE, id);
+    return StorageGetById((Storage *)((void *)d + sizeof(LiveDevice)), STORAGE_DEVICE, id);
 }
 
 /**
@@ -94,18 +94,18 @@ void *LiveDevGetStorageById(LiveDevice *d, int id)
 
 void *LiveDevAllocStorageById(LiveDevice *d, int id)
 {
-    return StorageAllocByIdPrealloc((Storage *)((char *)d + sizeof(LiveDevice)), STORAGE_DEVICE, id);
+    return StorageAllocByIdPrealloc((Storage *)((void *)d + sizeof(LiveDevice)), STORAGE_DEVICE, id);
 }
 
 void LiveDevFreeStorageById(LiveDevice *d, int id)
 {
-    StorageFreeById((Storage *)((char *)d + sizeof(LiveDevice)), STORAGE_DEVICE, id);
+    StorageFreeById((Storage *)((void *)d + sizeof(LiveDevice)), STORAGE_DEVICE, id);
 }
 
 void LiveDevFreeStorage(LiveDevice *d)
 {
     if (LiveDevStorageSize() > 0)
-        StorageFreeAll((Storage *)((char *)d + sizeof(LiveDevice)), STORAGE_DEVICE);
+        StorageFreeAll((Storage *)((void *)d + sizeof(LiveDevice)), STORAGE_DEVICE);
 }
 
 

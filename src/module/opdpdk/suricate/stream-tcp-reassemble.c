@@ -66,11 +66,16 @@
 
 #include "util-profiling.h"
 #include "util-validate.h"
+#include "util-exception-policy.h"
 
 #ifdef DEBUG
 static SCMutex segment_pool_memuse_mutex;
 static uint64_t segment_pool_memuse = 0;
 static uint64_t segment_pool_memcnt = 0;
+#endif
+
+#ifdef DEBUG
+thread_local uint64_t t_pcapcnt = UINT64_MAX;
 #endif
 
 static PoolThread *segment_thread_pool = NULL;
@@ -145,6 +150,13 @@ uint64_t StreamTcpReassembleMemuseGlobalCounter(void)
  */
 int StreamTcpReassembleCheckMemcap(uint64_t size)
 {
+#ifdef DEBUG
+    if (unlikely((g_eps_stream_reassembly_memcap != UINT64_MAX &&
+                  g_eps_stream_reassembly_memcap == t_pcapcnt))) {
+        SCLogNotice("simulating memcap reached condition for packet %" PRIu64, t_pcapcnt);
+        return 0;
+    }
+#endif
     uint64_t memcapcopy = SC_ATOMIC_GET(stream_config.reassembly_memcap);
     if (memcapcopy == 0 ||
         (uint64_t)((uint64_t)size + SC_ATOMIC_GET(ra_memuse)) <= memcapcopy)
@@ -918,7 +930,7 @@ static inline bool GapAhead(TcpStream *stream, StreamingBufferBlock *cur_blk)
 {
     StreamingBufferBlock *nblk = SBB_RB_NEXT(cur_blk);
     if (nblk && (cur_blk->offset + cur_blk->len < nblk->offset) &&
-            GetAbsLastAck(stream) >= (cur_blk->offset + cur_blk->len)) {
+            GetAbsLastAck(stream) > (cur_blk->offset + cur_blk->len)) {
         return true;
     }
     return false;
@@ -1846,7 +1858,11 @@ int StreamTcpReassembleHandleSegment(ThreadVars *tv, TcpReassemblyThreadCtx *ra_
     } else if (p->tcph->th_flags & TH_RST) { // accepted rst
         dir = UPDATE_DIR_PACKET;
     } else if ((p->tcph->th_flags & TH_FIN) && ssn->state > TCP_TIME_WAIT) {
-        dir = UPDATE_DIR_PACKET;
+        if (p->tcph->th_flags & TH_ACK) {
+            dir = UPDATE_DIR_BOTH;
+        } else {
+            dir = UPDATE_DIR_PACKET;
+        }
     } else if (ssn->state == TCP_CLOSED) {
         dir = UPDATE_DIR_BOTH;
     }
@@ -1884,6 +1900,9 @@ int StreamTcpReassembleHandleSegment(ThreadVars *tv, TcpReassemblyThreadCtx *ra_
 
         if (StreamTcpReassembleHandleSegmentHandleData(tv, ra_ctx, ssn, stream, p) != 0) {
             SCLogDebug("StreamTcpReassembleHandleSegmentHandleData error");
+            /* failure can only be because of memcap hit, so see if this should lead to a drop */
+            ExceptionPolicyApply(
+                    p, stream_config.reassembly_memcap_policy, PKT_DROP_REASON_STREAM_MEMCAP);
             SCReturnInt(-1);
         }
 

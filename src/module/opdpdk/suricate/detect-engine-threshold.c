@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2015 Open Information Security Foundation
+/* Copyright (C) 2007-2021 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -70,7 +70,7 @@
 #include "tm-threads.h"
 
 static int host_threshold_id = -1; /**< host storage id for thresholds */
-static int ippair_threshold_id = -1; /**< ip pair storage id for thresholds */
+static IPPairStorageId ippair_threshold_id = { .id = -1 }; /**< ip pair storage id for thresholds */
 
 int ThresholdHostStorageId(void)
 {
@@ -85,7 +85,7 @@ void ThresholdInit(void)
                    "Can't initiate host storage for thresholding");
     }
     ippair_threshold_id = IPPairStorageRegister("threshold", sizeof(void *), NULL, ThresholdListFree);
-    if (ippair_threshold_id == -1) {
+    if (ippair_threshold_id.id == -1) {
         FatalError(SC_ERR_FATAL,
                    "Can't initiate IP pair storage for thresholding");
     }
@@ -167,7 +167,8 @@ static DetectThresholdEntry* ThresholdTimeoutCheck(DetectThresholdEntry *head, s
         /* check if the 'check' timestamp is not before the creation ts.
          * This can happen due to the async nature of the host timeout
          * code that also calls this code from a management thread. */
-        if (TIMEVAL_EARLIER(*tv, tmp->tv1) || TIMEVAL_DIFF_SEC(*tv, tmp->tv1) <= tmp->seconds) {
+        struct timeval entry = TimevalWithSeconds(&tmp->tv1, (time_t)tmp->seconds);
+        if (TimevalEarlier(tv, &entry)) {
             prev = tmp;
             tmp = tmp->next;
             continue;
@@ -299,11 +300,11 @@ static inline void RateFilterSetAction(Packet *p, PacketAlert *pa, uint8_t new_a
             pa->flags |= PACKET_ALERT_RATE_FILTER_MODIFIED;
             break;
         case TH_ACTION_DROP:
-            PACKET_DROP(p);
+            PacketDrop(p, ACTION_DROP, PKT_DROP_REASON_RULES_THRESHOLD);
             pa->flags |= PACKET_ALERT_RATE_FILTER_MODIFIED;
             break;
         case TH_ACTION_REJECT:
-            PACKET_REJECT(p);
+            PacketDrop(p, (ACTION_REJECT | ACTION_DROP), PKT_DROP_REASON_RULES_THRESHOLD);
             pa->flags |= PACKET_ALERT_RATE_FILTER_MODIFIED;
             break;
         case TH_ACTION_PASS:
@@ -345,7 +346,8 @@ static int IsThresholdReached(DetectThresholdEntry* lookup_tsh, const DetectThre
     }
     else {
         /* Update the matching state with the timeout interval */
-        if (TIMEVAL_DIFF_SEC(packet_time, lookup_tsh->tv1) < td->seconds) {
+        struct timeval entry = TimevalWithSeconds(&lookup_tsh->tv1, (time_t)td->seconds);
+        if (TimevalEarlier(&packet_time, &entry)) {
             lookup_tsh->current_count++;
             if (lookup_tsh->current_count > td->count) {
                 /* Then we must enable the new action by setting a
@@ -353,8 +355,7 @@ static int IsThresholdReached(DetectThresholdEntry* lookup_tsh, const DetectThre
                 lookup_tsh->tv_timeout = packet_time.tv_sec;
                 ret = 1;
             }
-        }
-        else {
+        } else {
             lookup_tsh->tv1 = packet_time;
             lookup_tsh->current_count = 1;
         }
@@ -405,7 +406,8 @@ static int ThresholdHandlePacket(Packet *p, DetectThresholdEntry *lookup_tsh,
             SCLogDebug("limit");
 
             if (lookup_tsh != NULL)  {
-                if (TIMEVAL_DIFF_SEC(p->ts, lookup_tsh->tv1) < td->seconds) {
+                struct timeval entry = TimevalWithSeconds(&lookup_tsh->tv1, (time_t)td->seconds);
+                if (TimevalEarlier(&p->ts, &entry)) {
                     lookup_tsh->current_count++;
 
                     if (lookup_tsh->current_count <= td->count) {
@@ -413,7 +415,7 @@ static int ThresholdHandlePacket(Packet *p, DetectThresholdEntry *lookup_tsh,
                     } else {
                         ret = 2;
                     }
-                } else    {
+                } else {
                     lookup_tsh->tv1 = p->ts;
                     lookup_tsh->current_count = 1;
 
@@ -431,7 +433,8 @@ static int ThresholdHandlePacket(Packet *p, DetectThresholdEntry *lookup_tsh,
             SCLogDebug("threshold");
 
             if (lookup_tsh != NULL)  {
-                if (TIMEVAL_DIFF_SEC(p->ts, lookup_tsh->tv1) < td->seconds) {
+                struct timeval entry = TimevalWithSeconds(&lookup_tsh->tv1, (time_t)td->seconds);
+                if (TimevalEarlier(&p->ts, &entry)) {
                     lookup_tsh->current_count++;
 
                     if (lookup_tsh->current_count >= td->count) {
@@ -456,7 +459,8 @@ static int ThresholdHandlePacket(Packet *p, DetectThresholdEntry *lookup_tsh,
             SCLogDebug("both");
 
             if (lookup_tsh != NULL) {
-                if (TIMEVAL_DIFF_SEC(p->ts, lookup_tsh->tv1) < td->seconds) {
+                struct timeval entry = TimevalWithSeconds(&lookup_tsh->tv1, (time_t)td->seconds);
+                if (TimevalEarlier(&p->ts, &entry)) {
                     /* within time limit */
 
                     lookup_tsh->current_count++;
@@ -493,7 +497,8 @@ static int ThresholdHandlePacket(Packet *p, DetectThresholdEntry *lookup_tsh,
             SCLogDebug("detection_filter");
 
             if (lookup_tsh != NULL) {
-                if (TIMEVAL_DIFF_SEC(p->ts, lookup_tsh->tv1) < td->seconds) {
+                struct timeval entry = TimevalWithSeconds(&lookup_tsh->tv1, (time_t)td->seconds);
+                if (TimevalEarlier(&p->ts, &entry)) {
                     /* within timeout */
                     lookup_tsh->current_count++;
                     if (lookup_tsh->current_count > td->count) {
@@ -727,8 +732,14 @@ void ThresholdHashAllocate(DetectEngineCtx *de_ctx)
  */
 void ThresholdContextDestroy(DetectEngineCtx *de_ctx)
 {
-    if (de_ctx->ths_ctx.th_entry != NULL)
+    if (de_ctx->ths_ctx.th_entry != NULL) {
+        for (uint32_t i = 0; i < de_ctx->ths_ctx.th_size; i++) {
+            if (de_ctx->ths_ctx.th_entry[i] != NULL) {
+                SCFree(de_ctx->ths_ctx.th_entry[i]);
+            }
+        }
         SCFree(de_ctx->ths_ctx.th_entry);
+    }
     SCMutexDestroy(&de_ctx->ths_ctx.threshold_table_lock);
 }
 

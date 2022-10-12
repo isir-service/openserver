@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2020 Open Information Security Foundation
+/* Copyright (C) 2007-2022 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -555,7 +555,7 @@ static int HostBitsTestSig01(void)
                     "Host: one.example.org\r\n"
                     "\r\n";
     uint16_t buflen = strlen((char *)buf);
-    Packet *p = SCMalloc(SIZE_OF_PACKET);
+    Packet *p = PacketGetFromAlloc();
     FAIL_IF_NULL(p);
     Signature *s = NULL;
     ThreadVars th_v;
@@ -563,7 +563,6 @@ static int HostBitsTestSig01(void)
     DetectEngineCtx *de_ctx = NULL;
 
     memset(&th_v, 0, sizeof(th_v));
-    memset(p, 0, SIZE_OF_PACKET);
     p->src.family = AF_INET;
     p->dst.family = AF_INET;
     p->payload = buf;
@@ -587,9 +586,8 @@ static int HostBitsTestSig01(void)
 
     DetectEngineThreadCtxDeinit(&th_v, (void *)det_ctx);
     DetectEngineCtxFree(de_ctx);
+    PacketFree(p);
     HostBitsTestShutdown();
-
-    SCFree(p);
     PASS;
 }
 
@@ -657,7 +655,7 @@ static int HostBitsTestSig03(void)
                     "Host: one.example.org\r\n"
                     "\r\n";
     uint16_t buflen = strlen((char *)buf);
-    Packet *p = SCMalloc(SIZE_OF_PACKET);
+    Packet *p = PacketGetFromAlloc();
     if (unlikely(p == NULL))
         return 0;
     Signature *s = NULL;
@@ -736,7 +734,7 @@ static int HostBitsTestSig04(void)
                     "Host: one.example.org\r\n"
                     "\r\n";
     uint16_t buflen = strlen((char *)buf);
-    Packet *p = SCMalloc(SIZE_OF_PACKET);
+    Packet *p = PacketGetFromAlloc();
     if (unlikely(p == NULL))
         return 0;
     Signature *s = NULL;
@@ -746,7 +744,6 @@ static int HostBitsTestSig04(void)
     int idx = 0;
 
     memset(&th_v, 0, sizeof(th_v));
-    memset(p, 0, SIZE_OF_PACKET);
     p->src.family = AF_INET;
     p->dst.family = AF_INET;
     p->payload = buf;
@@ -773,9 +770,9 @@ static int HostBitsTestSig04(void)
 
     DetectEngineThreadCtxDeinit(&th_v, (void *)det_ctx);
     DetectEngineCtxFree(de_ctx);
+    PacketFree(p);
     HostBitsTestShutdown();
 
-    SCFree(p);
     PASS;
 }
 
@@ -793,9 +790,7 @@ static int HostBitsTestSig05(void)
                     "Host: one.example.org\r\n"
                     "\r\n";
     uint16_t buflen = strlen((char *)buf);
-    Packet *p = SCMalloc(SIZE_OF_PACKET);
-    if (unlikely(p == NULL))
-        return 0;
+    Packet *p = PacketGetFromAlloc();
     Signature *s = NULL;
     ThreadVars th_v;
     DetectEngineThreadCtx *det_ctx = NULL;
@@ -833,10 +828,10 @@ static int HostBitsTestSig05(void)
 
     DetectEngineThreadCtxDeinit(&th_v, (void *)det_ctx);
     DetectEngineCtxFree(de_ctx);
+    PacketFree(p);
 
     HostBitsTestShutdown();
 
-    SCFree(p);
     PASS;
 }
 
@@ -1065,9 +1060,7 @@ static int HostBitsTestSig07(void)
                     "Host: one.example.org\r\n"
                     "\r\n";
     uint16_t buflen = strlen((char *)buf);
-    Packet *p = SCMalloc(SIZE_OF_PACKET);
-    if (unlikely(p == NULL))
-        return 0;
+    Packet *p = PacketGetFromAlloc();
     Signature *s = NULL;
     ThreadVars th_v;
     DetectEngineThreadCtx *det_ctx = NULL;
@@ -1075,7 +1068,6 @@ static int HostBitsTestSig07(void)
     Flow f;
     int result = 0;
 
-    memset(p, 0, SIZE_OF_PACKET);
     memset(&th_v, 0, sizeof(th_v));
     memset(&f, 0, sizeof(Flow));
 
@@ -1125,9 +1117,8 @@ static int HostBitsTestSig07(void)
     DetectEngineCtxFree(de_ctx);
 
     FLOW_DESTROY(&f);
-
+    PacketFree(p);
     HostBitsTestShutdown();
-    SCFree(p);
     PASS;
 }
 
@@ -1144,16 +1135,13 @@ static int HostBitsTestSig08(void)
                     "Host: one.example.org\r\n"
                     "\r\n";
     uint16_t buflen = strlen((char *)buf);
-    Packet *p = SCMalloc(SIZE_OF_PACKET);
-    if (unlikely(p == NULL))
-        return 0;
+    Packet *p = PacketGetFromAlloc();
     Signature *s = NULL;
     ThreadVars th_v;
     DetectEngineThreadCtx *det_ctx = NULL;
     DetectEngineCtx *de_ctx = NULL;
     Flow f;
 
-    memset(p, 0, SIZE_OF_PACKET);
     memset(&th_v, 0, sizeof(th_v));
     memset(&f, 0, sizeof(Flow));
 
@@ -1221,10 +1209,9 @@ static int HostBitsTestSig08(void)
     DetectEngineCtxFree(de_ctx);
 
     FLOW_DESTROY(&f);
-
+    PacketFree(p);
     HostBitsTestShutdown();
 
-    SCFree(p);
     PASS;
 }
 

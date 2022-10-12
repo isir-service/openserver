@@ -29,10 +29,6 @@
 #ifdef DEBUG
 #define DBG_PERF
 #endif
-#define FLOW_USLEEP_US 500000 /**500ms default is 250us*/
-#define POLL_TIMEOUT 800 /* src: 100ms */
-#define MAIN_LOOP_USLEEP 200000 /* src: 10000 */
-
 
 #define TRUE   1
 #define FALSE  0
@@ -552,9 +548,6 @@ extern int g_ut_covered;
 #ifndef NAME_MAX
 #define NAME_MAX 255
 #endif
-
-#define HAVE_STRLCPY 1
-#define HAVE_STRLCAT 1
 
 #endif /* __SURICATA_COMMON_H__ */
 

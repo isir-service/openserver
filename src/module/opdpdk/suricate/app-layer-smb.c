@@ -92,6 +92,27 @@ static uint16_t SMBTCPProbe(Flow *f, uint8_t direction,
     }
 }
 
+static uint16_t SMBTCPProbeBegins(Flow *f, uint8_t direction,
+        const uint8_t *input, uint32_t len, uint8_t *rdir)
+{
+    SCLogDebug("SMBTCPProbeBegins");
+
+    if (len < MIN_REC_SIZE) {
+        return ALPROTO_UNKNOWN;
+    }
+
+    const int r = rs_smb_probe_begins_tcp(direction, input, len, rdir);
+    switch (r) {
+        case 1:
+            return ALPROTO_SMB;
+        case 0:
+            return ALPROTO_UNKNOWN;
+        case -1:
+        default:
+            return ALPROTO_FAILED;
+    }
+}
+
 /** \internal
  *  \brief as SMB3 records have no direction indicator, fall
  *         back to the port numbers for a hint
@@ -197,18 +218,18 @@ static int SMBRegisterPatternsForProtocolDetection(void)
     int r = 0;
     /* SMB1 */
     r |= AppLayerProtoDetectPMRegisterPatternCSwPP(IPPROTO_TCP, ALPROTO_SMB,
-            "|ff|SMB", 8, 4, STREAM_TOSERVER, SMBTCPProbe,
+            "|ff|SMB", 8, 4, STREAM_TOSERVER, SMBTCPProbeBegins,
             MIN_REC_SIZE, MIN_REC_SIZE);
     r |= AppLayerProtoDetectPMRegisterPatternCSwPP(IPPROTO_TCP, ALPROTO_SMB,
-            "|ff|SMB", 8, 4, STREAM_TOCLIENT, SMBTCPProbe,
+            "|ff|SMB", 8, 4, STREAM_TOCLIENT, SMBTCPProbeBegins,
             MIN_REC_SIZE, MIN_REC_SIZE);
 
     /* SMB2/3 */
     r |= AppLayerProtoDetectPMRegisterPatternCSwPP(IPPROTO_TCP, ALPROTO_SMB,
-            "|fe|SMB", 8, 4, STREAM_TOSERVER, SMBTCPProbe,
+            "|fe|SMB", 8, 4, STREAM_TOSERVER, SMBTCPProbeBegins,
             MIN_REC_SIZE, MIN_REC_SIZE);
     r |= AppLayerProtoDetectPMRegisterPatternCSwPP(IPPROTO_TCP, ALPROTO_SMB,
-            "|fe|SMB", 8, 4, STREAM_TOCLIENT, SMBTCPProbe,
+            "|fe|SMB", 8, 4, STREAM_TOCLIENT, SMBTCPProbeBegins,
             MIN_REC_SIZE, MIN_REC_SIZE);
 
     /* SMB3 encrypted records */
@@ -235,7 +256,12 @@ static uint32_t stream_depth = SMB_CONFIG_DEFAULT_STREAM_DEPTH;
 void RegisterSMBParsers(void)
 {
     const char *proto_name = "smb";
-
+    uint32_t max_read_size = 0;
+    uint32_t max_write_size = 0;
+    uint32_t max_write_queue_size = 0;
+    uint32_t max_write_queue_cnt = 0;
+    uint32_t max_read_queue_size = 0;
+    uint32_t max_read_queue_cnt = 0;
     /** SMB */
     if (AppLayerProtoDetectConfProtoDetectionEnabled("tcp", proto_name)) {
         AppLayerProtoDetectRegisterProtocol(ALPROTO_SMB, proto_name);
@@ -314,8 +340,77 @@ void RegisterSMBParsers(void)
             }
         }
         SCLogConfig("SMB stream depth: %u", stream_depth);
-
         AppLayerParserSetStreamDepth(IPPROTO_TCP, ALPROTO_SMB, stream_depth);
+
+        ConfNode *r = ConfGetNode("app-layer.protocols.smb.max-read-size");
+        if (r != NULL) {
+            uint32_t value;
+            if (ParseSizeStringU32(r->val, &value) < 0) {
+                SCLogError(SC_ERR_SMB_CONFIG, "invalid value for max-read-size %s", r->val);
+            } else {
+                max_read_size = value;
+            }
+        }
+        SCLogConfig("SMB max-read-size: %u", max_read_size);
+
+        ConfNode *w = ConfGetNode("app-layer.protocols.smb.max-write-size");
+        if (w != NULL) {
+            uint32_t value;
+            if (ParseSizeStringU32(w->val, &value) < 0) {
+                SCLogError(SC_ERR_SMB_CONFIG, "invalid value for max-write-size %s", w->val);
+            } else {
+                max_write_size = value;
+            }
+        }
+        SCLogConfig("SMB max-write-size: %u", max_write_size);
+
+        ConfNode *wqs = ConfGetNode("app-layer.protocols.smb.max-write-queue-size");
+        if (wqs != NULL) {
+            uint32_t value;
+            if (ParseSizeStringU32(wqs->val, &value) < 0) {
+                SCLogError(
+                        SC_ERR_SMB_CONFIG, "invalid value for max-write-queue-size %s", wqs->val);
+            } else {
+                max_write_queue_size = value;
+            }
+        }
+        SCLogConfig("SMB max-write-queue-size: %u", max_write_queue_size);
+
+        ConfNode *wqc = ConfGetNode("app-layer.protocols.smb.max-write-queue-cnt");
+        if (wqc != NULL) {
+            uint32_t value;
+            if (ParseSizeStringU32(wqc->val, &value) < 0) {
+                SCLogError(SC_ERR_SMB_CONFIG, "invalid value for max-write-queue-cnt %s", wqc->val);
+            } else {
+                max_write_queue_cnt = value;
+            }
+        }
+        SCLogConfig("SMB max-write-queue-cnt: %u", max_write_queue_cnt);
+
+        ConfNode *rqs = ConfGetNode("app-layer.protocols.smb.max-read-queue-size");
+        if (rqs != NULL) {
+            uint32_t value;
+            if (ParseSizeStringU32(rqs->val, &value) < 0) {
+                SCLogError(SC_ERR_SMB_CONFIG, "invalid value for max-read-queue-size %s", rqs->val);
+            } else {
+                max_read_queue_size = value;
+            }
+        }
+        SCLogConfig("SMB max-read-queue-size: %u", max_read_queue_size);
+
+        ConfNode *rqc = ConfGetNode("app-layer.protocols.smb.max-read-queue-cnt");
+        if (rqc != NULL) {
+            uint32_t value;
+            if (ParseSizeStringU32(rqc->val, &value) < 0) {
+                SCLogError(SC_ERR_SMB_CONFIG, "invalid value for max-read-queue-cnt %s", rqc->val);
+            } else {
+                max_read_queue_cnt = value;
+            }
+        }
+        SCLogConfig("SMB max-read-queue-cnt: %u", max_read_queue_cnt);
+
+        rs_smb_set_conf_val(max_read_size, max_write_size, max_write_queue_size,
+                max_write_queue_cnt, max_read_queue_size, max_read_queue_cnt);
     } else {
         SCLogConfig("Parsed disabled for %s protocol. Protocol detection"
                   "still on.", proto_name);

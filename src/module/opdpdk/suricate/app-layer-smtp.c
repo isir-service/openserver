@@ -40,6 +40,7 @@
 
 #include "util-mpm.h"
 #include "util-debug.h"
+#include "util-print.h"
 #include "util-byte.h"
 #include "util-unittest.h"
 #include "util-unittest-helper.h"
@@ -109,55 +110,37 @@
 #define SMTP_EHLO_EXTENSION_DSN
 #define SMTP_EHLO_EXTENSION_STARTTLS
 #define SMTP_EHLO_EXTENSION_8BITMIME
+/* Limit till the data would be buffered in current line */
+#define SMTP_LINE_BUFFER_LIMIT 4096
 
-SCEnumCharMap smtp_decoder_event_table[ ] = {
-    { "INVALID_REPLY",           SMTP_DECODER_EVENT_INVALID_REPLY },
-    { "UNABLE_TO_MATCH_REPLY_WITH_REQUEST",
-      SMTP_DECODER_EVENT_UNABLE_TO_MATCH_REPLY_WITH_REQUEST },
-    { "MAX_COMMAND_LINE_LEN_EXCEEDED",
-      SMTP_DECODER_EVENT_MAX_COMMAND_LINE_LEN_EXCEEDED },
-    { "MAX_REPLY_LINE_LEN_EXCEEDED",
-      SMTP_DECODER_EVENT_MAX_REPLY_LINE_LEN_EXCEEDED },
-    { "INVALID_PIPELINED_SEQUENCE",
-      SMTP_DECODER_EVENT_INVALID_PIPELINED_SEQUENCE },
-    { "BDAT_CHUNK_LEN_EXCEEDED",
-      SMTP_DECODER_EVENT_BDAT_CHUNK_LEN_EXCEEDED },
-    { "NO_SERVER_WELCOME_MESSAGE",
-      SMTP_DECODER_EVENT_NO_SERVER_WELCOME_MESSAGE },
-    { "TLS_REJECTED",
-      SMTP_DECODER_EVENT_TLS_REJECTED },
-    { "DATA_COMMAND_REJECTED",
-      SMTP_DECODER_EVENT_DATA_COMMAND_REJECTED },
+SCEnumCharMap smtp_decoder_event_table[] = {
+    { "INVALID_REPLY", SMTP_DECODER_EVENT_INVALID_REPLY },
+    { "UNABLE_TO_MATCH_REPLY_WITH_REQUEST", SMTP_DECODER_EVENT_UNABLE_TO_MATCH_REPLY_WITH_REQUEST },
+    { "MAX_COMMAND_LINE_LEN_EXCEEDED", SMTP_DECODER_EVENT_MAX_COMMAND_LINE_LEN_EXCEEDED },
+    { "MAX_REPLY_LINE_LEN_EXCEEDED", SMTP_DECODER_EVENT_MAX_REPLY_LINE_LEN_EXCEEDED },
+    { "INVALID_PIPELINED_SEQUENCE", SMTP_DECODER_EVENT_INVALID_PIPELINED_SEQUENCE },
+    { "BDAT_CHUNK_LEN_EXCEEDED", SMTP_DECODER_EVENT_BDAT_CHUNK_LEN_EXCEEDED },
+    { "NO_SERVER_WELCOME_MESSAGE", SMTP_DECODER_EVENT_NO_SERVER_WELCOME_MESSAGE },
+    { "TLS_REJECTED", SMTP_DECODER_EVENT_TLS_REJECTED },
+    { "DATA_COMMAND_REJECTED", SMTP_DECODER_EVENT_DATA_COMMAND_REJECTED },
 
     /* MIME Events */
-    { "MIME_PARSE_FAILED",
-      SMTP_DECODER_EVENT_MIME_PARSE_FAILED },
-    { "MIME_MALFORMED_MSG",
-      SMTP_DECODER_EVENT_MIME_MALFORMED_MSG },
-    { "MIME_INVALID_BASE64",
-      SMTP_DECODER_EVENT_MIME_INVALID_BASE64 },
-    { "MIME_INVALID_QP",
-      SMTP_DECODER_EVENT_MIME_INVALID_QP },
-    { "MIME_LONG_LINE",
-      SMTP_DECODER_EVENT_MIME_LONG_LINE },
-    { "MIME_LONG_ENC_LINE",
-      SMTP_DECODER_EVENT_MIME_LONG_ENC_LINE },
-    { "MIME_LONG_HEADER_NAME",
-      SMTP_DECODER_EVENT_MIME_LONG_HEADER_NAME },
-    { "MIME_LONG_HEADER_VALUE",
-      SMTP_DECODER_EVENT_MIME_LONG_HEADER_VALUE },
-    { "MIME_LONG_BOUNDARY",
-      SMTP_DECODER_EVENT_MIME_BOUNDARY_TOO_LONG },
-    { "MIME_LONG_FILENAME",
-      SMTP_DECODER_EVENT_MIME_LONG_FILENAME },
+    { "MIME_PARSE_FAILED", SMTP_DECODER_EVENT_MIME_PARSE_FAILED },
+    { "MIME_MALFORMED_MSG", SMTP_DECODER_EVENT_MIME_MALFORMED_MSG },
+    { "MIME_INVALID_BASE64", SMTP_DECODER_EVENT_MIME_INVALID_BASE64 },
+    { "MIME_INVALID_QP", SMTP_DECODER_EVENT_MIME_INVALID_QP },
+    { "MIME_LONG_LINE", SMTP_DECODER_EVENT_MIME_LONG_LINE },
+    { "MIME_LONG_ENC_LINE", SMTP_DECODER_EVENT_MIME_LONG_ENC_LINE },
+    { "MIME_LONG_HEADER_NAME", SMTP_DECODER_EVENT_MIME_LONG_HEADER_NAME },
+    { "MIME_LONG_HEADER_VALUE", SMTP_DECODER_EVENT_MIME_LONG_HEADER_VALUE },
+    { "MIME_LONG_BOUNDARY", SMTP_DECODER_EVENT_MIME_BOUNDARY_TOO_LONG },
+    { "MIME_LONG_FILENAME", SMTP_DECODER_EVENT_MIME_LONG_FILENAME },
 
     /* Invalid behavior or content */
-    { "DUPLICATE_FIELDS",
-      SMTP_DECODER_EVENT_DUPLICATE_FIELDS },
-    { "UNPARSABLE_CONTENT",
-      SMTP_DECODER_EVENT_UNPARSABLE_CONTENT },
-
-    { NULL,                      -1 },
+    { "DUPLICATE_FIELDS", SMTP_DECODER_EVENT_DUPLICATE_FIELDS },
+    { "UNPARSABLE_CONTENT", SMTP_DECODER_EVENT_UNPARSABLE_CONTENT },
+    { "TRUNCATED_LINE", SMTP_DECODER_EVENT_TRUNCATED_LINE },
+    { NULL, -1 },
 };
 
 typedef struct SMTPThreadCtx_ {
@@ -240,6 +223,7 @@ SCEnumCharMap smtp_reply_map[ ] = {
 SMTPConfig smtp_config = { 0, { 0, 0, 0, 0, 0 }, 0, 0, 0, 0, STREAMING_BUFFER_CONFIG_INITIALIZER};
 
 static SMTPString *SMTPStringAlloc(void);
+static int SMTPPreProcessCommands(SMTPState *state, Flow *f, AppLayerParserState *pstate);
 
 /**
  * \brief Configure SMTP Mime Decoder by parsing out mime section of YAML
@@ -397,6 +381,7 @@ static void SMTPNewFile(SMTPTransaction *tx, File *file)
 #endif
     FlagDetectStateNewFile(tx);
     FileSetTx(file, tx->tx_id);
+    tx->tx_data.files_opened++;
 
     /* set inspect sizes used in file pruning logic.
      * TODO consider moving this to the file.data code that
@@ -508,7 +493,6 @@ int SMTPProcessDataChunk(const uint8_t *chunk, uint32_t len,
         } else {
             /* Append data chunk to file */
             SCLogDebug("Appending file...%u bytes", len);
-
             /* 0 is ok, -2 is not stored, -1 is error */
             ret = FileAppendData(files, (uint8_t *) chunk, len);
             if (ret == -2) {
@@ -565,220 +549,47 @@ int SMTPProcessDataChunk(const uint8_t *chunk, uint32_t len,
  * \retval -1 Either when we don't have any new lines to supply anymore or
  *            on failure.
  */
-static int SMTPGetLine(SMTPState *state)
+static AppLayerResult SMTPGetLine(SMTPState *state)
 {
     SCEnter();
-    void *ptmp;
 
     /* we have run out of input */
     if (state->input_len <= 0)
-        return -1;
+        return APP_LAYER_ERROR;
 
-    /* toserver */
-    if (state->direction == 0) {
-        if (state->ts_current_line_lf_seen == 1) {
-            /* we have seen the lf for the previous line.  Clear the parser
-             * details to parse new line */
-            state->ts_current_line_lf_seen = 0;
-            if (state->ts_current_line_db == 1) {
-                state->ts_current_line_db = 0;
-                SCFree(state->ts_db);
-                state->ts_db = NULL;
-                state->ts_db_len = 0;
-                state->current_line = NULL;
-                state->current_line_len = 0;
-            }
+    uint8_t *lf_idx = memchr(state->input + state->consumed, 0x0a, state->input_len);
+
+    if (lf_idx == NULL) {
+        if (!state->discard_till_lf && state->input_len >= SMTP_LINE_BUFFER_LIMIT) {
+            state->current_line = state->input;
+            state->current_line_len = SMTP_LINE_BUFFER_LIMIT;
+            state->current_line_delimiter_len = 0;
+            SCReturnStruct(APP_LAYER_OK);
         }
-
-        uint8_t *lf_idx = memchr(state->input, 0x0a, state->input_len);
-
-        if (lf_idx == NULL) {
-            /* fragmented lines.  Decoder event for special cases.  Not all
-             * fragmented lines should be treated as a possible evasion
-             * attempt.  With multi payload smtp chunks we can have valid
-             * cases of fragmentation.  But within the same segment chunk
-             * if we see fragmentation then it's definitely something you
-             * should alert about */
-            if (state->ts_current_line_db == 0) {
-                state->ts_db = SCMalloc(state->input_len);
-                if (state->ts_db == NULL) {
-                    return -1;
-                }
-                state->ts_current_line_db = 1;
-                memcpy(state->ts_db, state->input, state->input_len);
-                state->ts_db_len = state->input_len;
-            } else {
-                ptmp = SCRealloc(state->ts_db,
-                                 (state->ts_db_len + state->input_len));
-                if (ptmp == NULL) {
-                    SCFree(state->ts_db);
-                    state->ts_db = NULL;
-                    state->ts_db_len = 0;
-                    return -1;
-                }
-                state->ts_db = ptmp;
-
-                memcpy(state->ts_db + state->ts_db_len,
-                       state->input, state->input_len);
-                state->ts_db_len += state->input_len;
-            } /* else */
-            state->input += state->input_len;
-            state->input_len = 0;
-
-            return -1;
-
-        } else {
-            state->ts_current_line_lf_seen = 1;
-
-            if (state->ts_current_line_db == 1) {
-                ptmp = SCRealloc(state->ts_db,
-                                 (state->ts_db_len + (lf_idx + 1 - state->input)));
-                if (ptmp == NULL) {
-                    SCFree(state->ts_db);
-                    state->ts_db = NULL;
-                    state->ts_db_len = 0;
-                    return -1;
-                }
-                state->ts_db = ptmp;
-
-                memcpy(state->ts_db + state->ts_db_len,
-                       state->input, (lf_idx + 1 - state->input));
-                state->ts_db_len += (lf_idx + 1 - state->input);
-
-                if (state->ts_db_len > 1 &&
-                    state->ts_db[state->ts_db_len - 2] == 0x0D) {
-                    state->ts_db_len -= 2;
-                    state->current_line_delimiter_len = 2;
-                } else {
-                    state->ts_db_len -= 1;
-                    state->current_line_delimiter_len = 1;
-                }
-
-                state->current_line = state->ts_db;
-                state->current_line_len = state->ts_db_len;
-
-            } else {
-                state->current_line = state->input;
-                state->current_line_len = lf_idx - state->input;
-
-                if (state->input != lf_idx &&
-                    *(lf_idx - 1) == 0x0D) {
-                    state->current_line_len--;
-                    state->current_line_delimiter_len = 2;
-                } else {
-                    state->current_line_delimiter_len = 1;
-                }
-            }
-
-            state->input_len -= (lf_idx - state->input) + 1;
-            state->input = (lf_idx + 1);
-
-            return 0;
-        }
-
-        /* toclient */
+        SCReturnStruct(APP_LAYER_INCOMPLETE(state->consumed, state->input_len + 1));
     } else {
-        if (state->tc_current_line_lf_seen == 1) {
-            /* we have seen the lf for the previous line.  Clear the parser
-             * details to parse new line */
-            state->tc_current_line_lf_seen = 0;
-            if (state->tc_current_line_db == 1) {
-                state->tc_current_line_db = 0;
-                SCFree(state->tc_db);
-                state->tc_db = NULL;
-                state->tc_db_len = 0;
-                state->current_line = NULL;
-                state->current_line_len = 0;
-            }
+        uint32_t o_consumed = state->consumed;
+        state->consumed = lf_idx - state->input + 1;
+        state->current_line_len = state->consumed - o_consumed;
+        state->input_len -= state->current_line_len;
+        DEBUG_VALIDATE_BUG_ON((state->consumed + state->input_len) != state->orig_input_len);
+        if (state->discard_till_lf) {
+            // Whatever came in with first LF should also get discarded
+            state->discard_till_lf = false;
+            state->current_line_len = 0;
+            state->current_line_delimiter_len = 0;
+            SCReturnStruct(APP_LAYER_OK);
         }
-
-        uint8_t *lf_idx = memchr(state->input, 0x0a, state->input_len);
-
-        if (lf_idx == NULL) {
-            /* fragmented lines.  Decoder event for special cases.  Not all
-             * fragmented lines should be treated as a possible evasion
-             * attempt.  With multi payload smtp chunks we can have valid
-             * cases of fragmentation.  But within the same segment chunk
-             * if we see fragmentation then it's definitely something you
-             * should alert about */
-            if (state->tc_current_line_db == 0) {
-                state->tc_db = SCMalloc(state->input_len);
-                if (state->tc_db == NULL) {
-                    return -1;
-                }
-                state->tc_current_line_db = 1;
-                memcpy(state->tc_db, state->input, state->input_len);
-                state->tc_db_len = state->input_len;
-            } else {
-                ptmp = SCRealloc(state->tc_db,
-                                 (state->tc_db_len + state->input_len));
-                if (ptmp == NULL) {
-                    SCFree(state->tc_db);
-                    state->tc_db = NULL;
-                    state->tc_db_len = 0;
-                    return -1;
-                }
-                state->tc_db = ptmp;
-
-                memcpy(state->tc_db + state->tc_db_len,
-                       state->input, state->input_len);
-                state->tc_db_len += state->input_len;
-            } /* else */
-            state->input += state->input_len;
-            state->input_len = 0;
-
-            return -1;
-
+        state->current_line = state->input + o_consumed;
+        if (state->consumed >= 2 && state->input[state->consumed - 2] == 0x0D) {
+            state->current_line_delimiter_len = 2;
+            state->current_line_len -= 2;
         } else {
-            state->tc_current_line_lf_seen = 1;
-
-            if (state->tc_current_line_db == 1) {
-                ptmp = SCRealloc(state->tc_db,
-                                 (state->tc_db_len + (lf_idx + 1 - state->input)));
-                if (ptmp == NULL) {
-                    SCFree(state->tc_db);
-                    state->tc_db = NULL;
-                    state->tc_db_len = 0;
-                    return -1;
-                }
-                state->tc_db = ptmp;
-
-                memcpy(state->tc_db + state->tc_db_len,
-                       state->input, (lf_idx + 1 - state->input));
-                state->tc_db_len += (lf_idx + 1 - state->input);
-
-                if (state->tc_db_len > 1 &&
-                    state->tc_db[state->tc_db_len - 2] == 0x0D) {
-                    state->tc_db_len -= 2;
-                    state->current_line_delimiter_len = 2;
-                } else {
-                    state->tc_db_len -= 1;
-                    state->current_line_delimiter_len = 1;
-                }
-
-                state->current_line = state->tc_db;
-                state->current_line_len = state->tc_db_len;
-
-            } else {
-                state->current_line = state->input;
-                state->current_line_len = lf_idx - state->input;
-
-                if (state->input != lf_idx &&
-                    *(lf_idx - 1) == 0x0D) {
-                    state->current_line_len--;
-                    state->current_line_delimiter_len = 2;
-                } else {
-                    state->current_line_delimiter_len = 1;
-                }
-            }
-
-            state->input_len -= (lf_idx - state->input) + 1;
-            state->input = (lf_idx + 1);
-
-            return 0;
-        } /* else - if (lf_idx == NULL) */
+            state->current_line_delimiter_len = 1;
+            state->current_line_len -= 1;
+        }
+        SCReturnStruct(APP_LAYER_OK);
     }
-
 }
 
 static int SMTPInsertCommandIntoCommandBuffer(uint8_t command, SMTPState *state, Flow *f)
@@ -976,6 +787,12 @@ static int SMTPProcessReply(SMTPState *state, Flow *f,
 {
     SCEnter();
 
+    /* Line with just LF */
+    if (state->current_line_len == 0 && state->consumed == 1 &&
+            state->current_line_delimiter_len == 1) {
+        return 0; // to continue processing further
+    }
+
     /* the reply code has to contain at least 3 bytes, to hold the 3 digit
      * reply code */
     if (state->current_line_len < 3) {
@@ -1045,7 +862,9 @@ static int SMTPProcessReply(SMTPState *state, Flow *f,
             /* we are entering STARRTTLS data mode */
             state->parser_state |= SMTP_PARSER_STATE_COMMAND_DATA_MODE;
             AppLayerRequestProtocolTLSUpgrade(f);
-            SMTPTransactionComplete(state);
+            if (state->curr_tx) {
+                SMTPTransactionComplete(state);
+            }
         } else {
             /* decoder event */
             SMTPSetEvent(state, SMTP_DECODER_EVENT_TLS_REJECTED);
@@ -1059,7 +878,7 @@ static int SMTPProcessReply(SMTPState *state, Flow *f,
             SMTPSetEvent(state, SMTP_DECODER_EVENT_DATA_COMMAND_REJECTED);
         }
     } else if (IsReplyToCommand(state, SMTP_COMMAND_RSET)) {
-        if (reply_code == SMTP_REPLY_250 &&
+        if (reply_code == SMTP_REPLY_250 && state->curr_tx &&
                 !(state->parser_state & SMTP_PARSER_STATE_PARSING_MULTILINE_REPLY)) {
             SMTPTransactionComplete(state);
         }
@@ -1378,6 +1197,63 @@ static int SMTPProcessRequest(SMTPState *state, Flow *f,
     }
 }
 
+static int SMTPPreProcessCommands(SMTPState *state, Flow *f, AppLayerParserState *pstate)
+{
+    DEBUG_VALIDATE_BUG_ON((state->parser_state & SMTP_PARSER_STATE_COMMAND_DATA_MODE) == 0);
+
+    /* fall back to strict line parsing for mime header parsing */
+    if (state->curr_tx && state->curr_tx->mime_state &&
+            state->curr_tx->mime_state->state_flag < HEADER_DONE)
+        return 1;
+
+    bool line_complete = false;
+    int32_t input_len = state->input_len;
+    for (int32_t i = 0; i < input_len; i++) {
+        if (state->input[i] == 0x0d) {
+            if (i < input_len - 1 && state->input[i + 1] == 0x0a) {
+                i++;
+                state->current_line_delimiter_len++;
+            }
+            /* Line is just ending in CR */
+            state->current_line_delimiter_len++;
+            line_complete = true;
+        } else if (state->input[i] == 0x0a) {
+            /* Line is just ending in LF */
+            state->current_line_delimiter_len++;
+            line_complete = true;
+        }
+        /* Either line is complete or fragmented */
+        if (line_complete || (i == input_len - 1)) {
+            DEBUG_VALIDATE_BUG_ON(state->consumed + state->input_len != state->orig_input_len);
+            DEBUG_VALIDATE_BUG_ON(state->input_len == 0 && input_len != 0);
+            /* state->input_len reflects data from start of the line in progress. */
+            if ((state->input_len == 1 && state->input[state->consumed] == '-') ||
+                    (state->input_len > 1 && state->input[state->consumed] == '-' &&
+                            state->input[state->consumed + 1] == '-')) {
+                SCLogDebug("Possible boundary, yield to GetLine");
+                return 1;
+            }
+            int32_t total_consumed = i + 1;
+            int32_t current_line_consumed = total_consumed - state->consumed;
+            state->current_line = state->input + state->consumed;
+            state->current_line_len = current_line_consumed - state->current_line_delimiter_len;
+            state->consumed = total_consumed;
+            state->input_len -= current_line_consumed;
+            DEBUG_VALIDATE_BUG_ON(state->consumed + state->input_len != state->orig_input_len);
+            if (SMTPProcessRequest(state, f, pstate) == -1) {
+                return -1;
+            }
+            line_complete = false;
+            state->current_line_delimiter_len = 0;
+
+            /* bail if `SMTPProcessRequest` ended the data mode */
+            if ((state->parser_state & SMTP_PARSER_STATE_COMMAND_DATA_MODE) == 0)
+                break;
+        }
+    }
+    return 0;
+}
+
 static AppLayerResult SMTPParse(int direction, Flow *f, SMTPState *state,
                      AppLayerParserState *pstate, const uint8_t *input,
                      uint32_t input_len,
@@ -1394,22 +1270,63 @@ static AppLayerResult SMTPParse(int direction, Flow *f, SMTPState *state,
     }
 
     state->input = input;
+    state->orig_input_len = input_len;
     state->input_len = input_len;
+    state->consumed = 0;
+    state->current_line_delimiter_len = 0;
     state->direction = direction;
+    if (direction == 0) {
+        if (((state->current_command == SMTP_COMMAND_DATA) ||
+                    (state->current_command == SMTP_COMMAND_BDAT)) &&
+                (state->parser_state & SMTP_PARSER_STATE_COMMAND_DATA_MODE)) {
+            int ret = SMTPPreProcessCommands(state, f, pstate);
+            if (ret == 0 && state->consumed == state->orig_input_len) {
+                SCReturnStruct(APP_LAYER_OK);
+            }
+        }
+    }
+    AppLayerResult res = SMTPGetLine(state);
 
     /* toserver */
     if (direction == 0) {
-        while (SMTPGetLine(state) >= 0) {
-            if (SMTPProcessRequest(state, f, pstate) == -1)
-                SCReturnStruct(APP_LAYER_ERROR);
+        while (res.status == 0) {
+            DEBUG_VALIDATE_BUG_ON(state->discard_till_lf);
+            if (!state->discard_till_lf) {
+                if ((state->current_line_delimiter_len > 0) &&
+                        (SMTPProcessRequest(state, f, pstate) == -1))
+                    SCReturnStruct(APP_LAYER_ERROR);
+                if (state->current_line_delimiter_len == 0 &&
+                        state->current_line_len == SMTP_LINE_BUFFER_LIMIT) {
+                    state->discard_till_lf = true;
+                    state->consumed = state->input_len + 1; // For the newly found LF
+                    SMTPSetEvent(state, SMTP_DECODER_EVENT_TRUNCATED_LINE);
+                    break;
+                }
+                res = SMTPGetLine(state);
+            }
         }
-
+        if (res.status == 1)
+            return res;
         /* toclient */
     } else {
-        while (SMTPGetLine(state) >= 0) {
-            if (SMTPProcessReply(state, f, pstate, thread_data) == -1)
-                SCReturnStruct(APP_LAYER_ERROR);
+        while (res.status == 0) {
+            DEBUG_VALIDATE_BUG_ON(state->discard_till_lf);
+            if (!state->discard_till_lf) {
+                if ((state->current_line_delimiter_len > 0) &&
+                        (SMTPProcessReply(state, f, pstate, thread_data) == -1))
+                    SCReturnStruct(APP_LAYER_ERROR);
+                if (state->current_line_delimiter_len == 0 &&
+                        state->current_line_len == SMTP_LINE_BUFFER_LIMIT) {
+                    state->discard_till_lf = true;
+                    state->consumed = state->input_len + 1; // For the newly found LF
+                    SMTPSetEvent(state, SMTP_DECODER_EVENT_TRUNCATED_LINE);
+                    break;
+                }
+                res = SMTPGetLine(state);
+            }
         }
+        if (res.status == 1)
+            return res;
     }
 
     SCReturnStruct(APP_LAYER_OK);
@@ -1563,12 +1480,6 @@ static void SMTPStateFree(void *p)
 
     if (smtp_state->cmds != NULL) {
         SCFree(smtp_state->cmds);
-    }
-    if (smtp_state->ts_current_line_db) {
-        SCFree(smtp_state->ts_db);
-    }
-    if (smtp_state->tc_current_line_db) {
-        SCFree(smtp_state->tc_db);
     }
 
     if (smtp_state->helo) {
@@ -1962,10 +1873,8 @@ static int SMTPParserTest01(void)
         printf("no smtp state: ");
         goto end;
     }
-    if (smtp_state->input_len != 0 ||
-        smtp_state->cmds_cnt != 0 ||
-        smtp_state->cmds_idx != 0 ||
-        smtp_state->parser_state != SMTP_PARSER_STATE_FIRST_REPLY_SEEN) {
+    if (smtp_state->cmds_cnt != 0 || smtp_state->cmds_idx != 0 ||
+            smtp_state->parser_state != SMTP_PARSER_STATE_FIRST_REPLY_SEEN) {
         printf("smtp parser in inconsistent state\n");
         goto end;
     }
@@ -1979,11 +1888,9 @@ static int SMTPParserTest01(void)
         goto end;
     }
     FLOWLOCK_UNLOCK(&f);
-    if (smtp_state->input_len != 0 ||
-        smtp_state->cmds_cnt != 1 ||
-        smtp_state->cmds_idx != 0 ||
-        smtp_state->cmds[0] != SMTP_COMMAND_OTHER_CMD ||
-        smtp_state->parser_state != SMTP_PARSER_STATE_FIRST_REPLY_SEEN) {
+    if (smtp_state->cmds_cnt != 1 || smtp_state->cmds_idx != 0 ||
+            smtp_state->cmds[0] != SMTP_COMMAND_OTHER_CMD ||
+            smtp_state->parser_state != SMTP_PARSER_STATE_FIRST_REPLY_SEEN) {
         printf("smtp parser in inconsistent state\n");
         goto end;
     }
@@ -1997,10 +1904,8 @@ static int SMTPParserTest01(void)
         goto end;
     }
     FLOWLOCK_UNLOCK(&f);
-    if (smtp_state->input_len != 0 ||
-        smtp_state->cmds_cnt != 0 ||
-        smtp_state->cmds_idx != 0 ||
-        smtp_state->parser_state != SMTP_PARSER_STATE_FIRST_REPLY_SEEN) {
+    if (smtp_state->cmds_cnt != 0 || smtp_state->cmds_idx != 0 ||
+            smtp_state->parser_state != SMTP_PARSER_STATE_FIRST_REPLY_SEEN) {
         printf("smtp parser in inconsistent state\n");
         goto end;
     }
@@ -2014,11 +1919,9 @@ static int SMTPParserTest01(void)
         goto end;
     }
     FLOWLOCK_UNLOCK(&f);
-    if (smtp_state->input_len != 0 ||
-        smtp_state->cmds_cnt != 1 ||
-        smtp_state->cmds_idx != 0 ||
-        smtp_state->cmds[0] != SMTP_COMMAND_STARTTLS ||
-        smtp_state->parser_state != SMTP_PARSER_STATE_FIRST_REPLY_SEEN) {
+    if (smtp_state->cmds_cnt != 1 || smtp_state->cmds_idx != 0 ||
+            smtp_state->cmds[0] != SMTP_COMMAND_STARTTLS ||
+            smtp_state->parser_state != SMTP_PARSER_STATE_FIRST_REPLY_SEEN) {
         printf("smtp parser in inconsistent state\n");
         goto end;
     }
@@ -2032,11 +1935,9 @@ static int SMTPParserTest01(void)
         goto end;
     }
     FLOWLOCK_UNLOCK(&f);
-    if (smtp_state->input_len != 0 ||
-        smtp_state->cmds_cnt != 0 ||
-        smtp_state->cmds_idx != 0 ||
-        smtp_state->parser_state != (SMTP_PARSER_STATE_FIRST_REPLY_SEEN |
-                                     SMTP_PARSER_STATE_COMMAND_DATA_MODE)) {
+    if (smtp_state->cmds_cnt != 0 || smtp_state->cmds_idx != 0 ||
+            smtp_state->parser_state !=
+                    (SMTP_PARSER_STATE_FIRST_REPLY_SEEN | SMTP_PARSER_STATE_COMMAND_DATA_MODE)) {
         printf("smtp parser in inconsistent state\n");
         goto end;
     }
@@ -3741,556 +3642,6 @@ end:
     return result;
 }
 
-/*
- * \test Test retrieving lines when frag'ed.
- */
-static int SMTPParserTest07(void)
-{
-    int result = 0;
-    Flow f;
-    int r = 0;
-
-    const char *request1_str = "EHLO boo.com";
-    /* EHLO boo.com<CR> */
-    uint8_t request1_1[] = {
-        0x45, 0x48, 0x4c, 0x4f, 0x20, 0x62, 0x6f, 0x6f,
-        0x2e, 0x63, 0x6f, 0x6d, 0x0d,
-    };
-    int32_t request1_1_len = sizeof(request1_1);
-
-    /* <LF> */
-    uint8_t request1_2[] = {
-        0x0a
-    };
-    int32_t request1_2_len = sizeof(request1_2);
-
-    /* EHLO boo.com<CR><LF> */
-    uint8_t request2[] = {
-        0x45, 0x48, 0x4c, 0x4f, 0x20, 0x62, 0x6f, 0x6f,
-        0x2e, 0x63, 0x6f, 0x6d, 0x0d, 0x0a,
-    };
-    int32_t request2_len = sizeof(request2);
-
-    TcpSession ssn;
-    AppLayerParserThreadCtx *alp_tctx = AppLayerParserThreadCtxAlloc();
-
-    memset(&f, 0, sizeof(f));
-    memset(&ssn, 0, sizeof(ssn));
-
-    FLOW_INITIALIZE(&f);
-    f.protoctx = (void *)&ssn;
-    f.proto = IPPROTO_TCP;
-    f.alproto = ALPROTO_SMTP;
-
-    StreamTcpInitConfig(TRUE);
-    SMTPTestInitConfig();
-
-    FLOWLOCK_WRLOCK(&f);
-    r = AppLayerParserParse(NULL, alp_tctx, &f, ALPROTO_SMTP,
-                            STREAM_TOSERVER, request1_1, request1_1_len);
-    if (r != 0) {
-        printf("smtp check returned %" PRId32 ", expected 0: ", r);
-        FLOWLOCK_UNLOCK(&f);
-        goto end;
-    }
-    FLOWLOCK_UNLOCK(&f);
-    SMTPState *smtp_state = f.alstate;
-    if (smtp_state == NULL) {
-        printf("no smtp state: ");
-        goto end;
-    }
-    if (smtp_state->current_line != NULL ||
-        smtp_state->current_line_len != 0 ||
-        smtp_state->ts_current_line_db != 1 ||
-        smtp_state->ts_db == NULL ||
-        smtp_state->ts_db_len != request1_1_len ||
-        memcmp(smtp_state->ts_db, request1_1, request1_1_len) != 0) {
-        printf("smtp parser in inconsistent state\n");
-        goto end;
-    }
-
-    FLOWLOCK_WRLOCK(&f);
-    r = AppLayerParserParse(NULL, alp_tctx, &f, ALPROTO_SMTP,
-                            STREAM_TOSERVER, request1_2, request1_2_len);
-    if (r != 0) {
-        printf("smtp check returned %" PRId32 ", expected 0: ", r);
-        FLOWLOCK_UNLOCK(&f);
-        goto end;
-    }
-    FLOWLOCK_UNLOCK(&f);
-    if (smtp_state->ts_current_line_db != 1 ||
-        smtp_state->ts_db == NULL ||
-        smtp_state->ts_db_len != (int32_t)strlen(request1_str) ||
-        memcmp(smtp_state->ts_db, request1_str, strlen(request1_str)) != 0 ||
-        smtp_state->current_line != smtp_state->ts_db ||
-        smtp_state->current_line_len != smtp_state->ts_db_len) {
-        printf("smtp parser in inconsistent state\n");
-        goto end;
-    }
-
-    FLOWLOCK_WRLOCK(&f);
-    r = AppLayerParserParse(NULL, alp_tctx, &f, ALPROTO_SMTP,
-                            STREAM_TOSERVER, request2, request2_len);
-    if (r != 0) {
-        printf("smtp check returned %" PRId32 ", expected 0: ", r);
-        FLOWLOCK_UNLOCK(&f);
-        goto end;
-    }
-    FLOWLOCK_UNLOCK(&f);
-    if (smtp_state->ts_current_line_db != 0 ||
-        smtp_state->ts_db != NULL ||
-        smtp_state->ts_db_len != 0 ||
-        smtp_state->current_line == NULL ||
-        smtp_state->current_line_len != (int32_t)strlen(request1_str) ||
-        memcmp(smtp_state->current_line, request1_str, strlen(request1_str)) != 0) {
-        printf("smtp parser in inconsistent state\n");
-        goto end;
-    }
-
-    result = 1;
-end:
-    if (alp_tctx != NULL)
-        AppLayerParserThreadCtxFree(alp_tctx);
-    StreamTcpFreeConfig(TRUE);
-    FLOW_DESTROY(&f);
-    return result;
-}
-
-/*
- * \test Test retrieving lines when frag'ed.
- */
-static int SMTPParserTest08(void)
-{
-    int result = 0;
-    Flow f;
-    int r = 0;
-
-    const char *request1_str = "EHLO boo.com";
-    /* EHLO boo.com */
-    uint8_t request1_1[] = {
-        0x45, 0x48, 0x4c, 0x4f, 0x20, 0x62, 0x6f, 0x6f,
-        0x2e, 0x63, 0x6f, 0x6d,
-    };
-    int32_t request1_1_len = sizeof(request1_1);
-
-    /* <CR><LF> */
-    uint8_t request1_2[] = {
-        0x0d, 0x0a
-    };
-    int32_t request1_2_len = sizeof(request1_2);
-
-    /* EHLO boo.com<CR><LF> */
-    uint8_t request2[] = {
-        0x45, 0x48, 0x4c, 0x4f, 0x20, 0x62, 0x6f, 0x6f,
-        0x2e, 0x63, 0x6f, 0x6d, 0x0d, 0x0a,
-    };
-    int32_t request2_len = sizeof(request2);
-
-    TcpSession ssn;
-    AppLayerParserThreadCtx *alp_tctx = AppLayerParserThreadCtxAlloc();
-
-    memset(&f, 0, sizeof(f));
-    memset(&ssn, 0, sizeof(ssn));
-
-    FLOW_INITIALIZE(&f);
-    f.protoctx = (void *)&ssn;
-    f.proto = IPPROTO_TCP;
-    f.alproto = ALPROTO_SMTP;
-
-    StreamTcpInitConfig(TRUE);
-    SMTPTestInitConfig();
-
-    FLOWLOCK_WRLOCK(&f);
-    r = AppLayerParserParse(NULL, alp_tctx, &f, ALPROTO_SMTP,
-                            STREAM_TOSERVER, request1_1, request1_1_len);
-    if (r != 0) {
-        printf("smtp check returned %" PRId32 ", expected 0: ", r);
-        FLOWLOCK_UNLOCK(&f);
-        goto end;
-    }
-    FLOWLOCK_UNLOCK(&f);
-    SMTPState *smtp_state = f.alstate;
-    if (smtp_state == NULL) {
-        printf("no smtp state: ");
-        goto end;
-    }
-    if (smtp_state->current_line != NULL ||
-        smtp_state->current_line_len != 0 ||
-        smtp_state->ts_current_line_db != 1 ||
-        smtp_state->ts_db == NULL ||
-        smtp_state->ts_db_len != request1_1_len ||
-        memcmp(smtp_state->ts_db, request1_1, request1_1_len) != 0) {
-        printf("smtp parser in inconsistent state\n");
-        goto end;
-    }
-
-    FLOWLOCK_WRLOCK(&f);
-    r = AppLayerParserParse(NULL, alp_tctx, &f, ALPROTO_SMTP,
-                            STREAM_TOSERVER, request1_2, request1_2_len);
-    if (r != 0) {
-        printf("smtp check returned %" PRId32 ", expected 0: ", r);
-        FLOWLOCK_UNLOCK(&f);
-        goto end;
-    }
-    FLOWLOCK_UNLOCK(&f);
-    if (smtp_state->ts_current_line_db != 1 ||
-        smtp_state->ts_db == NULL ||
-        smtp_state->ts_db_len != (int32_t)strlen(request1_str) ||
-        memcmp(smtp_state->ts_db, request1_str, strlen(request1_str)) != 0 ||
-        smtp_state->current_line != smtp_state->ts_db ||
-        smtp_state->current_line_len != smtp_state->ts_db_len) {
-        printf("smtp parser in inconsistent state\n");
-        goto end;
-    }
-
-    FLOWLOCK_WRLOCK(&f);
-    r = AppLayerParserParse(NULL, alp_tctx, &f, ALPROTO_SMTP,
-                            STREAM_TOSERVER, request2, request2_len);
-    if (r != 0) {
-        printf("smtp check returned %" PRId32 ", expected 0: ", r);
-        FLOWLOCK_UNLOCK(&f);
-        goto end;
-    }
-    FLOWLOCK_UNLOCK(&f);
-    if (smtp_state->ts_current_line_db != 0 ||
-        smtp_state->ts_db != NULL ||
-        smtp_state->ts_db_len != 0 ||
-        smtp_state->current_line == NULL ||
-        smtp_state->current_line_len != (int32_t)strlen(request1_str) ||
-        memcmp(smtp_state->current_line, request1_str, strlen(request1_str)) != 0) {
-        printf("smtp parser in inconsistent state\n");
-        goto end;
-    }
-
-    result = 1;
-end:
-    if (alp_tctx != NULL)
-        AppLayerParserThreadCtxFree(alp_tctx);
-    StreamTcpFreeConfig(TRUE);
-    FLOW_DESTROY(&f);
-    return result;
-}
-
-/*
- * \test Test retrieving lines when frag'ed.
- */
-static int SMTPParserTest09(void)
-{
-    int result = 0;
-    Flow f;
-    int r = 0;
-
-    const char *request1_str = "EHLO boo.com";
-    /* EHLO boo. */
-    uint8_t request1_1[] = {
-        0x45, 0x48, 0x4c, 0x4f, 0x20, 0x62, 0x6f, 0x6f,
-        0x2e,
-    };
-    int32_t request1_1_len = sizeof(request1_1);
-
-    /* com<CR><LF> */
-    uint8_t request1_2[] = {
-        0x63, 0x6f, 0x6d, 0x0d, 0x0a
-    };
-    int32_t request1_2_len = sizeof(request1_2);
-
-    /* EHLO boo.com<CR><LF> */
-    uint8_t request2[] = {
-        0x45, 0x48, 0x4c, 0x4f, 0x20, 0x62, 0x6f, 0x6f,
-        0x2e, 0x63, 0x6f, 0x6d, 0x0d, 0x0a,
-    };
-    int32_t request2_len = sizeof(request2);
-
-    TcpSession ssn;
-    AppLayerParserThreadCtx *alp_tctx = AppLayerParserThreadCtxAlloc();
-
-    memset(&f, 0, sizeof(f));
-    memset(&ssn, 0, sizeof(ssn));
-
-    FLOW_INITIALIZE(&f);
-    f.protoctx = (void *)&ssn;
-    f.proto = IPPROTO_TCP;
-    f.alproto = ALPROTO_SMTP;
-
-    StreamTcpInitConfig(TRUE);
-    SMTPTestInitConfig();
-
-    FLOWLOCK_WRLOCK(&f);
-    r = AppLayerParserParse(NULL, alp_tctx, &f, ALPROTO_SMTP,
-                            STREAM_TOSERVER, request1_1, request1_1_len);
-    if (r != 0) {
-        printf("smtp check returned %" PRId32 ", expected 0: ", r);
-        FLOWLOCK_UNLOCK(&f);
-        goto end;
-    }
-    FLOWLOCK_UNLOCK(&f);
-    SMTPState *smtp_state = f.alstate;
-    if (smtp_state == NULL) {
-        printf("no smtp state: ");
-        goto end;
-    }
-    if (smtp_state->current_line != NULL ||
-        smtp_state->current_line_len != 0 ||
-        smtp_state->ts_current_line_db != 1 ||
-        smtp_state->ts_db == NULL ||
-        smtp_state->ts_db_len != request1_1_len ||
-        memcmp(smtp_state->ts_db, request1_1, request1_1_len) != 0) {
-        printf("smtp parser in inconsistent state\n");
-        goto end;
-    }
-
-    FLOWLOCK_WRLOCK(&f);
-    r = AppLayerParserParse(NULL, alp_tctx, &f, ALPROTO_SMTP,
-                            STREAM_TOSERVER, request1_2, request1_2_len);
-    if (r != 0) {
-        printf("smtp check returned %" PRId32 ", expected 0: ", r);
-        FLOWLOCK_UNLOCK(&f);
-        goto end;
-    }
-    FLOWLOCK_UNLOCK(&f);
-    if (smtp_state->ts_current_line_db != 1 ||
-        smtp_state->ts_db == NULL ||
-        smtp_state->ts_db_len != (int32_t)strlen(request1_str) ||
-        memcmp(smtp_state->ts_db, request1_str, strlen(request1_str)) != 0 ||
-        smtp_state->current_line != smtp_state->ts_db ||
-        smtp_state->current_line_len != smtp_state->ts_db_len) {
-        printf("smtp parser in inconsistent state\n");
-        goto end;
-    }
-
-    FLOWLOCK_WRLOCK(&f);
-    r = AppLayerParserParse(NULL, alp_tctx, &f, ALPROTO_SMTP,
-                            STREAM_TOSERVER, request2, request2_len);
-    if (r != 0) {
-        printf("smtp check returned %" PRId32 ", expected 0: ", r);
-        FLOWLOCK_UNLOCK(&f);
-        goto end;
-    }
-    FLOWLOCK_UNLOCK(&f);
-    if (smtp_state->ts_current_line_db != 0 ||
-        smtp_state->ts_db != NULL ||
-        smtp_state->ts_db_len != 0 ||
-        smtp_state->current_line == NULL ||
-        smtp_state->current_line_len != (int32_t)strlen(request1_str) ||
-        memcmp(smtp_state->current_line, request1_str, strlen(request1_str)) != 0) {
-        printf("smtp parser in inconsistent state\n");
-        goto end;
-    }
-
-    result = 1;
-end:
-    if (alp_tctx != NULL)
-        AppLayerParserThreadCtxFree(alp_tctx);
-    StreamTcpFreeConfig(TRUE);
-    FLOW_DESTROY(&f);
-    return result;
-}
-
-/*
- * \test Test retrieving lines when frag'ed.
- */
-static int SMTPParserTest10(void)
-{
-    int result = 0;
-    Flow f;
-    int r = 0;
-
-    const char *request1_str = "";
-    /* EHLO boo. */
-    uint8_t request1_1[] = {
-        0x0d,
-    };
-    int32_t request1_1_len = sizeof(request1_1);
-
-    /* com<CR><LF> */
-    uint8_t request1_2[] = {
-        0x0a,
-    };
-    int32_t request1_2_len = sizeof(request1_2);
-
-    const char *request2_str = "EHLO boo.com";
-    /* EHLO boo.com<CR><LF> */
-    uint8_t request2[] = {
-        0x45, 0x48, 0x4c, 0x4f, 0x20, 0x62, 0x6f, 0x6f,
-        0x2e, 0x63, 0x6f, 0x6d, 0x0d, 0x0a,
-    };
-    int32_t request2_len = sizeof(request2);
-
-    TcpSession ssn;
-    AppLayerParserThreadCtx *alp_tctx = AppLayerParserThreadCtxAlloc();
-
-    memset(&f, 0, sizeof(f));
-    memset(&ssn, 0, sizeof(ssn));
-
-    FLOW_INITIALIZE(&f);
-    f.protoctx = (void *)&ssn;
-    f.proto = IPPROTO_TCP;
-    f.alproto = ALPROTO_SMTP;
-
-    StreamTcpInitConfig(TRUE);
-    SMTPTestInitConfig();
-
-    FLOWLOCK_WRLOCK(&f);
-    r = AppLayerParserParse(NULL, alp_tctx, &f, ALPROTO_SMTP,
-                            STREAM_TOSERVER, request1_1, request1_1_len);
-    if (r != 0) {
-        printf("smtp check returned %" PRId32 ", expected 0: ", r);
-        FLOWLOCK_UNLOCK(&f);
-        goto end;
-    }
-    FLOWLOCK_UNLOCK(&f);
-    SMTPState *smtp_state = f.alstate;
-    if (smtp_state == NULL) {
-        printf("no smtp state: ");
-        goto end;
-    }
-    if (smtp_state->current_line != NULL ||
-        smtp_state->current_line_len != 0 ||
-        smtp_state->ts_current_line_db != 1 ||
-        smtp_state->ts_db == NULL ||
-        smtp_state->ts_db_len != request1_1_len ||
-        memcmp(smtp_state->ts_db, request1_1, request1_1_len) != 0) {
-        printf("smtp parser in inconsistent state\n");
-        goto end;
-    }
-
-    FLOWLOCK_WRLOCK(&f);
-    r = AppLayerParserParse(NULL, alp_tctx, &f, ALPROTO_SMTP,
-                            STREAM_TOSERVER, request1_2, request1_2_len);
-    if (r != 0) {
-        printf("smtp check returned %" PRId32 ", expected 0: ", r);
-        FLOWLOCK_UNLOCK(&f);
-        goto end;
-    }
-    FLOWLOCK_UNLOCK(&f);
-    if (smtp_state->ts_current_line_db != 1 ||
-        smtp_state->ts_db == NULL ||
-        smtp_state->ts_db_len != (int32_t)strlen(request1_str) ||
-        memcmp(smtp_state->ts_db, request1_str, strlen(request1_str)) != 0 ||
-        smtp_state->current_line != smtp_state->ts_db ||
-        smtp_state->current_line_len != smtp_state->ts_db_len) {
-        printf("smtp parser in inconsistent state\n");
-        goto end;
-    }
-
-    FLOWLOCK_WRLOCK(&f);
-    r = AppLayerParserParse(NULL, alp_tctx, &f, ALPROTO_SMTP,
-                            STREAM_TOSERVER, request2, request2_len);
-    if (r != 0) {
-        printf("smtp check returned %" PRId32 ", expected 0: ", r);
-        FLOWLOCK_UNLOCK(&f);
-        goto end;
-    }
-    FLOWLOCK_UNLOCK(&f);
-    if (smtp_state->ts_current_line_db != 0 ||
-        smtp_state->ts_db != NULL ||
-        smtp_state->ts_db_len != 0 ||
-        smtp_state->current_line == NULL ||
-        smtp_state->current_line_len != (int32_t)strlen(request2_str) ||
-        memcmp(smtp_state->current_line, request2_str, strlen(request2_str)) != 0) {
-        printf("smtp parser in inconsistent state\n");
-        goto end;
-    }
-
-    result = 1;
-end:
-    if (alp_tctx != NULL)
-        AppLayerParserThreadCtxFree(alp_tctx);
-    StreamTcpFreeConfig(TRUE);
-    FLOW_DESTROY(&f);
-    return result;
-}
-
-/*
- * \test Test retrieving lines when frag'ed.
- */
-static int SMTPParserTest11(void)
-{
-    int result = 0;
-    Flow f;
-    int r = 0;
-
-    const char *request1_str = "";
-    /* EHLO boo. */
-    uint8_t request1[] = {
-        0x0a,
-    };
-    int32_t request1_len = sizeof(request1);
-
-    const char *request2_str = "EHLO boo.com";
-    /* EHLO boo.com<CR><LF> */
-    uint8_t request2[] = {
-        0x45, 0x48, 0x4c, 0x4f, 0x20, 0x62, 0x6f, 0x6f,
-        0x2e, 0x63, 0x6f, 0x6d, 0x0d, 0x0a,
-    };
-    int32_t request2_len = sizeof(request2);
-
-    TcpSession ssn;
-    AppLayerParserThreadCtx *alp_tctx = AppLayerParserThreadCtxAlloc();
-
-    memset(&f, 0, sizeof(f));
-    memset(&ssn, 0, sizeof(ssn));
-
-    FLOW_INITIALIZE(&f);
-    f.protoctx = (void *)&ssn;
-    f.proto = IPPROTO_TCP;
-    f.alproto = ALPROTO_SMTP;
-
-    StreamTcpInitConfig(TRUE);
-    SMTPTestInitConfig();
-
-    FLOWLOCK_WRLOCK(&f);
-    r = AppLayerParserParse(NULL, alp_tctx, &f, ALPROTO_SMTP,
-                            STREAM_TOSERVER, request1, request1_len);
-    if (r != 0) {
-        printf("smtp check returned %" PRId32 ", expected 0: ", r);
-        FLOWLOCK_UNLOCK(&f);
-        goto end;
-    }
-    FLOWLOCK_UNLOCK(&f);
-    SMTPState *smtp_state = f.alstate;
-    if (smtp_state == NULL) {
-        printf("no smtp state: ");
-        goto end;
-    }
-    if (smtp_state->current_line == NULL ||
-        smtp_state->current_line_len != 0 ||
-        smtp_state->ts_current_line_db == 1 ||
-        smtp_state->ts_db != NULL ||
-        smtp_state->ts_db_len != 0 ||
-        memcmp(smtp_state->current_line, request1_str, strlen(request1_str)) != 0) {
-        printf("smtp parser in inconsistent state\n");
-        goto end;
-    }
-
-    FLOWLOCK_WRLOCK(&f);
-    r = AppLayerParserParse(NULL, alp_tctx, &f, ALPROTO_SMTP,
-                            STREAM_TOSERVER, request2, request2_len);
-    if (r != 0) {
-        printf("smtp check returned %" PRId32 ", expected 0: ", r);
-        FLOWLOCK_UNLOCK(&f);
-        goto end;
-    }
-    FLOWLOCK_UNLOCK(&f);
-    if (smtp_state->ts_current_line_db != 0 ||
-        smtp_state->ts_db != NULL ||
-        smtp_state->ts_db_len != 0 ||
-        smtp_state->current_line == NULL ||
-        smtp_state->current_line_len != (int32_t)strlen(request2_str) ||
-        memcmp(smtp_state->current_line, request2_str, strlen(request2_str)) != 0) {
-        printf("smtp parser in inconsistent state\n");
-        goto end;
-    }
-
-    result = 1;
-end:
-    if (alp_tctx != NULL)
-        AppLayerParserThreadCtxFree(alp_tctx);
-    StreamTcpFreeConfig(TRUE);
-    FLOW_DESTROY(&f);
-    return result;
-}
-
 static int SMTPParserTest12(void)
 {
     int result = 0;
@@ -5323,11 +4674,6 @@ void SMTPParserRegisterTests(void)
     UtRegisterTest("SMTPParserTest04", SMTPParserTest04);
     UtRegisterTest("SMTPParserTest05", SMTPParserTest05);
     UtRegisterTest("SMTPParserTest06", SMTPParserTest06);
-    UtRegisterTest("SMTPParserTest07", SMTPParserTest07);
-    UtRegisterTest("SMTPParserTest08", SMTPParserTest08);
-    UtRegisterTest("SMTPParserTest09", SMTPParserTest09);
-    UtRegisterTest("SMTPParserTest10", SMTPParserTest10);
-    UtRegisterTest("SMTPParserTest11", SMTPParserTest11);
     UtRegisterTest("SMTPParserTest12", SMTPParserTest12);
     UtRegisterTest("SMTPParserTest13", SMTPParserTest13);
     UtRegisterTest("SMTPParserTest14", SMTPParserTest14);

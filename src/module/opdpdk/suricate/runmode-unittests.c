@@ -1,4 +1,4 @@
-/* Copyright (C) 2013 Open Information Security Foundation
+/* Copyright (C) 2013-2022 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -177,6 +177,7 @@ static void RegisterUnittests(void)
     ThreadMacrosRegisterTests();
     UtilSpmSearchRegistertests();
     UtilActionRegisterTests();
+    Base64RegisterTests();
     SCClassConfRegisterTests();
     SCThresholdConfRegisterTests();
     SCRConfRegisterTests();
@@ -195,6 +196,7 @@ static void RegisterUnittests(void)
     DetectAddressTests();
     DetectProtoTests();
     DetectPortTests();
+    DetectEngineAlertRegisterTests();
     SCAtomicRegisterTests();
     MemrchrRegisterTests();
     AppLayerUnittestsRegister();
@@ -207,6 +209,8 @@ static void RegisterUnittests(void)
 #ifdef WINDIVERT
     SourceWinDivertRegisterTests();
 #endif
+    SCProtoNameRegisterTests();
+    UtilCIDRTests();
 }
 #endif
 
@@ -242,10 +246,6 @@ void RunUnittests(int list_unittests, const char *regex_arg)
     /* hardcoded initialization code */
     SigTableSetup(); /* load the rule keywords */
     TmqhSetup();
-
-    CIDRInit();
-
-    SCProtoNameInit();
 
     TagInitCtx();
     SCReferenceConfInit();

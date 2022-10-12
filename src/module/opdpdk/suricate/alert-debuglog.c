@@ -20,7 +20,12 @@
  *
  * \author Victor Julien <victor@inliniac.net>
  */
-
+# include <sys/types.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include "suricata-common.h"
 #include "suricata.h"
 

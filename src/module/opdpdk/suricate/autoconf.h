@@ -23,10 +23,10 @@
 #define CLS 64
 
 /* Our CONFIG_DIR */
-#define CONFIG_DIR "/home/isir/developer/tmp/suricata-6.0.4/install/etc/suricata/"
+#define CONFIG_DIR "/usr/local/etc/suricata/"
 
 /* Our DATA_DIR */
-#define DATA_DIR "/home/isir/developer/tmp/suricata-6.0.4/install/var/lib/suricata/data"
+#define DATA_DIR "/usr/local/var/lib/suricata/data"
 
 /* Enable debug output */
 /* #undef DEBUG */
@@ -51,6 +51,9 @@
 
 /* Define to 1 if you have the `atexit' function. */
 #define HAVE_ATEXIT 1
+
+/* Define to 1 if you have the `bpf_program__section_name' function. */
+/* #undef HAVE_BPF_PROGRAM__SECTION_NAME */
 
 /* Define to 1 if you have the `clock_gettime' function. */
 #define HAVE_CLOCK_GETTIME 1
@@ -169,7 +172,7 @@
 /* #undef HAVE_LIBBPF */
 
 /* Libpcap-ng support */
-#define HAVE_LIBCAP_NG 1
+/* #undef HAVE_LIBCAP_NG */
 
 /* Define to 1 if you have the `dag' library (-ldag). */
 /* #undef HAVE_LIBDAG */
@@ -208,10 +211,10 @@
 /* #undef HAVE_LIBLUAJIT_5_1 */
 
 /* Define to 1 if you have the `lz4' library (-llz4). */
-#define HAVE_LIBLZ4 1
+/* #undef HAVE_LIBLZ4 */
 
 /* Define to 1 if you have the `magic' library (-lmagic). */
-#define HAVE_LIBMAGIC 1
+/* #undef HAVE_LIBMAGIC */
 
 /* Define to 1 if you have the `maxminddb' library (-lmaxminddb). */
 /* #undef HAVE_LIBMAXMINDDB */
@@ -252,6 +255,9 @@
 
 /* Define to 1 if you have the `pthread' library (-lpthread). */
 #define HAVE_LIBPTHREAD 1
+
+/* Define to 1 if you have the `unwind' library (-lunwind). */
+/* #undef HAVE_LIBUNWIND */
 
 /* Define to 1 if you have the `WinDivert' library (-lWinDivert). */
 /* #undef HAVE_LIBWINDIVERT */
@@ -299,7 +305,7 @@
 /* #undef HAVE_MACH_MACH_H */
 
 /* (Libmagic for file handling) */
-#define HAVE_MAGIC 1
+/* #undef HAVE_MAGIC */
 
 /* Define to 1 if your system has a GNU libc compatible `malloc' function, and
    to 0 otherwise. */
@@ -366,10 +372,10 @@
 /* #undef HAVE_NON_POSIX_MKDIR */
 
 /* libnspr available */
-#define HAVE_NSPR 1
+/* #undef HAVE_NSPR */
 
 /* libnss available */
-#define HAVE_NSS 1
+/* #undef HAVE_NSS */
 
 /* Recent ebpf fanout support is available */
 /* #undef HAVE_PACKET_EBPF */
@@ -406,6 +412,9 @@
 
 /* Define to 1 if you have the <poll.h> header file. */
 #define HAVE_POLL_H 1
+
+/* Define to 1 if you have the `pthread_getattr_np' function. */
+/* #undef HAVE_PTHREAD_GETATTR_NP */
 
 /* Define to 1 if you have the `pthread_spin_unlock' function. */
 #define HAVE_PTHREAD_SPIN_UNLOCK 1
@@ -651,7 +660,7 @@
 #define PACKAGE_NAME "suricata"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "suricata 6.0.4"
+#define PACKAGE_STRING "suricata 6.0.8"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "suricata"
@@ -660,7 +669,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "6.0.4"
+#define PACKAGE_VERSION "6.0.8"
 
 /* Pcre with JIT compiler support enabled */
 #define PCRE_HAVE_JIT 1
@@ -702,7 +711,7 @@
 /* #undef UNITTESTS */
 
 /* Version number of package */
-#define VERSION "6.0.4"
+#define VERSION "6.0.8"
 
 /* Enable Windows WinDivert support for inline IDP */
 /* #undef WINDIVERT */
